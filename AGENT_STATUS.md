@@ -36,6 +36,9 @@
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 - Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
 - Versioned interoperability boundary documentation and fail-closed strict conformance validation for published vectors.
+- Published protocol-v1 conformance vector is now consumable as standalone JSON data under `conformance/v1/`.
+- Added dependency-free independent conformance consumer under `tools/`, deliberately avoiding `fs_overlay` imports.
+- CI now executes the independent consumer on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix before the internal pytest suite.
 
 ## Safety boundaries
 
@@ -54,7 +57,9 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - Run #233 also showed the suite reached 186 passed / 3 skipped with only that test failing on the then-current commit; the failure was test synchronization, not the coordinator implementation.
 - GitHub Actions CI run #242 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
 - GitHub Actions CI run #244 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The validated matrix includes the cross-process coordinator and crash-release regression coverage.
+- GitHub Actions CI run #248 completed successfully after strict conformance regression coverage.
+- GitHub Actions CI run #249 completed successfully after the interoperability boundary documentation update.
+- The latest conformance-consumer changes are committed and awaiting the next CI run; they are not yet claimed green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -64,8 +69,8 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-- Transactional backend requirements are documented in `docs/DURABLE_ADMISSION.md`, including commit, failure, recovery, ordering, durability, concurrency, clock, compaction and audit semantics.
-- Interoperability requirements are documented in `docs/INTEROPERABILITY.md`, including independent vector consumption, negative cases, versioning and production qualification boundaries.
-- Next engineering gate: independent interoperability vectors and production-adapter validation against an authoritative backend.
+- Validate the new standalone protocol-v1 vector consumer across the CI matrix.
+- Expand the published vector set with negative/admission cases only when their expected wire/semantic results can be specified independently of the reference implementation.
+- Build adapter-specific conformance tests for authoritative production backends without faking security guarantees in the reference layer.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
 - Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
