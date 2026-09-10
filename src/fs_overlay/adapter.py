@@ -21,6 +21,8 @@ class ProcessResult:
     stdout: str
     stderr: str
     timed_out: bool = False
+    backend: str = "native-process"
+    execution_evidence: tuple[str, ...] = ()
 
 
 class NativeProcessAdapter:
