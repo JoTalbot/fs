@@ -6,7 +6,6 @@ turns an unavailable mechanism into an optimistic capability claim.
 from __future__ import annotations
 
 from dataclasses import dataclass
-import os
 import platform
 
 from .windows_job import WindowsJobObjectBackend
@@ -24,7 +23,7 @@ class BackendCapabilities:
 
 def negotiate_backend_capabilities() -> BackendCapabilities:
     system = platform.system().lower()
-    if os.name == "nt":
+    if system == "windows":
         backend = WindowsJobObjectBackend()
         return BackendCapabilities(system, backend.name, ("cpu_millis", "memory_bytes", "pids"), (), ())
     if system == "linux":
