@@ -6,16 +6,16 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `4d8135425f6f788bae1e0b0c1b8988728b01cdb2`
+- Latest implementation batch: durable federation state, audited reconciliation, failure-domain-aware replica policy, and adapter contracts.
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Federation admission + deterministic reconciliation + transport-neutral protocol + verified replication + self-healing planning**
+**Durable federation state + audited reconciliation + deterministic failure-domain-aware placement**
 
-The repository now has a concrete local content-addressed storage spine, transactional visibility, immutable snapshots, deterministic recovery planning, semantic state primitives, and an explicit federation boundary for trusted node observations, replay-safe message semantics, verified replica execution, and deterministic repair planning.
+The repository now has a concrete local content-addressed storage spine, transactional visibility, immutable snapshots, deterministic recovery planning, semantic state primitives, and an explicit federation boundary for trusted node observations, replay-safe message semantics, durable acceptance state, verified replica execution, self-healing planning, and auditable reconciliation.
 
-## Completed in the current batch
+## Completed
 
 - Added explicit `NodeIdentity` with provisioned public-key fingerprint.
 - Added `TrustStore` with explicit allowlist, expiry and revocation.
@@ -28,15 +28,19 @@ The repository now has a concrete local content-addressed storage spine, transac
 - Added `ReplayGuard` for duplicate IDs, stale/future timestamps and non-increasing sender sequences.
 - Added `ReplicaExecutor` with source hash verification and post-copy target verification through an injected adapter.
 - Added `SelfHealingPlanner` that produces repair actions only from explicit trusted, healthy observations.
-- Added focused regression tests for federation protocol, replication and self-healing behavior.
-- Kept reconciliation and self-healing as planning/execution boundaries; no implicit sockets, peer discovery or host mutation.
+- Added `DurableFederationState` backed by the existing append-only `EventLog`, reconstructing accepted message IDs and sender sequence high-water marks after restart.
+- Added `FederationAuditTrail` for reconciliation decisions and replica execution results, including causal links.
+- Added deterministic `ReplicaPolicy` that prefers healthy candidates in distinct failure domains before filling remaining capacity.
+- Added dependency-injection contracts for federation transport, signing and key providers.
+- Added focused regression tests for protocol, replication, self-healing, durable state, audit trail and adapter contracts.
+- Kept reconciliation and self-healing as planning/execution boundaries; no implicit peer discovery or host mutation.
+- Kept network transport, cryptography and distributed consensus outside the reference implementation boundary.
 - Added `MinimalBootstrap` that creates only an explicitly selected FS root and atomic node configuration.
-- Updated federation documentation to distinguish implemented protocol primitives from future transport/key-management/production adapters.
 
 ## Validation
 
-- GitHub Actions CI run `#163` completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13 after the reconciler fix.
-- The newest federation regression-test batch has triggered CI run `#167`; its final result must be observed before calling the newest head green.
+- GitHub Actions CI runs #163, #167 and #169 completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
+- Current batch is still under CI validation; the newest run must finish before the latest head is called green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from reference primitives.
 
@@ -45,6 +49,7 @@ The repository now has a concrete local content-addressed storage spine, transac
 - A fingerprint is an identity binding, not proof of possession; advertisement signatures require an external verifier and real key-management implementation.
 - Discovery does not grant authority.
 - Federation envelopes provide protocol semantics and replay protection, not a network transport.
+- Durable replay state is journal-backed single-process reference state; production deployments still need compaction, concurrency coordination and durable storage policy.
 - Reconciliation produces decisions; an authorized executor performs and verifies them.
 - Placement does not grant permission to mutate a carrier.
 - Snapshots catalog immutable object identities; they do not duplicate object bytes.
@@ -54,4 +59,4 @@ The repository now has a concrete local content-addressed storage spine, transac
 
 ## Next safe step
 
-After CI #167 is green, integrate durable/audited federation state with the existing journal/event model, then add failure-domain-aware replica policy and transport/key-management adapter contracts. Keep network transport, cryptography and distributed consensus separately auditable.
+After the current CI is green, add interoperability/conformance vectors for federation envelopes and policy decisions, then build the minimal initiator around explicit configuration and injected transport/signing providers. Keep production cryptography, external networking, key rotation and distributed consensus separately auditable.
