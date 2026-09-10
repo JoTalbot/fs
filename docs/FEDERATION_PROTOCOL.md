@@ -53,7 +53,21 @@ Those responsibilities remain outside the execution boundary.
 
 ## Self-healing
 
-`SelfHealingPlanner` converts explicit observations into deterministic replica actions. A plan is not execution. Invalid, missing, or untrusted observations cannot become a repair source.
+`SelfHealingPlanner` converts explicit observations into deterministic replica actions. It considers only trusted nodes, requires a healthy verified source, selects the source deterministically, and limits targets to healthy missing replicas. A plan is not execution. Invalid, missing, or untrusted observations cannot become a repair source.
+
+## Regression coverage
+
+Focused tests cover:
+
+- signed envelope acceptance and duplicate replay rejection;
+- sender sequence rollback rejection;
+- stale and future timestamp rejection;
+- invalid signature rejection;
+- source integrity failure without a write;
+- target corruption detected after copy;
+- deterministic trusted-source and target selection;
+- exclusion of unhealthy/untrusted repair participants;
+- no repair when the desired replica count is already satisfied.
 
 ## Minimal initiator
 
