@@ -7,7 +7,7 @@ policy. Deployments must supply audited implementations.
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 
 class SecureKeyStore(Protocol):
@@ -54,6 +54,7 @@ class KeyAdmission(Protocol):
     def can_verify(self, node_id: str, key_id: str) -> bool: ...
 
 
+@runtime_checkable
 class DurableAdmissionCoordinator(Protocol):
     """Cross-process serialization boundary for durable admission state.
 
