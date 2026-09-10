@@ -116,10 +116,26 @@ def test_workspace_boundary_commits_with_exact_backend_evidence():
         return ProcessResult(
             "succeeded", 0, "ok", "",
             backend="bubblewrap-workspace",
-            execution_evidence=("workspace:boundary-observed",),
+            execution_evidence=("workspace-filesystem-boundary-observed",),
         )
 
     result = TransactionExecutor().execute("tx-7", plan, ("true",), executor)
     assert result.state == "committed"
     assert result.verification is not None
     assert [item.check_id for item in result.verification.evidence] == ["workspace:boundary"]
+
+
+def test_network_namespace_uses_exact_bubblewrap_execution_evidence():
+    plan = admitted_plan(network_guarantees=("network-namespace",))
+
+    def executor(**kwargs):
+        return ProcessResult(
+            "succeeded", 0, "ok", "",
+            backend="bubblewrap-workspace",
+            execution_evidence=("network-namespace-observed",),
+        )
+
+    result = TransactionExecutor().execute("tx-8", plan, ("true",), executor)
+    assert result.state == "committed"
+    assert result.verification is not None
+    assert [item.check_id for item in result.verification.evidence] == ["namespace:net"]
