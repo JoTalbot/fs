@@ -40,8 +40,14 @@ def test_framed_localhost_request() -> None:
     assert response == {"ok": True}
 
 
-def test_native_adapter_uses_argv_without_shell() -> None:
+def test_native_adapter_requires_admission() -> None:
     adapter = NativeProcessAdapter()
     result = adapter.execute(("python", "-c", "print('fs-ok')"))
+    assert result.status == "rejected"
+
+
+def test_native_adapter_uses_argv_without_shell() -> None:
+    adapter = NativeProcessAdapter()
+    result = adapter.execute(("python", "-c", "print('fs-ok')"), admitted=True)
     assert result.status == "succeeded"
     assert "fs-ok" in result.stdout
