@@ -1,7 +1,7 @@
 """Failure-domain aware storage resilience primitives.
 
-The module is deliberately dependency-free. It plans and records recovery; it does
-not silently mutate arbitrary host storage or pretend that planning is execution.
+The module is dependency-free. It plans and records recovery; it does not silently
+mutate arbitrary host storage or pretend that planning is execution.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable
 
-from .storage_engine import Manifest, MerkleDAG, _canonical
+from .storage_engine import MerkleDAG, _canonical
 
 
 @dataclass(frozen=True)
@@ -28,16 +28,26 @@ class Snapshot:
     metadata: dict[str, str] | None = None
 
     def unsigned(self) -> dict[str, object]:
-        return {
-            "generation": self.generation,
-            "objects": self.objects,
-            "merkle_root": self.merkle_root,
-            "created_ns": self.created_ns,
-            "metadata": self.metadata,
-        }
+        return {"generation": self.generation, "objects": self.objects,
+                "merkle_root": self.merkle_root, "created_ns": self.created_ns,
+                "metadata": self.metadata}
 
     def identity(self) -> str:
         return hashlib.sha256(_canonical(self.unsigned())).hexdigest()
+
+    def to_bytes(self) -> bytes:
+        return _canonical(asdict(self))
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "Snapshot":
+        raw = json.loads(data)
+        snapshot = cls(str(raw["snapshot_id"]), int(raw["generation"]), tuple(raw["objects"]),
+                       str(raw["merkle_root"]), int(raw["created_ns"]), raw.get("metadata"))
+        if snapshot.identity() != snapshot.snapshot_id:
+            raise ValueError("snapshot identity verification failed")
+        if MerkleDAG.root(snapshot.objects) != snapshot.merkle_root:
+            raise ValueError("snapshot Merkle root verification failed")
+        return snapshot
 
 
 class SnapshotStore:
@@ -47,10 +57,11 @@ class SnapshotStore:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def create(self, objects: Iterable[str], *, generation: int, metadata: dict[str, str] | None = None) -> Snapshot:
+    def create(self, objects: Iterable[str], *, generation: int,
+               metadata: dict[str, str] | None = None) -> Snapshot:
         ordered = tuple(sorted(set(objects)))
-        root = MerkleDAG.root(ordered)
         now = time.time_ns()
+        root = MerkleDAG.root(ordered)
         unsigned = Snapshot("", generation, ordered, root, now, metadata)
         snapshot = Snapshot(unsigned.identity(), generation, ordered, root, now, metadata)
         self._write(snapshot)
@@ -59,13 +70,14 @@ class SnapshotStore:
     def _write(self, snapshot: Snapshot) -> None:
         target = self.root / snapshot.snapshot_id
         if target.exists():
-            if Snapshot.from_bytes(target.read_bytes()).identity() != snapshot.snapshot_id:
+            existing = Snapshot.from_bytes(target.read_bytes())
+            if existing.identity() != snapshot.snapshot_id:
                 raise IOError("snapshot collision or corruption")
             return
         fd, temporary = tempfile.mkstemp(prefix=".snapshot-", dir=self.root)
         try:
             with os.fdopen(fd, "wb") as handle:
-                handle.write(_canonical(asdict(snapshot)))
+                handle.write(snapshot.to_bytes())
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, target)
@@ -85,20 +97,6 @@ class SnapshotStore:
         return Snapshot.from_bytes((self.root / snapshot_id).read_bytes())
 
 
-# Bind parsing as a classmethod after the immutable representation is declared.
-def _snapshot_from_bytes(cls, data: bytes) -> Snapshot:
-    raw = json.loads(data)
-    snapshot = cls(str(raw["snapshot_id"]), int(raw["generation"]), tuple(raw["objects"]),
-                   str(raw["merkle_root"]), int(raw["created_ns"]), raw.get("metadata"))
-    if snapshot.identity() != snapshot.snapshot_id:
-        raise ValueError("snapshot identity verification failed")
-    if MerkleDAG.root(snapshot.objects) != snapshot.merkle_root:
-        raise ValueError("snapshot Merkle root verification failed")
-    return snapshot
-
-Snapshot.from_bytes = classmethod(_snapshot_from_bytes)  # type: ignore[attr-defined]
-
-
 @dataclass(frozen=True)
 class RecoveryNode:
     node_id: str
@@ -113,13 +111,20 @@ class RecoveryGraph:
 
     def __init__(self, nodes: Iterable[RecoveryNode] = ()):
         self.nodes = {node.node_id: node for node in nodes}
+        self._validate_dependencies()
+
+    def _validate_dependencies(self) -> None:
+        for node in self.nodes.values():
+            for dependency in node.dependencies:
+                if dependency not in self.nodes:
+                    raise ValueError(f"unknown recovery dependency: {dependency}")
 
     def add(self, node: RecoveryNode) -> None:
         if node.node_id in self.nodes:
             raise ValueError("duplicate recovery node")
-        missing = [dep for dep in node.dependencies if dep not in self.nodes]
-        if missing:
-            raise ValueError(f"unknown recovery dependency: {missing[0]}")
+        for dependency in node.dependencies:
+            if dependency not in self.nodes:
+                raise ValueError(f"unknown recovery dependency: {dependency}")
         self.nodes[node.node_id] = node
 
     def order(self) -> tuple[str, ...]:
@@ -160,7 +165,7 @@ class CarrierState:
 
 
 class PlacementPlanner:
-    """Score approved carriers while explicitly penalizing failure-domain concentration."""
+    """Rank approved carriers with explicit capacity and failure-domain signals."""
 
     def rank(self, carriers: Iterable[CarrierState], *, required_bytes: int = 0,
              excluded_domains: Iterable[str] = ()) -> tuple[CarrierState, ...]:
@@ -190,9 +195,10 @@ class QuarantineLedger:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def quarantine(self, carrier_id: str, *, reason: str, observed_hash: str | None = None,
-                   expected_hash: str | None = None) -> QuarantineRecord:
-        record = QuarantineRecord(carrier_id, reason, observed_hash, expected_hash, time.time_ns(), uuid.uuid4().hex)
+    def quarantine(self, carrier_id: str, *, reason: str,
+                   observed_hash: str | None = None, expected_hash: str | None = None) -> QuarantineRecord:
+        record = QuarantineRecord(carrier_id, reason, observed_hash, expected_hash,
+                                  time.time_ns(), uuid.uuid4().hex)
         encoded = _canonical(asdict(record))
         with self.path.open("ab") as handle:
             handle.write(f"{len(encoded):016x}".encode() + encoded + b"\n")
@@ -213,18 +219,24 @@ class QuarantineLedger:
                     if len(body) != size:
                         continue
                     raw = json.loads(body)
-                    result.append(QuarantineRecord(str(raw["carrier_id"]), str(raw["reason"]), raw.get("observed_hash"),
-                                                   raw.get("expected_hash"), int(raw["timestamp_ns"]), str(raw["record_id"])))
+                    result.append(QuarantineRecord(str(raw["carrier_id"]), str(raw["reason"]),
+                                                   raw.get("observed_hash"), raw.get("expected_hash"),
+                                                   int(raw["timestamp_ns"]), str(raw["record_id"])))
                 except (ValueError, json.JSONDecodeError, KeyError, TypeError):
                     continue
         return tuple(result)
 
 
-def recovery_state(valid_shards: int, data_shards: int, *, repairing: bool = False) -> str:
+def recovery_state(valid_shards: int, data_shards: int, *, total_shards: int | None = None,
+                   repairing: bool = False) -> str:
     if valid_shards < 0 or data_shards <= 0:
         raise ValueError("invalid shard counts")
+    if total_shards is not None and (total_shards < data_shards or valid_shards > total_shards):
+        raise ValueError("invalid total shard count")
     if valid_shards < data_shards:
         return "UNRECOVERABLE"
     if repairing:
         return "REPAIRING"
-    return "HEALTHY" if valid_shards >= data_shards else "DEGRADED"
+    if total_shards is not None and valid_shards < total_shards:
+        return "DEGRADED"
+    return "HEALTHY"
