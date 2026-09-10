@@ -6,6 +6,7 @@ policy. Deployments must supply audited implementations.
 """
 from __future__ import annotations
 
+from contextlib import AbstractContextManager
 from typing import Protocol
 
 
@@ -51,3 +52,15 @@ class KeyAdmission(Protocol):
     def can_sign(self, node_id: str, key_id: str) -> bool: ...
 
     def can_verify(self, node_id: str, key_id: str) -> bool: ...
+
+
+class DurableAdmissionCoordinator(Protocol):
+    """Cross-process serialization boundary for durable admission state.
+
+    Implementations must provide a real inter-process or transactional
+    primitive. The reference ``DurableFederationState`` only serializes
+    threads within one process and must not be treated as an implementation
+    of this contract.
+    """
+
+    def acquire(self, resource_id: str) -> AbstractContextManager[None]: ...
