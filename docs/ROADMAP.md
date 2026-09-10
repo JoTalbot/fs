@@ -102,6 +102,7 @@
 
 ## Phase 2 - cross-platform runtime
 
+- [x] Linux isolation backend planning
 - [ ] Linux adapter
 - [ ] Windows adapter
 - [ ] macOS adapter
@@ -110,7 +111,7 @@
 - [ ] native service installers where appropriate
 - [ ] local IPC control API
 - [ ] structured JSON logs
-- [ ] capability discovery
+- [x] conservative local capability discovery
 - [ ] capability negotiation
 - [ ] versioned backend contracts
 - [ ] hardware abstraction adapter
@@ -119,10 +120,10 @@
 - [ ] monotonic/logical time adapter
 - [ ] semantic ABI adapters
 - [ ] semantic verification adapters
-- [ ] FS-IR backend lowering
+- [x] FS-IR backend lowering
 - [ ] Genesis bootstrap executable
 - [ ] local node identity store
-- [ ] platform capability adapters
+- [x] platform capability adapter baseline
 
 ## Phase 3 - managed workspaces
 
@@ -155,6 +156,7 @@
 - [ ] capability-based filesystem access
 - [ ] workload lifecycle API
 - [ ] resource reservations
+- [x] resource lease planning contract
 - [ ] resource leases
 - [ ] workload priorities
 - [ ] data-locality-aware placement
@@ -450,14 +452,6 @@
 59. Recursive control loops inherit constraints and cannot expand authority.
 60. Every executable transition has explicit preconditions, effects and postconditions.
 61. A plan is an intermediate artifact, not reality or authority.
-62. Backend lowering must preserve declared observable semantics or fail explicitly.
-63. Retried operations must declare idempotency semantics.
-64. State-changing events require the applicable verification boundary before becoming authoritative state.
-65. Genesis bootstrap is an entry point, not the world itself.
-66. Federation membership does not imply access to private resources.
-67. A participant may consume, provide, or both, but each resource scope is independently admitted.
-68. Execution location and presentation location are distinct capabilities.
-69. Application mobility requires declared compatibility and migration semantics.
-70. Remote execution never implies unrestricted remote data access.
-71. A node may become part of the Resource Fabric without surrendering host functionality.
-72. The smallest resident component should expose only the minimum trusted bootstrap boundary; heavy functionality remains replaceable modules.
+62. Backend availability is not equivalent to enforcement capability.
+63. Resource budgets require explicit ownership/delegation before enforcement.
+64. A valid resource lease does not by itself prove that native limits are enforced.
