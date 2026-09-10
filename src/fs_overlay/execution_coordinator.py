@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .isolation import BubblewrapWorkspaceBackend
 from .model import EnvironmentSpec
 from .mount_namespace import MountNamespacePlan, plan_mount_namespace
 from .network_namespace import NetworkNamespacePlan, plan_network_namespace
@@ -41,15 +42,24 @@ def plan_execution_boundaries(
         workspace_plan = plan_workspace(workspace)
 
     if spec.policy.filesystem == "workspace-only":
-        mount_plan = plan_mount_namespace(workspace or WorkspaceBinding("", ""))
-        reasons = list(mount_plan.reasons)
-        if workspace_plan.reasons:
-            reasons.extend(r for r in workspace_plan.reasons if r not in reasons)
-        # A mount namespace by itself does not establish a workspace-only
-        # filesystem. Until a backend performs and verifies the actual
-        # workspace binding, admission must fail closed.
-        if workspace_plan.admitted and "workspace_isolation_not_enforced" not in reasons:
-            reasons.append("workspace_isolation_not_enforced")
+        workspace_backend = BubblewrapWorkspaceBackend()
+        backend_plan = workspace_backend.plan(
+            workspace_plan.binding.host_path if workspace_plan.admitted else None,
+            network=spec.policy.network,
+        )
+        reasons = list(workspace_plan.reasons)
+        if not backend_plan.available:
+            reasons.append(f"workspace_backend_unavailable:{backend_plan.reason}")
+        mount_plan = MountNamespacePlan(
+            available=backend_plan.available,
+            admitted=backend_plan.available and workspace_plan.admitted,
+            backend=backend_plan.backend,
+            argv_prefix=backend_plan.argv_prefix,
+            workspace_path=workspace_plan.binding.host_path if workspace_plan.admitted else None,
+            read_only=workspace_plan.binding.read_only,
+            guarantees=(),
+            reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
+        )
     elif spec.policy.filesystem == "host":
         mount_plan = MountNamespacePlan(True, True, guarantees=("filesystem-host",))
         reasons = []
