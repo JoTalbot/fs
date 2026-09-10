@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `03cbccd0ac93c56ee9c9fddc49b3d0d802e89385`
+- Latest implementation commit: `67e8a8bd98460bdf828e9e07aaf5e4c32c2be642`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -19,7 +19,7 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | cross-platform execution | FreeBSD Capsicum native validation path, platform CI | `03cbccd0ac93c56ee9c9fddc49b3d0d802e89385` | validation batch complete; 9-way CI green | Validate the native FreeBSD child-process test on a real FreeBSD host; do not claim that result until observed |
+| current-agent | ChatGPT | cross-platform execution | status/log handoff | `67e8a8bd98460bdf828e9e07aaf5e4c32c2be642` | validation batch complete; 9-way CI green | Obtain actual FreeBSD-host execution evidence for the native child-process test; do not claim it until observed |
 
 ## Completed in this batch
 
@@ -42,7 +42,8 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 ## Validation
 
 - CI #119 `34450652381`: PASS, Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13, and macOS 3.11/3.12/3.13.
-- macOS validation is now green on all three supported Python versions.
+- CI #120 `34451098521`: PASS, Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13, and macOS 3.11/3.12/3.13.
+- macOS validation is green on all three supported Python versions.
 - No FreeBSD native kernel result is claimed yet; GitHub-hosted runner coverage does not include a standard FreeBSD label, so the native test is gated to a real FreeBSD host.
 
 ## Safety constraints
