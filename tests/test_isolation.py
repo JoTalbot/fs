@@ -44,12 +44,30 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
     monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
-    plan = backend.plan(str(tmp_path))
+    plan = backend.plan(str(tmp_path), network="deny")
     assert plan.available
     assert "workspace-filesystem-boundary" in plan.guarantees
-    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
+    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="deny")
+    assert "--unshare-net" in wrapped
     assert wrapped[-2:] == ("--", "/bin/true")
     assert "/workspace" in wrapped
+
+
+def test_bubblewrap_host_network_does_not_add_network_namespace(tmp_path, monkeypatch):
+    backend = BubblewrapWorkspaceBackend()
+    monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
+    monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
+    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="host")
+    assert "--unshare-net" not in wrapped
+    assert wrapped[-2:] == ("--", "/bin/true")
+
+
+def test_bubblewrap_rejects_unknown_network_policy(tmp_path, monkeypatch):
+    backend = BubblewrapWorkspaceBackend()
+    monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
+    monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
+    with pytest.raises(RuntimeError, match="unsupported network policy"):
+        backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="proxy")
 
 
 def test_windows_backend_never_claims_implemented_binding():
