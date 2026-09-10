@@ -42,7 +42,7 @@ The reference implementation does not silently scan or modify the host, discover
 
 The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply an explicit `DurableAdmissionCoordinator` or equivalent file-locking/transactional backend.
 
-`FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and must be validated by the CI matrix.
+`FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and validated by the CI matrix.
 
 Coordinated writers refresh durable admission indexes and journal sequence/hash state after acquiring the lock. This closes the stale-reader gap without claiming cross-store ACID atomicity.
 
@@ -51,7 +51,8 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
 - Run #233 exposed a real synchronization flaw in the crash test: `multiprocessing.Queue` could lose its notification when the child called `os._exit()`. The test was corrected to use a process-shared `Event`.
 - Run #233 also showed the suite reached 186 passed / 3 skipped with only that test failing on the then-current commit; the failure was test synchronization, not the coordinator implementation.
-- The latest fix commit `6d0af807` has fresh CI run #241, currently queued across all 9 OS/Python matrix jobs and therefore is not declared green yet.
+- GitHub Actions CI run #242 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
+- The validated matrix includes the cross-process coordinator and crash-release regression coverage.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -61,4 +62,4 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-Validate run #241 across the full OS/Python matrix. If green, add an explicit coordinated multi-process federation admission integration test to the end-to-end suite and document transactional backend requirements without conflating locking with ACID atomicity. If the matrix exposes platform-specific locking differences, fix the adapter rather than weakening the regression gate.
+With the full OS/Python matrix green, the federation reference layer is ready for the next architectural phase: strengthen end-to-end coordinated admission coverage, define transactional-backend requirements without conflating locking with ACID atomicity, and prepare independent interoperability/production-adapter validation. Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
