@@ -12,16 +12,16 @@ import json
 from pathlib import Path
 
 REQUIRED = {
-    "changed-payload": ("signature", "invalid_signature"),
-    "changed-sender": ("signature", "invalid_signature"),
-    "changed-sequence": ("signature", "invalid_signature"),
+    "malformed-envelope": ("parse", "malformed_envelope"),
+    "unsupported-protocol": ("protocol", "unsupported_protocol_version"),
+    "negative-sequence": ("replay", "negative_sequence"),
+    "empty-message-id": ("replay", "empty_message_id"),
     "duplicate-message-id": ("replay", "duplicate_message_id"),
-    "sequence-rollback": ("replay", "non_increasing_sequence"),
+    "sequence-rollback": ("replay", "sequence_rollback"),
     "stale-timestamp": ("freshness", "stale_timestamp"),
     "future-timestamp": ("freshness", "future_timestamp"),
     "missing-signature": ("signature", "missing_signature"),
-    "unknown-or-revoked-key": ("trust", "untrusted_key"),
-    "fingerprint-mismatch": ("trust", "fingerprint_mismatch"),
+    "key-admission": ("trust", "key_admission_failure"),
 }
 
 
@@ -32,6 +32,11 @@ def main() -> int:
         data = json.loads(path.read_text(encoding="utf-8"))
         if data.get("protocol_version") != 1:
             raise ValueError("unsupported protocol version")
+        if data.get("vector_type") != "admission":
+            raise ValueError("vector_type must be admission")
+        vector_id = data.get("vector_id")
+        if not isinstance(vector_id, str) or not vector_id:
+            raise ValueError("missing vector_id")
         cases = data.get("cases")
         if not isinstance(cases, list):
             raise ValueError("cases must be a list")
