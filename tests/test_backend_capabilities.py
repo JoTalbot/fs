@@ -2,7 +2,6 @@ from fs_overlay.backend_capabilities import negotiate_backend_capabilities
 
 
 def test_linux_capabilities_are_conservative(monkeypatch):
-    monkeypatch.setattr("fs_overlay.backend_capabilities.os.name", "posix")
     monkeypatch.setattr("fs_overlay.backend_capabilities.platform.system", lambda: "Linux")
     caps = negotiate_backend_capabilities()
     assert caps.resource_backend == "linux-cgroup-v2"
@@ -11,7 +10,6 @@ def test_linux_capabilities_are_conservative(monkeypatch):
 
 
 def test_windows_capabilities_advertise_only_native_resources(monkeypatch):
-    monkeypatch.setattr("fs_overlay.backend_capabilities.os.name", "nt")
     monkeypatch.setattr("fs_overlay.backend_capabilities.platform.system", lambda: "Windows")
     caps = negotiate_backend_capabilities()
     assert caps.resource_backend == "windows-job-object"
@@ -20,7 +18,6 @@ def test_windows_capabilities_advertise_only_native_resources(monkeypatch):
 
 
 def test_macos_capabilities_fail_closed_without_signed_runtime(monkeypatch):
-    monkeypatch.setattr("fs_overlay.backend_capabilities.os.name", "posix")
     monkeypatch.setattr("fs_overlay.backend_capabilities.platform.system", lambda: "Darwin")
     caps = negotiate_backend_capabilities()
     assert caps.resource_backend is None
