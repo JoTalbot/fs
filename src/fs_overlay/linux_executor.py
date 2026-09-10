@@ -7,6 +7,7 @@ privileged namespace creation or silently enables a different backend.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 import subprocess
 from typing import Mapping
 
@@ -43,6 +44,7 @@ class LinuxNamespaceExecutor:
         timeout: float = 30.0,
         policy: LinuxExecutionPolicy | None = None,
         workspace_path: str | None = None,
+        workspace_read_only: bool = True,
     ) -> ProcessResult:
         if not admitted:
             return ProcessResult("rejected", None, "", "execution scope is not admitted")
@@ -64,6 +66,7 @@ class LinuxNamespaceExecutor:
                     argv,
                     workspace_path=workspace_path,
                     network=policy.network,
+                    read_only=workspace_read_only,
                 )
             except (RuntimeError, ValueError) as exc:
                 return ProcessResult("rejected", None, "", str(exc))
@@ -82,7 +85,6 @@ class LinuxNamespaceExecutor:
 
         env = None
         if environment is not None:
-            import os
             env = os.environ.copy()
             env.update(environment)
         try:
@@ -106,7 +108,9 @@ class LinuxNamespaceExecutor:
         status = "succeeded" if completed.returncode == 0 else "failed"
         if workspace_execution and completed.returncode not in self.workspace_backend.boundary_check_exit_codes:
             if completed.returncode == 0:
-                evidence = ("workspace:boundary-observed",)
+                evidence = ("workspace-filesystem-boundary-observed",)
+                if policy.network == "deny":
+                    evidence += ("network-namespace-observed",)
         elif workspace_execution and completed.returncode in self.workspace_backend.boundary_check_exit_codes:
             status = "failed"
             evidence = ()
