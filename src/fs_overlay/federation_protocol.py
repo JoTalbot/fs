@@ -1,11 +1,7 @@
-"""Transport-neutral federation envelopes with replay protection.
-
-This module defines protocol semantics only. It does not provide networking,
-cryptographic signing, or implicit peer discovery. Production deployments must
-inject an audited signer/verifier and a transport adapter.
-"""
+"""Transport-neutral federation envelopes with replay protection."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import time
@@ -44,6 +40,31 @@ class FederationEnvelope:
         if verifier is None or self.signature is None:
             return False
         return verifier(self.unsigned_bytes(), self.signature, self.sender_node)
+
+    def to_bytes(self) -> bytes:
+        value = {
+            "sender_node": self.sender_node,
+            "message_id": self.message_id,
+            "message_type": self.message_type,
+            "sequence": self.sequence,
+            "issued_ns": self.issued_ns,
+            "payload": self.payload,
+            "signature": base64.b64encode(self.signature).decode("ascii") if self.signature is not None else None,
+        }
+        return _canonical(value)
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> "FederationEnvelope":
+        value = json.loads(data.decode("utf-8"))
+        if not isinstance(value, dict):
+            raise ValueError("federation envelope must be an object")
+        signature = value.get("signature")
+        decoded = base64.b64decode(signature, validate=True) if isinstance(signature, str) else None
+        payload = value.get("payload")
+        if not isinstance(payload, dict):
+            raise ValueError("federation payload must be an object")
+        return cls(str(value["sender_node"]), str(value["message_id"]), str(value["message_type"]),
+                   int(value["sequence"]), int(value["issued_ns"]), payload, decoded)
 
 
 class ReplayGuard:
