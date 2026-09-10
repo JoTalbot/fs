@@ -9,13 +9,13 @@ from fs_overlay.workspace import WorkspaceBinding, WorkspacePlan
 from fs_overlay.model import ResourceBudget
 
 
-def admitted_plan(mount_guarantees=(), network_guarantees=()) -> ExecutionBoundaryPlan:
+def admitted_plan(mount_guarantees=(), network_guarantees=(), resource_guarantees=()):
     return ExecutionBoundaryPlan(
         True,
         WorkspacePlan(WorkspaceBinding("ws", "/tmp", True), True, None),
         MountNamespacePlan(True, True, guarantees=mount_guarantees),
         NetworkNamespacePlan(True, True, guarantees=network_guarantees),
-        ResourcePlan(ResourceBudget(), None, True),
+        ResourcePlan(ResourceBudget(), None, True, resource_guarantees),
     )
 
 
@@ -139,3 +139,32 @@ def test_network_namespace_uses_exact_bubblewrap_execution_evidence():
     assert result.state == "committed"
     assert result.verification is not None
     assert [item.check_id for item in result.verification.evidence] == ["namespace:net"]
+
+
+def test_resource_guarantee_requires_exact_supervisor_evidence():
+    plan = admitted_plan(resource_guarantees=("resource-controller",))
+
+    def executor(**kwargs):
+        return ProcessResult("succeeded", 0, "ok", "", backend="native-process")
+
+    result = TransactionExecutor().execute("tx-9", plan, ("true",), executor)
+    assert result.state == "verification_failed"
+    assert result.verification is not None
+    assert "resource_enforcement_not_observed" in result.verification.reasons
+
+
+def test_resource_guarantee_commits_with_exact_supervisor_evidence():
+    plan = admitted_plan(resource_guarantees=("resource-controller",))
+
+    def executor(**kwargs):
+        return ProcessResult(
+            "succeeded", 0, "ok", "",
+            backend="process-supervisor",
+            execution_evidence=("resource-controller-enforced",),
+            resource_lease_id="lease-1",
+        )
+
+    result = TransactionExecutor().execute("tx-10", plan, ("true",), executor)
+    assert result.state == "committed"
+    assert result.verification is not None
+    assert [item.check_id for item in result.verification.evidence] == ["resource:enforcement"]
