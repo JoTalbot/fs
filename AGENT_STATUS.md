@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest work chain: `96e82ad989543cf7bd5e486ada08b9b7b8b38409` → `7cba73e398ad8a224fdc8bc026c64582f5361b9c` → `5c99eaa317c3322a285eca00b002db4c45fb487a`
+- Latest implementation commit: `582efcc4f57da9f39f30a4eb88488e71bc924b3e`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -19,7 +19,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | workspace boundary evidence | `src/fs_overlay/workspace_boundary.py`, `tests/test_workspace_boundary.py`, `docs/LINUX_CAPABILITY_PROBES.md` | `612211a9d66fa70f86cfbf05801a2607a3a1b8c4` | probe implemented, CI pending | Integrate the same concrete backend into execution before mapping `workspace-binding-admitted` to evidence |
+| current-agent | ChatGPT | workspace backend | `src/fs_overlay/isolation.py`, `src/fs_overlay/linux_executor.py`, `tests/test_isolation.py`, `tests/test_linux_executor.py` | `ec209dc69c3a1851061438a3898cc0e4f96e0de4` | backend integrated, CI pending | Observe CI; then connect backend-specific execution evidence without using a generic temporary probe as proof of another execution |
 
 ## Recently completed
 
@@ -29,39 +29,41 @@ FS is moving from descriptive execution planning toward a verified execution loo
 - A successful `unshare` exit is insufficient if the child reports the same namespace identity as the parent.
 - PID probes use `--fork` so the observed child is actually inside the new PID namespace.
 
-### Workspace boundary evidence probe
+### Workspace boundary probe
 
-- Added `src/fs_overlay/workspace_boundary.py`.
-- Added `tests/test_workspace_boundary.py`.
-- The probe uses an explicitly installed `bubblewrap` backend when available.
-- It creates a temporary workspace and verifies from inside the sandbox that the workspace sentinel is visible while an unbound host-root path is absent.
-- Backend absence or kernel rejection fails closed.
-- The probe does not yet imply that the FS execution backend uses the same boundary.
+- Added `src/fs_overlay/workspace_boundary.py` and tests.
+- The disposable probe uses an explicitly installed bubblewrap backend when available.
+- It creates a temporary workspace and verifies the workspace sentinel is visible while an unbound host-root path is absent.
+- It is evidence for that disposable probe only, not for unrelated executions.
+
+### Concrete workspace backend
+
+- Added `BubblewrapWorkspaceBackend`.
+- It requires Linux, an explicit workspace path, and bubblewrap >= 0.12.0.
+- It constructs a new filesystem namespace with the workspace exposed at `/workspace` and a minimal read-only runtime allowlist.
+- It rejects missing/relative/non-directory workspace paths.
+- It never silently falls back to privileged setup or another isolation mechanism.
+- `LinuxNamespaceExecutor` now accepts `workspace-only` with an explicit `workspace_path` through this backend; the existing host policy remains unchanged.
 
 ### Guarantee-to-check mapping
 
 - `mount-namespace`, `pid-namespace`, and `network-namespace` map to explicit namespace verification checks.
-- `workspace-binding-admitted` remains deliberately unmapped because the execution path does not yet consume the concrete workspace boundary backend.
-
-## Research record for current phase
-
-- Bubblewrap documentation describes an unprivileged sandbox with a new filesystem namespace and explicit bind mounts; user namespace creation is required when bwrap is not installed setuid root.
-- FS therefore treats bubblewrap as an explicit backend capability, never as an invisible privilege workaround.
-- The local Linux isolation skill requires exact evidence scope and fail-closed behavior.
+- `workspace-binding-admitted` remains deliberately unmapped because the transaction evidence path does not yet attest that the exact execution used the concrete workspace backend.
 
 ## Validation state
 
 - CI run `34437693909`: PASS, Python 3.11/3.12/3.13.
-- Workspace boundary probe commits are newer than that run; their CI result is not claimed until observed.
-- No claim is made yet that `workspace-only` execution is safely enforced by the concrete executor.
+- CI run `34438066397` is in progress for the workspace executor commit chain.
+- CI run `34438073158` is queued for the latest isolation test commit.
+- No PASS is claimed for the new backend until those runs complete.
 
 ## Recommended next implementation step
 
-1. Integrate the workspace backend into the concrete Linux executor with an explicit workspace path.
-2. Make execution admission depend on the backend's actual availability, not merely `unshare` presence.
-3. Route the exact workspace probe through the evidence provider only for executions that used that backend.
-4. Only then map `workspace-binding-admitted` to `workspace:boundary` verification.
-5. Run the full CI matrix and record actual results.
+1. Observe CI for the latest commits.
+2. Extend execution evidence so a successful workspace execution carries backend identity and exact workspace-boundary observations.
+3. Only then map `workspace-binding-admitted` to a required `workspace:boundary` check.
+4. Keep the generic disposable workspace probe as capability/evidence validation, not as a substitute for post-execution evidence.
+5. Run the complete matrix again after evidence integration.
 
 ## Known non-goals for this phase
 
