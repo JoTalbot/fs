@@ -1,4 +1,4 @@
-"""Deterministic conformance vectors for the federation protocol surface."""
+"""Deterministic, versioned conformance vectors for federation semantics."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -27,5 +27,19 @@ def validate_vector(vector: ConformanceVector) -> bool:
     return vector.envelope.digest() == vector.expected_digest
 
 
-def validate_vectors(vectors: tuple[ConformanceVector, ...] = VECTORS) -> tuple[str, ...]:
-    return tuple(vector.name for vector in vectors if validate_vector(vector))
+def validate_vectors(
+    vectors: tuple[ConformanceVector, ...] = VECTORS,
+    *,
+    strict: bool = False,
+) -> tuple[str, ...]:
+    """Return passing vector names, optionally failing on any mismatch.
+
+    The non-strict form preserves the historical API. Independent harnesses
+    should use ``strict=True`` so a missing or mismatched vector cannot be
+    mistaken for successful conformance.
+    """
+    passed = tuple(vector.name for vector in vectors if validate_vector(vector))
+    if strict and len(passed) != len(vectors):
+        failed = tuple(vector.name for vector in vectors if not validate_vector(vector))
+        raise AssertionError(f"conformance vector mismatch: {failed}")
+    return passed
