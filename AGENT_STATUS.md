@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `67e8a8bd98460bdf828e9e07aaf5e4c32c2be642`
+- Latest implementation commit: `e52232a9aaf340475f13295cdb29f19f2404e970`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -19,7 +19,7 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | cross-platform execution | status/log handoff | `67e8a8bd98460bdf828e9e07aaf5e4c32c2be642` | validation batch complete; 9-way CI green | Obtain actual FreeBSD-host execution evidence for the native child-process test; do not claim it until observed |
+| current-agent | ChatGPT | FreeBSD native validation | `.cirrus.yml`, FreeBSD Capsicum test path | `03cbccd0ac93c56ee9c9fddc49b3d0d802e89385` | native CI configuration added; execution not yet observed | Enable/observe the Cirrus CI FreeBSD task on a real FreeBSD VM; do not claim native validation until the task is green |
 
 ## Completed in this batch
 
@@ -30,21 +30,21 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 - Added versioned macOS and FreeBSD backend contracts and explicit evidence markers.
 - Added cross-platform tests for macOS and FreeBSD fail-closed behavior and macOS artifact admission.
 - Expanded CI from Ubuntu/Windows to Ubuntu/Windows/macOS across Python 3.11/3.12/3.13.
+- Added `.cirrus.yml` targeting a real FreeBSD 14.3 VM for the native Capsicum child-process test.
 - Updated execution runtime documentation to distinguish macOS artifact admission from actual sandboxed execution and to keep Capsicum separate from Linux network namespaces.
 
 ## Research / decision evidence
 
-- Apple documents App Sandbox as entitlement/signing based and documents embedding a sandboxed command-line helper with `com.apple.security.app-sandbox` and `com.apple.security.inherit`; hardened runtime is the supported runtime integrity boundary.
-- Apple documents `codesign`/Code Signing Services as the supported way to validate signed code and requirements rather than encoding undocumented signature internals.
-- FreeBSD documents `cap_enter()` as entering capability mode and `cap_getmode()` as the kernel read-back of that state; effective sandboxes also require deliberate capability/right preparation.
-- GitHub currently provides macOS-hosted runners including `macos-latest`, so the macOS contract tests are exercised natively in CI.
+- FreeBSD documents `cap_enter()` as entering capability mode in the calling process, `cap_getmode()` as kernel state read-back, and inheritance of capability mode by descendants. Effective sandboxes also require deliberate rights preparation. citeturn0search1turn0search2
+- Cirrus CI documents managed FreeBSD VMs through `freebsd_instance`, including FreeBSD 14.3 images, and explicitly supports FreeBSD virtual machines for open-source projects. citeturn2search0turn2search1
+- FreeBSD documents package installation through `pkg`, and the current Python 3.11 package is available as `lang/python311`; the task uses the corresponding `python311` package and an isolated virtual environment. citeturn3search0turn3search9
+- Agent Skills research found only generic Agent Skills authoring/testing skills; none materially fit FreeBSD kernel execution, so local `fs-agent-core` remains authoritative. citeturn0search3turn0search7
 
 ## Validation
 
-- CI #119 `34450652381`: PASS, Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13, and macOS 3.11/3.12/3.13.
-- CI #120 `34451098521`: PASS, Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13, and macOS 3.11/3.12/3.13.
-- macOS validation is green on all three supported Python versions.
-- No FreeBSD native kernel result is claimed yet; GitHub-hosted runner coverage does not include a standard FreeBSD label, so the native test is gated to a real FreeBSD host.
+- CI #120 `34451098521`: PASS on Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13 and macOS 3.11/3.12/3.13.
+- `.cirrus.yml` was committed successfully as `e52232a9aaf340475f13295cdb29f19f2404e970`.
+- The Cirrus FreeBSD task has **not** been observed running yet, so no FreeBSD native kernel result is claimed.
 
 ## Safety constraints
 
@@ -56,6 +56,7 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 - macOS helper artifact validation is not execution evidence until a signed sandbox host launches the helper.
 - Capsicum evidence must be produced by the workload process; never enter capability mode in the supervisor parent as a substitute.
 - Never introduce privilege escalation or user namespaces as a portability workaround.
+- Do not emulate FreeBSD with a Linux/macOS platform override to manufacture native-kernel evidence.
 
 ## Handoff rule
 
