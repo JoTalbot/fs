@@ -156,7 +156,7 @@ Area: execution-scoped workspace/network semantics
 Goal: Finish the concrete Linux workspace backend milestone without overstating evidence.
 Research:
 - Bubblewrap README/source -> new mount namespace, explicit bind mounts, and `--unshare-net` for network separation.
-- Bubblewrap advisory GHSA-pxhw-h44j-8pfx -> versions before 0.12.0 are affected by sandbox-setup symlink traversal; 0.12.0 is patched.
+- Bubblewrap advisory GHSA-pxhw-h44j-8pfx -> versions before 0.12.0 are affected by a sandbox-setup symlink traversal vulnerability; 0.12.0 is patched.
 - Bubblewrap status interface -> namespace IDs are observable backend facts.
 - Linux kernel cgroup v2 -> resource control requires explicitly delegated scope.
 Skill discovery:
@@ -248,3 +248,34 @@ Learning:
 - [SECURITY] A FreeBSD sandbox helper must resolve/open required executable resources before `cap_enter()` and use descriptor-based execution afterward; path lookup after capability entry is the wrong boundary.
 - [RULE] Native helper source can be tested by a real FreeBSD CI task, but source compilation is not itself native-kernel evidence.
 Next: Observe the real FreeBSD CI task, then integrate the helper into a platform-specific supervisor adapter only after native evidence is green.
+
+## 2026-09-10 | current-agent | release-hardening-capsicum-negative-check
+Base: c6df445881136e553d0a6c7498122ac878417a3e
+Area: FreeBSD release hardening
+Goal: Strengthen native Capsicum evidence and close the release-hardening step without manufacturing FreeBSD runtime results.
+Research:
+- FreeBSD 14.3 `cap_enter(2)` -> capability mode blocks global namespaces and provides kernel read-back through `cap_getmode()`.
+- FreeBSD `cap_rights_limit(2)` -> rights can only be reduced, so the helper pre-opens the target and limits it to `CAP_READ` + `CAP_FEXECVE` before entering capability mode.
+- FreeBSD 14.3 `open(2)` -> an absolute path opened after entering capability mode is rejected with `ECAPMODE` or `ENOTCAPABLE`, making it a direct negative enforcement probe.
+- Cirrus CI FreeBSD VM documentation -> `freebsd_instance` supports `freebsd-14-3`; `.cirrus.yml` is therefore a valid native CI configuration, but the current tool surface cannot observe or start Cirrus runs.
+- Agent Skills standard -> skills are `SKILL.md`-centered reusable workflows; no external skill materially fit this kernel-specific boundary. Local `fs-agent-core` remains authoritative.
+Skill discovery:
+- `agentskills/agentskills` and public skill repositories inspected; no suitable external skill found.
+Changes:
+- Strengthened `native/freebsd/capsicum_exec.c` with an explicit post-`cap_enter()` absolute-path lookup that must fail with `ECAPMODE`/`ENOTCAPABLE`, emitting `capsicum-global-namespace-blocked` only on the expected kernel rejection.
+- Extended `tests/test_freebsd_capsicum.py` to require the negative enforcement marker.
+- Updated `docs/EXECUTION_RUNTIME.md` to document the helper boundary and exact evidence scope.
+- Finalized `AGENT_STATUS.md` with the release posture and remaining external gates.
+Validation:
+- GitHub file writes succeeded for helper, test, documentation and status.
+- Current implementation/documentation commits are `a7b0d38c22afb1fd8fff703e88cab3997c9f6f34`, `073299ec60eeb8d85ea0764e21dce4d088849707`, and `97cc3ca11756316539861ce2f2abb727febc6cc5`.
+- GitHub combined status for the new heads is empty; no new CI pass is claimed.
+- Local clone/pytest was attempted but the environment could not resolve `github.com`; no local test pass is claimed.
+- Existing observed CI #120 `34451098521` remains the last recorded green Ubuntu/Windows/macOS matrix.
+- GitHub reports zero published releases for `JoTalbot/fs`.
+Result: release-hardening changes committed; final shared status is `6da418bc5035f6b3375a508b7f75b63449d4ae91`.
+Learning:
+- [SECURITY] Positive `cap_getmode()` evidence is stronger when paired with a same-process negative kernel enforcement probe for the protected global namespace.
+- [RULE] An external CI configuration is not execution evidence until its result is actually observed.
+- [TOOLING] The current GitHub connector can mutate repository files and inspect GitHub Actions, but it does not expose a Cirrus execution/control surface or GitHub release-creation mutation.
+Next: Observe a real Cirrus FreeBSD 14.3 run and publish/tag the reference release through a release-capable control surface; do not claim either operation until actually observed.
