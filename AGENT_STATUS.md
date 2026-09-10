@@ -62,4 +62,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-With the full OS/Python matrix green, the federation reference layer is ready for the next architectural phase: strengthen end-to-end coordinated admission coverage, define transactional-backend requirements without conflating locking with ACID atomicity, and prepare independent interoperability/production-adapter validation. Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
+- Transactional backend requirements are documented in `docs/DURABLE_ADMISSION.md`, including commit, failure, recovery, ordering, durability, concurrency, clock, compaction and audit semantics.
+- Next engineering gate: independent interoperability vectors and production-adapter validation against an authoritative backend.
+- The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
+- Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
