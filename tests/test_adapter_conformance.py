@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
-from fs_overlay.adapter_conformance import run_adapter_conformance
+import pytest
+
+from fs_overlay.adapter_conformance import AdapterConformanceError, run_adapter_conformance
 from fs_overlay.production_adapters import (
     AuthenticatedTransport,
     DurableAdmissionCoordinator,
@@ -208,3 +210,35 @@ def test_reusable_adapter_qualification_harness() -> None:
         "node-admission",
         "durable-coordinator-release",
     )
+
+
+class PermissiveKeyStore(MemoryKeyStore):
+    def store(self, key_id: str, key_material: bytes) -> None:
+        self._keys[key_id] = bytes(key_material)
+
+
+class PermissiveTransport(MemoryTransport):
+    def send(self, peer_node: str, payload: bytes) -> None:
+        self._messages.append(bytes(payload))
+
+
+@pytest.mark.parametrize(
+    ("factory_kwargs", "expected"),
+    [
+        ({"key_store_factory": PermissiveKeyStore}, "empty key material must be rejected"),
+        ({"transport_factory": PermissiveTransport}, "unauthenticated transport send must be rejected"),
+    ],
+)
+def test_reusable_harness_rejects_fail_open_adapter(
+    factory_kwargs: dict[str, object], expected: str
+) -> None:
+    factories = {
+        "key_store_factory": MemoryKeyStore,
+        "transport_factory": MemoryTransport,
+        "key_admission_factory": MemoryKeyAdmission,
+        "node_admission_factory": NodeAllowlist,
+        "coordinator_factory": MemoryCoordinator,
+    }
+    factories.update(factory_kwargs)
+    with pytest.raises(AdapterConformanceError, match=expected):
+        run_adapter_conformance(**factories)
