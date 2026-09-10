@@ -1,12 +1,20 @@
 """Durable, auditable federation state built on the existing event journal."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
 import threading
+from typing import Protocol
 
 from .event_log import EventLog
 from .federation_protocol import FederationEnvelope
+
+
+class AdmissionCoordinator(Protocol):
+    """Minimal coordination boundary used by durable federation admission."""
+
+    def acquire(self, resource_id: str): ...
 
 
 @dataclass(frozen=True)
@@ -23,15 +31,20 @@ class DurableFederationState:
     boundary, not an authentication mechanism.
 
     The admission critical section is serialized for threads sharing one
-    instance. Multi-process writers still require deployment-specific file
-    locking or transactional storage and are intentionally not implied here.
+    instance. Multi-process writers require a deployment-specific
+    ``AdmissionCoordinator`` or transactional storage implementation. The
+    coordinator, when supplied, covers both the admission decision and the
+    journal write.
     """
 
-    def __init__(self, path: str | Path):
+    RESOURCE_ID = "federation-events"
+
+    def __init__(self, path: str | Path, *, coordinator: AdmissionCoordinator | None = None):
         self.events = EventLog(path)
         self.last_sequence: dict[str, int] = {}
         self.seen_message_ids: set[str] = set()
         self._lock = threading.RLock()
+        self._coordinator = coordinator
         self._replay()
 
     def _replay(self) -> None:
@@ -57,25 +70,31 @@ class DurableFederationState:
     def accept(self, envelope: FederationEnvelope) -> bool:
         """Durably admit an envelope after external authentication/admission."""
         with self._lock:
-            if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
-                return False
-            if envelope.message_id in self.seen_message_ids:
-                return False
-            if envelope.sequence <= self.last_sequence.get(envelope.sender_node, -1):
-                return False
-            self.events.emit(
-                "federation.accepted",
-                details={
-                    "sender_node": envelope.sender_node,
-                    "message_id": envelope.message_id,
-                    "message_type": envelope.message_type,
-                    "sequence": envelope.sequence,
-                    "digest": envelope.digest(),
-                },
+            coordination = (
+                self._coordinator.acquire(self.RESOURCE_ID)
+                if self._coordinator is not None
+                else nullcontext()
             )
-            self.last_sequence[envelope.sender_node] = envelope.sequence
-            self.seen_message_ids.add(envelope.message_id)
-            return True
+            with coordination:
+                if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
+                    return False
+                if envelope.message_id in self.seen_message_ids:
+                    return False
+                if envelope.sequence <= self.last_sequence.get(envelope.sender_node, -1):
+                    return False
+                self.events.emit(
+                    "federation.accepted",
+                    details={
+                        "sender_node": envelope.sender_node,
+                        "message_id": envelope.message_id,
+                        "message_type": envelope.message_type,
+                        "sequence": envelope.sequence,
+                        "digest": envelope.digest(),
+                    },
+                )
+                self.last_sequence[envelope.sender_node] = envelope.sequence
+                self.seen_message_ids.add(envelope.message_id)
+                return True
 
     def snapshot(self) -> FederationState:
         with self._lock:
