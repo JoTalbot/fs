@@ -1,18 +1,18 @@
 {
   "protocol_version": 1,
   "vector_id": "admission-negative-v1",
-  "vector_set_id": "admission-negative-v1",
+  "vector_type": "admission",
   "description": "Protocol-v1 negative admission cases. These vectors describe required fail-closed outcomes; cryptographic provider behavior remains adapter-specific.",
   "cases": [
-    {"case_id":"changed-payload","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"payload.object"},
-    {"case_id":"changed-sender","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"sender_node"},
-    {"case_id":"changed-sequence","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"sequence"},
+    {"case_id":"malformed-envelope","gate":"parse","expected":"reject","reason":"malformed_envelope","mutation":"missing_required_field"},
+    {"case_id":"unsupported-protocol","gate":"protocol","expected":"reject","reason":"unsupported_protocol_version","mutation":"protocol_version_2"},
+    {"case_id":"negative-sequence","gate":"replay","expected":"reject","reason":"negative_sequence","mutation":"sequence_minus_one"},
+    {"case_id":"empty-message-id","gate":"replay","expected":"reject","reason":"empty_message_id","mutation":"message_id_empty"},
     {"case_id":"duplicate-message-id","gate":"replay","expected":"reject","reason":"duplicate_message_id","mutation":"message_id_reuse"},
-    {"case_id":"sequence-rollback","gate":"replay","expected":"reject","reason":"non_increasing_sequence","mutation":"sequence_decrease"},
+    {"case_id":"sequence-rollback","gate":"replay","expected":"reject","reason":"sequence_rollback","mutation":"sequence_decrease"},
     {"case_id":"stale-timestamp","gate":"freshness","expected":"reject","reason":"stale_timestamp","mutation":"issued_ns_too_old"},
     {"case_id":"future-timestamp","gate":"freshness","expected":"reject","reason":"future_timestamp","mutation":"issued_ns_in_future"},
     {"case_id":"missing-signature","gate":"signature","expected":"reject","reason":"missing_signature","mutation":"signature_null"},
-    {"case_id":"unknown-or-revoked-key","gate":"trust","expected":"reject","reason":"untrusted_key","mutation":"key_unknown_or_revoked"},
-    {"case_id":"fingerprint-mismatch","gate":"trust","expected":"reject","reason":"fingerprint_mismatch","mutation":"identity_fingerprint_changed"}
+    {"case_id":"key-admission","gate":"trust","expected":"reject","reason":"key_admission_failure","mutation":"unknown_revoked_or_fingerprint_mismatch"}
   ]
 }
