@@ -10,7 +10,6 @@ implementation-specific tests beside them.
 from __future__ import annotations
 
 from collections.abc import Callable
-from contextlib import AbstractContextManager
 from typing import Any
 
 from .production_adapters import (
@@ -50,6 +49,12 @@ def run_adapter_conformance(
     store: Any = key_store_factory()
     _check(isinstance(store, SecureKeyStore), "key store does not implement SecureKeyStore")
     _check(not store.contains("k1"), "new key store must not contain an unknown key")
+    try:
+        store.store("", b"qualification-key")
+    except (ValueError, TypeError):
+        pass
+    else:
+        raise AdapterConformanceError("empty key id must be rejected")
     store.store("k1", b"qualification-key")
     _check(store.contains("k1"), "stored key must be addressable")
     _check(store.load("k1") == b"qualification-key", "stored key must round-trip")
@@ -72,6 +77,12 @@ def run_adapter_conformance(
     transport.authenticate("node-a")
     _check(transport.is_authenticated(), "authenticated transport must expose authenticated state")
     _check(transport.peer_node() == "node-a", "authenticated peer identity must be observable")
+    try:
+        transport.send("node-b", b"qualification")
+    except (PermissionError, RuntimeError):
+        pass
+    else:
+        raise AdapterConformanceError("transport must reject sends to an unauthenticated peer")
     transport.send("node-a", b"qualification")
     _check(transport.receive() == b"qualification", "authenticated payload must be receivable")
     transport.close()
@@ -80,6 +91,9 @@ def run_adapter_conformance(
 
     keys: Any = key_admission_factory()
     _check(isinstance(keys, KeyAdmission), "key admission does not implement KeyAdmission")
+    _check(not keys.admit_key("", "k1", "fp-a"), "empty node id must be rejected by key admission")
+    _check(not keys.admit_key("node-a", "", "fp-a"), "empty key id must be rejected by key admission")
+    _check(not keys.admit_key("node-a", "k1", ""), "empty key fingerprint must be rejected")
     _check(keys.admit_key("node-a", "k1", "fp-a"), "initial key admission must succeed")
     _check(keys.is_key_admitted("node-a", "k1", "fp-a"), "admitted key must be observable")
     _check(not keys.admit_key("node-a", "k1", "fp-b"), "key fingerprint change must be rejected")
@@ -92,6 +106,8 @@ def run_adapter_conformance(
 
     nodes: Any = node_admission_factory()
     _check(isinstance(nodes, NodeAdmission), "node admission does not implement NodeAdmission")
+    _check(not nodes.admit("", "fp-a"), "empty node id must be rejected")
+    _check(not nodes.admit("node-a", ""), "empty node fingerprint must be rejected")
     _check(nodes.admit("node-a", "fp-a"), "initial node admission must succeed")
     _check(nodes.is_admitted("node-a", "fp-a"), "admitted node must be observable")
     _check(not nodes.admit("node-a", "fp-b"), "node fingerprint change must be rejected")

@@ -136,6 +136,12 @@ def test_secure_key_store_contract_and_fail_closed_empty_key() -> None:
     store = MemoryKeyStore()
     assert isinstance(store, SecureKeyStore)
     assert not store.contains("k1")
+    try:
+        store.store("", b"secret")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("empty key id must be rejected")
     store.store("k1", b"secret")
     assert store.contains("k1")
     assert store.load("k1") == b"secret"
@@ -158,6 +164,9 @@ def test_authenticated_transport_requires_authenticated_peer() -> None:
         raise AssertionError("unauthenticated transport must reject sends")
     transport.authenticate("node-a")
     assert transport.is_authenticated()
+    assert transport.peer_node() == "node-a"
+    with pytest.raises(PermissionError):
+        transport.send("node-b", b"message")
     transport.send("node-a", b"message")
     assert transport.receive() == b"message"
     transport.close()
@@ -167,6 +176,9 @@ def test_authenticated_transport_requires_authenticated_peer() -> None:
 def test_key_admission_rejects_fingerprint_change_and_revocation() -> None:
     admission = MemoryKeyAdmission()
     assert isinstance(admission, KeyAdmission)
+    assert not admission.admit_key("", "k1", "fp-a")
+    assert not admission.admit_key("node-a", "", "fp-a")
+    assert not admission.admit_key("node-a", "k1", "")
     assert admission.admit_key("node-a", "k1", "fp-a")
     assert admission.is_key_admitted("node-a", "k1", "fp-a")
     assert not admission.admit_key("node-a", "k1", "fp-b")
@@ -181,6 +193,8 @@ def test_key_admission_rejects_fingerprint_change_and_revocation() -> None:
 def test_node_admission_contract_is_distinct_from_key_admission() -> None:
     admission = NodeAllowlist()
     assert isinstance(admission, NodeAdmission)
+    assert not admission.admit("", "fp-a")
+    assert not admission.admit("node-a", "")
     assert admission.admit("node-a", "fp-a")
     assert admission.is_admitted("node-a", "fp-a")
     assert not admission.admit("node-a", "fp-b")
