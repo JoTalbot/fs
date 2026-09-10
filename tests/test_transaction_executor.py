@@ -95,3 +95,31 @@ def test_declared_namespace_guarantee_commits_with_matching_evidence():
         "namespace:mount",
         "namespace:net",
     ]
+
+
+def test_workspace_boundary_requires_exact_execution_evidence():
+    plan = admitted_plan(("workspace-filesystem-boundary",))
+
+    def executor(**kwargs):
+        return ProcessResult("succeeded", 0, "ok", "", backend="native-process")
+
+    result = TransactionExecutor().execute("tx-6", plan, ("true",), executor)
+    assert result.state == "verification_failed"
+    assert result.verification is not None
+    assert "workspace_boundary_not_observed" in result.verification.reasons
+
+
+def test_workspace_boundary_commits_with_exact_backend_evidence():
+    plan = admitted_plan(("workspace-filesystem-boundary",))
+
+    def executor(**kwargs):
+        return ProcessResult(
+            "succeeded", 0, "ok", "",
+            backend="bubblewrap-workspace",
+            execution_evidence=("workspace:boundary-observed",),
+        )
+
+    result = TransactionExecutor().execute("tx-7", plan, ("true",), executor)
+    assert result.state == "committed"
+    assert result.verification is not None
+    assert [item.check_id for item in result.verification.evidence] == ["workspace:boundary"]
