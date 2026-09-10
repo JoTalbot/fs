@@ -50,7 +50,9 @@ Production deployments should maintain authoritative node/key admission separate
 
 The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction, concurrency coordination and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
 
-The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes must inject a `DurableAdmissionCoordinator` or equivalent transactional mechanism and must hold that coordination boundary across the durable admission decision and its journal write. No portable cross-platform file-locking behavior is assumed by the reference layer.
+The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes can inject an `AdmissionCoordinator` through `DurableFederationState(..., coordinator=...)`. The coordinator's context is entered before admission checks and remains held through the journal write and in-memory state update, so the deployment can serialize the complete durable admission critical section. The production-facing `DurableAdmissionCoordinator` contract in `production_adapters.py` is the intended boundary for a real inter-process or transactional implementation. No portable cross-platform file-locking behavior is assumed by the reference layer.
+
+A coordinator failure is fail-closed: if `acquire()` cannot establish its context, `accept()` does not proceed. Implementations must define timeout, ownership, crash recovery and atomicity semantics appropriate to their storage backend. A timeout or stale-lock recovery policy must never silently assume that another process is dead merely because a lease is old.
 
 ## Replication
 
@@ -114,7 +116,7 @@ Focused tests cover:
 - audit decision/result causal linkage;
 - adapter contract importability;
 - production security adapter contract importability;
-- durable admission coordination contract shape;
+- durable admission coordination and context-release behavior;
 - key rotation, retirement and revocation semantics;
 - rejection of duplicate key IDs and silent fingerprint changes.
 
