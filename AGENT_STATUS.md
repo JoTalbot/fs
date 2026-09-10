@@ -11,15 +11,15 @@
 
 ## Current architectural phase
 
-**Evidence-backed execution boundaries + multi-agent execution discipline**
+**Evidence-backed execution boundaries + concrete backend semantics**
 
-FS is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes are explicit runtime evidence, boundary guarantees deterministically become required verification checks, and the transaction layer derives those checks instead of relying on callers to remember them.
+FS is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes are explicit runtime evidence, boundary guarantees deterministically become required verification checks, and concrete backends must emit execution-scoped evidence for the exact semantics they claim.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | execution-scoped workspace boundary | `src/fs_overlay/isolation.py`, `src/fs_overlay/linux_executor.py`, `src/fs_overlay/evidence_provider.py`, `src/fs_overlay/transaction_executor.py`, `src/fs_overlay/execution_coordinator.py`, verification/tests | `7c922b26664d060bfb2d2e3acfdab28e77d10d81` | implementation complete, CI pending | Observe final CI matrix; fix only evidence-backed failures; then record green validation |
+| current-agent | ChatGPT | concrete workspace/network execution evidence + backend semantics | `src/fs_overlay/isolation.py`, `src/fs_overlay/linux_executor.py`, `src/fs_overlay/execution_coordinator.py`, `src/fs_overlay/evidence_provider.py`, `src/fs_overlay/verification_requirements.py`, tests/docs/status/log | `ff35888c475287d288481144c3347aa14ca6af6f` | active | Preserve read/write semantics, make Bubblewrap network evidence execution-scoped, then validate full CI and record the result |
 
 ## Recently completed
 
@@ -38,7 +38,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 ### Execution-scoped workspace evidence
 
-- `ProcessResult` now carries backend identity and execution evidence.
+- `ProcessResult` carries backend identity and execution evidence.
 - Bubblewrap wraps the actual workload with boundary checks performed before and after that workload in the same sandbox.
 - The evidence provider accepts `workspace:boundary` only when the result came from `bubblewrap-workspace` and carries the exact observed marker.
 - Reserved boundary-observation failures fail the execution closed.
@@ -46,15 +46,17 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 ### Guarantee-to-check mapping
 
-- `workspace-filesystem-boundary` now maps to required `workspace:boundary` evidence.
+- `workspace-filesystem-boundary` maps to required `workspace:boundary` evidence.
 - `workspace-binding-admitted` remains distinct from runtime observation. Ownership/delegation is an admission fact; it is not runtime evidence.
-- Namespace guarantees continue to use their existing namespace evidence provider.
+- Namespace guarantees continue to use their existing namespace evidence provider until an exact backend-specific execution evidence path replaces them.
 
 ## Validation state
 
 - CI run `34438094451` (run #22): PASS, Python 3.11/3.12/3.13.
-- CI runs #40 and #41 cover the latest workspace-admission and execution-evidence changes and were in progress at the latest observation.
-- No PASS is claimed for the final evidence integration until the latest runs complete.
+- CI run #40 `34443788344`: PASS, workspace admission.
+- CI run #41 `34443796582`: PASS, execution-scoped workspace evidence.
+- CI run #42 `34443820903`: PASS, Python 3.11/3.12/3.13; all three matrix jobs completed successfully.
+- The next change must add no stronger guarantee without a matching execution-scoped evidence path.
 
 ## Known non-goals for this phase
 
@@ -63,7 +65,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 - Do not silently introduce user namespaces as a fallback.
 - Do not mutate host-wide cgroups.
 - Do not claim resource enforcement without an enforceable FS-owned/delegated resource lease.
-- Do not turn FS-IR directly into host mutation without authority, admission, execution, observation, and verification gates.
+- Do not turn FS-IR directly into host mutation without authority, admission, execution, observation, verification, and transaction gates.
 
 ## Handoff rule
 
