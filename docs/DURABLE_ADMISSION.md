@@ -44,6 +44,8 @@ The reference implementation uses an append-only event journal plus an optional 
 
 If the coordinator cannot establish its required critical section, durable admission must not continue. If the durable backend reports an ambiguous commit result, the deployment must resolve that ambiguity from authoritative durable state before treating the message as admitted again.
 
+The reference tests model one important ambiguity explicitly: the journal append can complete while the caller loses its acknowledgement before in-memory admission indexes are updated. In that case the current process deliberately does **not** infer success from the exception path. A fresh `DurableFederationState` rebuilds its replay indexes from the journal, making the persisted event the authoritative basis for deciding whether a retry is a duplicate. This is a recovery test, not a claim that the reference journal is a transactional database.
+
 ## Interoperability boundary
 
 A production backend should be tested independently against the federation conformance vectors and replay invariants. Passing the Python test suite demonstrates implementation behavior for the tested adapter; it does not establish interoperability with an independent implementation or certify the backend's security properties.
