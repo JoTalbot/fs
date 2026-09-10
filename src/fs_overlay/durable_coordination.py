@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+import errno
 import hashlib
 import os
 from pathlib import Path
@@ -88,7 +89,10 @@ class FileAdmissionCoordinator(DurableAdmissionCoordinator):
 
     @staticmethod
     def _is_would_block(exc: OSError) -> bool:
-        return isinstance(exc, BlockingIOError) or getattr(exc, "errno", None) in {11, 13, 36, 35}
+        return isinstance(exc, BlockingIOError) or getattr(exc, "errno", None) in {
+            errno.EACCES,
+            errno.EAGAIN,
+        }
 
     @staticmethod
     def _try_lock(handle: IO[bytes]):
