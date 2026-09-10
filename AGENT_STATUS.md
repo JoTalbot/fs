@@ -6,30 +6,31 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `990abf7223eb2fc57d4ced53f05e2c26195c1ef5`
+- Last known head: `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Evidence-backed execution boundaries and multi-agent execution discipline**
+**Evidence-backed execution boundaries + multi-agent execution discipline**
 
-FS is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes can now become explicit verification evidence, and boundary guarantees can now be deterministically translated into required verification checks.
+FS is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes can become explicit verification evidence, boundary guarantees deterministically become required verification checks, and the transaction layer now derives those checks instead of relying on callers to remember them.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| unassigned | - | - | - | - | idle | Claim the next transaction-verification integration step |
+| unassigned | - | - | - | - | idle | Claim the next Linux isolation execution step after research and skill discovery |
 
 ## Recently completed
 
-### Multi-agent operating contract
+### Multi-agent operating system
 
 - Added canonical `AGENTS.md`.
-- Added `AGENT_STATUS.md`.
-- Added `AGENT_LOG.md`.
+- Added `docs/AGENT_OPERATING_SYSTEM.md`.
+- Added `AGENT_STATUS.md` and `AGENT_LOG.md`.
 - Added `.agents/skills/fs-agent-core/SKILL.md`.
-- Defined shared status, parallel ownership, research-before-step, skill discovery, evidence, security, learning, and handoff rules.
+- Added `.agents/skills/linux-isolation-verification/SKILL.md`.
+- Defined cross-machine parallel ownership, mandatory research-before-step, mandatory skill discovery, durable learning, evidence discipline, and handoff rules.
 
 ### Probe-to-verification bridge
 
@@ -42,18 +43,38 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 - Added `src/fs_overlay/verification_requirements.py`.
 - Added `tests/test_verification_requirements.py`.
-- `mount-namespace`, `pid-namespace`, and `network-namespace` guarantees now map deterministically to required namespace verification checks.
+- `mount-namespace`, `pid-namespace`, and `network-namespace` guarantees map deterministically to required namespace verification checks.
 - Unmapped guarantees do not silently create fake evidence requirements.
+
+### Transaction integration
+
+- Added `src/fs_overlay/evidence_provider.py`.
+- `TransactionExecutor` now derives required checks from the admitted plan before commit.
+- Caller-supplied checks may add requirements but cannot omit plan-derived requirements.
+- Missing or failed required evidence prevents commit.
+- The reference evidence provider dispatches exact Linux namespace checks to the disposable namespace probe.
+
+## Research record for current phase
+
+- Linux kernel namespace/resource-control documentation: user namespaces alter resource-control/security considerations; resource limits must be treated explicitly. citeturn0search5
+- Agent Skills specification: skills are directories with `SKILL.md` and can bundle references/scripts. citeturn0search10
+- Maintained agent skill repositories show progressive disclosure and project-local skill patterns. citeturn0search0turn0search13
+- Multi-agent orchestration examples preserve explicit coordination state and decisions. citeturn0search12
+
+## Validation state
+
+The repository changes above were inspected through GitHub, but local pytest execution has not been performed in this environment. Do not report test PASS until tests are actually executed by an available runtime/CI.
 
 ## Recommended next implementation step
 
-1. Re-read current transaction and verification code from `main`.
-2. Research current Linux namespace semantics and maintained implementations before changing execution behavior.
-3. Discover and inspect an appropriate external agent skill for Linux isolation / verification / systems engineering.
-4. Integrate `required_verification_checks(plan)` into the transaction path so callers cannot accidentally omit required checks for declared isolation guarantees.
-5. Integrate `linux_namespace_evidence` as the reference evidence provider for those exact namespace checks.
-6. Add tests proving that an admitted plan with required namespace guarantees cannot commit when evidence is missing or failed, and can commit only when required evidence passes.
-7. Update docs, status, log, and skill learning records.
+1. Re-read current `execution_coordinator.py`, `mount_namespace.py`, `network_namespace.py`, `linux_probe.py`, `transaction_executor.py`, and `probe_verification.py` from `main`.
+2. Perform fresh Linux isolation research and external skill discovery before implementation.
+3. Design an exact disposable probe for the concrete workspace boundary rather than assuming a mount namespace equals workspace isolation.
+4. Keep user namespace support explicit and fail-closed; never add privilege escalation as a fallback.
+5. Add evidence for the exact workspace property claimed by the backend.
+6. Integrate that evidence into the same guarantee -> check -> evidence -> verification -> commit pipeline.
+7. Run the full available test suite and record actual results.
+8. Distill new lessons into the relevant skill and append a concise learning record.
 
 ## Known non-goals for this phase
 
