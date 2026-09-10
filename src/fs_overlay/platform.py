@@ -20,55 +20,36 @@ class PlatformDescriptor:
     features: Mapping[str, bool]
 
     def to_dict(self) -> dict[str, object]:
-        return {
-            "platform": self.name,
-            "architecture": self.architecture,
-            "cpu": {"cores": self.cpu_cores},
-            "features": dict(self.features),
-        }
+        return {"platform": self.name, "architecture": self.architecture, "cpu": {"cores": self.cpu_cores}, "features": dict(self.features)}
 
 
 class PlatformAdapter:
-    """Common interface implemented by concrete host-platform adapters."""
-
     name = "generic"
 
     def describe(self) -> PlatformDescriptor:
-        return PlatformDescriptor(
-            name=self.name,
-            architecture=platform.machine().lower() or "unknown",
-            cpu_cores=os.cpu_count() or 1,
-            features={},
-        )
+        return PlatformDescriptor(self.name, platform.machine().lower() or "unknown", os.cpu_count() or 1, {})
 
 
 class LinuxPlatformAdapter(PlatformAdapter):
     name = "linux"
 
     def describe(self) -> PlatformDescriptor:
-        return PlatformDescriptor(
-            name=self.name,
-            architecture=platform.machine().lower() or "unknown",
-            cpu_cores=os.cpu_count() or 1,
-            features={
-                "namespaces": os.path.isdir("/proc/self/ns"),
-                "cgroups": os.path.isdir("/sys/fs/cgroup"),
-            },
-        )
+        return PlatformDescriptor(self.name, platform.machine().lower() or "unknown", os.cpu_count() or 1, {"namespaces": os.path.isdir("/proc/self/ns"), "cgroups": os.path.isdir("/sys/fs/cgroup")})
 
 
 class WindowsPlatformAdapter(PlatformAdapter):
     name = "windows"
 
     def describe(self) -> PlatformDescriptor:
-        return PlatformDescriptor(
-            name=self.name,
-            architecture=platform.machine().lower() or "unknown",
-            cpu_cores=os.cpu_count() or 1,
-            features={
-                "job_objects": True,
-            },
-        )
+        return PlatformDescriptor(self.name, platform.machine().lower() or "unknown", os.cpu_count() or 1, {"job_objects": True})
+
+
+class MacOSPlatformAdapter(PlatformAdapter):
+    name = "darwin"
+
+
+class FreeBSDPlatformAdapter(PlatformAdapter):
+    name = "freebsd"
 
 
 def current_platform_adapter() -> PlatformAdapter:
@@ -77,4 +58,8 @@ def current_platform_adapter() -> PlatformAdapter:
         return LinuxPlatformAdapter()
     if system == "windows":
         return WindowsPlatformAdapter()
+    if system == "darwin":
+        return MacOSPlatformAdapter()
+    if system == "freebsd":
+        return FreeBSDPlatformAdapter()
     return PlatformAdapter()
