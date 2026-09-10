@@ -46,6 +46,7 @@
 - Added `docs/ADMISSION_CONFORMANCE.md` to make the independent admission boundary, required negative cases, adapter obligations, and fail-closed rule explicit.
 - Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
 - Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
+- Made all production adapter protocols runtime-checkable after CI exposed that the new structural conformance tests use `isinstance()` checks for those contracts.
 
 ## Safety boundaries
 
@@ -72,7 +73,8 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - CI run #262 exposed a contract-integration defect: the newly added admission vector was discovered by the canonical consumer, which expected `vector_id` and canonical envelope fields. The vector was made self-describing and the canonical consumer now delegates `vector_type=admission` to the dedicated semantic validator.
 - The admission vector/validator were then aligned to the intended ten-case contract, and interoperability documentation was corrected accordingly.
 - CI run #268 completed successfully across all 9 jobs after those corrections.
-- New adapter-specific conformance tests and documentation are committed; their validation is pending the next GitHub Actions run.
+- CI run #273 failed across all 9 jobs because four new adapter conformance tests called `isinstance()` on four non-`@runtime_checkable` protocols. Independent conformance validators still passed, and the existing suite reached 196 passed / 3 skipped before those four assertion failures.
+- The defect was fixed by marking `SecureKeyStore`, `AuthenticatedTransport`, `NodeAdmission`, and `KeyAdmission` as `@runtime_checkable`, matching the already-runtime-checkable coordinator contract. Fresh CI validation is required.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -82,7 +84,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-- Validate the new adapter-specific conformance tests across the full CI matrix.
+- Validate the runtime-checkable adapter contracts across the full CI matrix.
 - Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
 - Add authoritative backend conformance harnesses without faking security guarantees in the reference layer.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
