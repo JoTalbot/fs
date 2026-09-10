@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from .isolation import BubblewrapWorkspaceBackend
 from .model import EnvironmentSpec
-from .mount_namespace import MountNamespacePlan, plan_mount_namespace
+from .mount_namespace import MountNamespacePlan
 from .network_namespace import NetworkNamespacePlan, plan_network_namespace
 from .resource_control import ResourceLease, ResourcePlan, plan_resources
 from .workspace import WorkspaceBinding, WorkspacePlan, plan_workspace
@@ -67,7 +67,7 @@ def plan_execution_boundaries(
                 available=backend_plan.available,
                 admitted=backend_plan.available and workspace_plan.admitted,
                 backend=backend_plan.backend,
-                guarantees=("network-namespace", "network-deny-requested")
+                guarantees=("network-namespace-execution", "network-deny-requested")
                 if backend_plan.available
                 else (),
                 reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
