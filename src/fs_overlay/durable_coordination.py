@@ -16,7 +16,7 @@ import hashlib
 import os
 from pathlib import Path
 import time
-from typing import IO
+from typing import IO, Callable
 
 from .production_adapters import DurableAdmissionCoordinator
 
@@ -28,14 +28,16 @@ class CoordinationTimeout(TimeoutError):
 @dataclass(frozen=True)
 class _HeldLock(AbstractContextManager[None]):
     handle: IO[bytes]
-    unlock: object
+    unlock: Callable[[], None]
 
     def __enter__(self) -> None:
         return None
 
     def __exit__(self, exc_type, exc, tb) -> None:
-        self.unlock()
-        self.handle.close()
+        try:
+            self.unlock()
+        finally:
+            self.handle.close()
 
 
 class FileAdmissionCoordinator(DurableAdmissionCoordinator):
@@ -69,6 +71,9 @@ class FileAdmissionCoordinator(DurableAdmissionCoordinator):
     def acquire(self, resource_id: str) -> AbstractContextManager[None]:
         path = self._path(resource_id)
         handle = open(path, "a+b")
+        if os.name == "nt" and handle.seek(0, 2) == 0:
+            handle.write(b"\0")
+            handle.flush()
         deadline = time.monotonic() + self.timeout
         try:
             while True:
@@ -95,14 +100,16 @@ class FileAdmissionCoordinator(DurableAdmissionCoordinator):
         }
 
     @staticmethod
-    def _try_lock(handle: IO[bytes]):
+    def _try_lock(handle: IO[bytes]) -> Callable[[], None]:
         if os.name == "nt":
             import msvcrt
 
             handle.seek(0)
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-            except OSError:
+            except OSError as exc:
+                if getattr(exc, "errno", None) not in {errno.EACCES, errno.EAGAIN}:
+                    raise
                 raise BlockingIOError from None
 
             def unlock() -> None:
