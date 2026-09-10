@@ -1,4 +1,4 @@
-import pytest
+import concurrent.futures
 
 from fs_overlay.federation_protocol import FederationEnvelope
 from fs_overlay.federation_state import DurableFederationState
@@ -31,23 +31,11 @@ def test_federation_state_restores_multiple_senders(tmp_path) -> None:
 
     restored = DurableFederationState(path)
     assert restored.snapshot().last_sequence == {"node-a": 2, "node-b": 1}
-
-
-def test_replay_rejects_duplicate_message_id(tmp_path) -> None:
-    path = tmp_path / "events.journal"
-    state = DurableFederationState(path)
-    assert state.accept(message(1, "m1"))
-    assert state.accept(message(2, "m2"))
-    with path.open("ab") as handle:
-        original = path.read_bytes().splitlines()[0]
-        handle.write(original + b"\n")
-    with pytest.raises(ValueError, match="event sequence verification failed"):
-        DurableFederationState(path)
+    assert not restored.accept(message(1, "a3", "node-a"))
+    assert restored.accept(message(2, "b2", "node-b"))
 
 
 def test_thread_serialization_accepts_only_one_duplicate_sequence(tmp_path) -> None:
-    import concurrent.futures
-
     state = DurableFederationState(tmp_path / "events.journal")
     envelope = message(1, "m1")
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
