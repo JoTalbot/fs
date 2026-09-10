@@ -65,7 +65,7 @@ Validation:
 Result: `990abf7223eb2fc57d4ced53f05e2c26195c1ef5` contains the implementation; `8d9c8e65ac324e3212bc24582fa9f98ea1c51759` updates shared status.
 Learning:
 - [RULE] A declared guarantee should become a required verification check only when FS has an explicit evidence path for that guarantee.
-- [SECURITY] Never turn a capability declaration into evidence implicitly.
+- [SECURITY] Never convert a capability declaration into evidence implicitly.
 - [PATTERN] Keep guarantee-to-check mapping deterministic, small, and testable.
 Next: Integrate the derived checks into `TransactionExecutor` and connect the reference Linux evidence provider, with tests for missing/failed/passing evidence.
 
@@ -79,7 +79,7 @@ Research:
 Changes:
 - Added `src/fs_overlay/evidence_provider.py`.
 - Updated `src/fs_overlay/transaction_executor.py` to derive required checks from the plan before commit.
-- Caller-supplied checks may add requirements but cannot omit plan-derived checks.
+- Caller-supplied checks may add but cannot omit plan-derived checks.
 - Added transaction tests for missing/failed/passing evidence.
 - Added `docs/AGENT_OPERATING_SYSTEM.md` and the Linux isolation verification skill.
 Validation:
@@ -102,8 +102,8 @@ Research:
 - `unshare(1)` and `unshare(2)` -> namespace creation can be privilege-gated; PID namespace creation requires observing the child because the caller is not moved into the new PID namespace.
 - `mount_namespaces(7)` -> mount namespaces are distinct views and mount propagation affects isolation semantics.
 Changes:
-- Updated `src/fs_overlay/linux_probe.py` to compare the parent namespace identity with the disposable child identity from `/proc/self/ns/<type>`.
-- Added tests proving an unchanged namespace identity fails closed and a changed identity is accepted.
+- Updated `src/fs_overlay/linux_probe.py` to compare parent namespace identity with disposable child identity.
+- Added tests proving unchanged namespace identity fails closed and changed identity is accepted.
 - Updated `docs/LINUX_CAPABILITY_PROBES.md` with the observed-identity contract.
 Validation:
 - CI run `34437693909` passed Python 3.11, 3.12, and 3.13.
@@ -135,76 +135,93 @@ Area: workspace isolation evidence
 Goal: Create an exact disposable probe for workspace filesystem visibility without falsely admitting execution.
 Research:
 - Current FS execution coordinator, executor, isolation backend, workspace model, verification mapping and Linux probe were re-read before implementation.
-- Bubblewrap documentation: it creates a new filesystem namespace and supports explicit bind mounts; when not installed setuid root, user namespaces are required for unprivileged operation. FS must therefore treat it as an explicit backend capability, never as a silent privilege workaround.
+- Bubblewrap documentation: it creates a new filesystem namespace and supports explicit bind mounts; FS treats it as an explicit backend capability, never as a silent privilege workaround.
 - Ubuntu packages currently provide bubblewrap for supported architectures.
 Changes:
-- Added `src/fs_overlay/workspace_boundary.py` with `probe_workspace_boundary()`.
-- Added `tests/test_workspace_boundary.py`.
-- The probe creates a disposable workspace sentinel, exposes it at `/workspace`, and checks from inside the sandbox that an unbound host-root path is absent.
-- Added documentation describing the exact evidence scope and explicitly stating that `workspace-binding-admitted` remains unmapped until the same backend is used by execution.
+- Added `src/fs_overlay/workspace_boundary.py` and `tests/test_workspace_boundary.py`.
+- The probe creates a disposable workspace sentinel, exposes it at `/workspace`, and checks that an unbound host-root path is absent.
+- Added documentation describing the exact evidence scope.
 Validation:
 - GitHub writes succeeded.
-- CI for these newer commits is pending and therefore not claimed.
+- CI for those newer commits was pending at the time and was not claimed.
 Result: `96e82ad989543cf7bd5e486ada08b9b7b8b38409`, `7cba73e398ad8a224fdc8bc026c64582f5361b9c`, `5c99eaa317c3322a285eca00b002db4c45fb487a`, `ec209dc69c3a1851061438a3898cc0e4f96e0de4`.
 Learning:
 - [RULE] Exact workspace evidence can be probed independently, but it becomes authorization evidence only when the execution backend uses the same boundary construction.
-- [SECURITY] Bubblewrap's user-namespace behavior must remain explicit; FS must never silently enable user namespaces as a fallback.
-- [PATTERN] Keep evidence probes disposable and non-mutating, and make their tested property narrower than any unproven security guarantee.
-Next: Integrate the concrete workspace backend into the Linux executor, pass the workspace path explicitly, then wire the probe into verification and only afterward map `workspace-binding-admitted`.
+- [SECURITY] Bubblewrap user-namespace behavior must remain explicit; FS must never silently enable it as a fallback.
+Next: Integrate the concrete workspace backend into the Linux executor, pass the workspace path explicitly, then wire the probe into verification.
 
 ## 2026-09-10 | current-agent | concrete-workspace-network-evidence
 Base: ff35888c475287d288481144c3347aa14ca6af6f
 Area: execution-scoped workspace/network semantics
 Goal: Finish the concrete Linux workspace backend milestone without overstating evidence.
 Research:
-- Bubblewrap README/source -> it creates a new mount namespace, supports explicit `--bind`/`--ro-bind`, and `--unshare-net` creates a separate network namespace with loopback-only networking.
-- Bubblewrap security advisory GHSA-pxhw-h44j-8pfx -> versions before 0.12.0 are affected by sandbox-setup symlink traversal; 0.12.0 is the patched minimum.
-- Bubblewrap status interface documentation -> JSON status can expose child PID and namespace IDs, confirming that namespace identity is an observable backend concept.
-- Linux kernel cgroup v2 documentation -> resource control requires an explicitly delegated scope; FS must not mutate host-wide cgroups without authority.
+- Bubblewrap README/source -> new mount namespace, explicit bind mounts, and `--unshare-net` for network separation.
+- Bubblewrap advisory GHSA-pxhw-h44j-8pfx -> versions before 0.12.0 are affected by sandbox-setup symlink traversal; 0.12.0 is patched.
+- Bubblewrap status interface -> namespace IDs are observable backend facts.
+- Linux kernel cgroup v2 -> resource control requires explicitly delegated scope.
 Skill discovery:
-- No external skill materially fit this Linux backend/security step; local `fs-agent-core` plus the Linux isolation verification workflow remained authoritative.
+- No external skill materially fit this Linux backend/security step; local project rules and Linux isolation workflow remained authoritative.
 Changes:
-- Preserved workspace read-only versus read-write semantics with `--ro-bind` versus `--bind`.
+- Preserved read-only/read-write workspace semantics.
 - Added same-execution network namespace identity observation for `network=deny`.
-- Made the Bubblewrap backend authoritative for network admission when used by `workspace-only`, rather than requiring the unrelated generic `unshare --net` backend.
-- Updated evidence dispatch so a Bubblewrap execution can satisfy `namespace:net` only from its exact execution marker.
-- Updated workspace/network executor, coordinator, isolation, transaction, probe, and coordinator tests plus Linux capability documentation.
-- Corrected stale tests discovered by CI rather than weakening the implementation.
+- Made Bubblewrap authoritative for network admission when used by `workspace-only`.
+- Routed Bubblewrap exact execution evidence through verification.
 Validation:
-- First CI run after the change failed 3 tests, all due to stale expectations/marker names. No runtime implementation failure was observed.
-- CI run `34444479095` (run #56) then passed Python 3.11, 3.12, and 3.13 with 96 tests.
-- GitHub Actions therefore provides the authoritative validation for the latest implementation head.
-Result: latest implementation `6ae5d21bb6dfc46e0cf376b1e186881659b31a9a`; shared status update `3eed74fb0c6183677e5797f55a4a2cb650d1784a`.
+- First CI failed stale expectations/marker names only.
+- CI `34444479095` (#56) then passed Python 3.11/3.12/3.13 with 96 tests.
+Result: latest implementation `6ae5d21bb6dfc46e0cf376b1e186881659b31a9a`; shared status `3eed74fb0c6183677e5797f55a4a2cb650d1784a`.
 Learning:
-- [SECURITY] A concrete backend must emit evidence tied to the exact execution that created the boundary; a disposable capability probe cannot substitute for it.
-- [RULE] Read/write workspace semantics must remain explicit and visible in the backend command, not be silently normalized to read-only.
-- [PATTERN] When a backend provides a stronger exact observation than a generic probe, route the existing verification check through that execution evidence while retaining the generic probe for other backends.
-- [FAILURE] Tests that assert positional command tails are brittle when boundary instrumentation gains a new observation argument; assert stable structure and semantic positions instead.
-Next: Begin the next roadmap implementation only after fresh repository/security research: concrete delegated Linux resource-controller backend, then supervisor/lifecycle integration.
+- [SECURITY] Concrete backends must emit evidence tied to the exact execution that created the boundary.
+- [RULE] Read/write workspace semantics remain explicit in backend commands.
+Next: Implement delegated Linux resource controller and bounded supervisor after fresh research.
 
 ## 2026-09-10 | current-agent | resource-controller-supervisor
 Base: 3eed74fb0c6183677e5797f55a4a2cb650d1784a
 Area: execution runtime
 Goal: Add concrete delegated Linux resource enforcement and bounded process lifecycle control without broadening authority.
 Research:
-- Linux kernel cgroup v2 documentation -> delegation is the correct boundary; limits remain hierarchical and a delegatee must not gain access to parent resource-control files.
-- Python subprocess documentation -> `Popen.communicate()` avoids pipe deadlocks, timeout cleanup requires terminate/kill followed by communicate, and POSIX `start_new_session` provides a separate session for lifecycle control.
+- Linux kernel cgroup v2 -> delegation is the correct boundary; limits remain hierarchical.
+- Python subprocess -> `communicate()` plus timeout cleanup and POSIX `start_new_session` support bounded lifecycle control.
 Skill discovery:
-- No external skill materially fit the resource-controller/supervisor step; local project security rules and the Linux isolation workflow remained authoritative.
+- No external skill materially fit this step; local project security rules and Linux isolation workflow remained authoritative.
 Changes:
-- Added `src/fs_overlay/cgroup_v2.py` with explicit lease-scoped CPU, memory and PID enforcement, read-back verification, and fail-closed unsupported disk limits.
-- Added `src/fs_overlay/supervisor.py` with bounded Popen lifecycle, timeout cleanup, bounded restart-on-failure, and resource-enforcement fail-closed behavior.
-- Added cgroup and supervisor tests.
-- Added `docs/EXECUTION_RUNTIME.md` documenting the concrete runtime boundaries.
+- Added cgroup v2 backend with lease-scoped CPU, memory and PID enforcement and read-back verification.
+- Added bounded supervisor with timeout cleanup, bounded restart-on-failure and resource fail-closed behavior.
+- Added tests and runtime documentation.
 Validation:
-- CI run `34444585569` (#61) failed one stale fixture test; implementation tests otherwise passed.
-- CI run `34444595490` (#62) passed Python 3.11/3.12/3.13 with 103 tests.
-- CI run `34444660622` (#64) passed Python 3.11/3.12/3.13 after supervisor integration.
-- CI run `34444707813` (#65) passed Python 3.11/3.12/3.13 for the latest documentation head.
-Result: latest implementation/documentation `15eeca2ced88e5c4f5a1ba8f77e5ea6ffd5d1041`; final status update `712df1871574077e1f1280a364cf9535103408f2`.
+- CI `34444585569` (#61) exposed a stale fixture; CI `34444595490` (#62) passed with 103 tests.
+- CI `34444660622` (#64) and `34444707813` (#65) passed the supervisor/documentation heads.
+Result: implementation/documentation `15eeca2ced88e5c4f5a1ba8f77e5ea6ffd5d1041`.
 Learning:
-- [SECURITY] Resource enforcement must be scoped by explicit delegated authority and must read back the native controller state before being reported as verified.
-- [RULE] A supervisor must never silently continue when a requested resource policy cannot be attached.
-- [PATTERN] Process-group/session lifecycle control plus `communicate()` provides bounded cleanup without a shell or privilege escalation.
-- [FAILURE] Resource-controller unit fixtures must create their synthetic scope directory before creating controller files; CI exposed the stale fixture immediately.
-Next: Integrate lifecycle/resource policy into the transaction/coordinator path, then continue cross-platform adapters after fresh research.
+- [SECURITY] Resource enforcement must be scoped by explicit delegated authority and read back before reporting verified state.
+- [RULE] A supervisor must never continue without a requested resource boundary.
+Next: Integrate lifecycle/resource policy into the transaction/coordinator path.
+
+## 2026-09-10 | current-agent | end-to-end-runtime
+Base: 15eeca2ced88e5c4f5a1ba8f77e5ea6ffd5d1041
+Area: end-to-end execution runtime
+Goal: Connect admission, concrete Linux execution, supervision, resource evidence and transaction verification into one reusable path.
+Research:
+- Linux kernel cgroup v2 documentation -> writing a PID to `cgroup.procs` migrates the process into the delegated scope; controller behavior is hierarchical and delegation must remain contained.
+- Python subprocess documentation -> `start_new_session` creates a separate POSIX session and `communicate()` is the safe pipe/timeout interaction.
+- Windows Job Object documentation -> Windows provides native process-group resource limits through Job Objects; this is the next platform adapter rather than a Linux fallback.
+- Bubblewrap advisory GHSA-pxhw-h44j-8pfx -> 0.12.0 remains the minimum for the current workspace backend.
+Skill discovery:
+- No external skill materially fit this implementation; local `fs-agent-core` and Linux isolation workflow remained authoritative.
+Changes:
+- Added `resource-controller` guarantee mapping and exact `resource:enforcement` evidence verification.
+- Extended `ProcessResult` with resource lease identity.
+- Allowed `ProcessSupervisor` to carry concrete backend evidence through its result.
+- Composed optional supervision/resource enforcement into `LinuxNamespaceExecutor`.
+- Added `src/fs_overlay/runtime.py` to connect plan/admission -> concrete execution -> supervision -> transaction verification -> commit.
+- Added end-to-end runtime tests and updated `docs/EXECUTION_RUNTIME.md`.
+Validation:
+- CI `34446199320` (#77) passed Python 3.11/3.12/3.13 for resource evidence and lease identity.
+- CI `34446330031` (#83) passed Python 3.11/3.12/3.13 for the end-to-end runtime tests.
+- CI `34446352799` (#84) is running for the final import cleanup; it must be green before the current head is called validated.
+Result: implementation head `620078fd9e740832df773221270947a4bb39fe36`; shared status update `9f9039a894c685eadc9b5863556aa0ae3b6996f5`.
+Learning:
+- [ARCHITECTURE] Admission, execution and verification are now connected without making admission itself evidence.
+- [SECURITY] The current cgroup attach happens immediately after process creation, so the runtime must not claim enforcement before the child exists.
+- [RULE] Stronger cross-platform mechanisms must be added as explicit adapters, never as Linux-specific fallbacks.
+Next: After CI #84 is green, implement the Windows Job Object adapter, then a macOS service/runtime adapter and POSIX/BSD baseline before capability negotiation and versioned backend contracts.
