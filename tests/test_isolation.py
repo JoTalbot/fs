@@ -48,17 +48,11 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     assert plan.available
     assert "workspace-filesystem-boundary" in plan.guarantees
     wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
-    assert wrapped[-10:] == (
-        "--",
-        "/bin/sh",
-        "-c",
-        backend._boundary_script,
-        "fs-boundary",
-        str(tmp_path),
-        "host",
-        "deny",
-        "/bin/true",
-    )
+    assert wrapped[-10:-7] == ("/workspace", "--", "/bin/sh")
+    assert wrapped[-7:-4] == ("-c", backend._boundary_script, "fs-boundary")
+    assert wrapped[-4] == str(tmp_path)
+    assert wrapped[-2:] == ("deny", "/bin/true")
+    assert wrapped[-3].startswith("net:[")
     assert "/workspace" in wrapped
     assert "--ro-bind" in wrapped
 
@@ -69,8 +63,8 @@ def test_bubblewrap_supports_writable_workspace(tmp_path, monkeypatch):
     monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
     plan = backend.plan(str(tmp_path), read_only=False)
     assert plan.available
-    assert "--bind" in plan.argv_prefix
-    assert "--ro-bind" not in plan.argv_prefix
+    workspace_index = plan.argv_prefix.index(str(tmp_path))
+    assert plan.argv_prefix[workspace_index - 1] == "--bind"
 
 
 def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
