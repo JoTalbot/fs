@@ -45,6 +45,13 @@ def _hold_lock(path: str, ready: multiprocessing.Queue, release: multiprocessing
         release.wait(2)
 
 
+def _crash_with_lock(path: str, ready: multiprocessing.Queue) -> None:
+    coordinator = FileAdmissionCoordinator(path, timeout=1)
+    with coordinator.acquire("federation-events"):
+        ready.put(True)
+        raise SystemExit(17)
+
+
 def test_file_coordinator_serializes_across_processes(tmp_path) -> None:
     ctx = multiprocessing.get_context("spawn")
     ready = ctx.Queue()
@@ -64,3 +71,17 @@ def test_file_coordinator_serializes_across_processes(tmp_path) -> None:
         if process.is_alive():
             process.terminate()
         assert process.exitcode == 0
+
+
+def test_file_coordinator_lock_is_released_after_process_crash(tmp_path) -> None:
+    ctx = multiprocessing.get_context("spawn")
+    ready = ctx.Queue()
+    process = ctx.Process(target=_crash_with_lock, args=(str(tmp_path / "locks"), ready))
+    process.start()
+    assert ready.get(timeout=5) is True
+    process.join(timeout=5)
+    assert process.exitcode == 17
+
+    coordinator = FileAdmissionCoordinator(tmp_path / "locks", timeout=0.2)
+    with coordinator.acquire("federation-events"):
+        pass
