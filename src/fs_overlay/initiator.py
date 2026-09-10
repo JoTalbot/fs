@@ -30,8 +30,9 @@ class MinimalInitiator:
     def build_advertisement(self, message_id: str, issued_ns: int, *, capabilities: tuple[str, ...] = ()) -> FederationEnvelope:
         self._sequence += 1
         key_id = self.key_provider.active_key_id(self.config.node_id)
+        features = sorted(set(self.capabilities.features + capabilities))
         payload = {"platform": self.capabilities.platform,
-                   "features": tuple(sorted(set(self.capabilities.features + capabilities))),
+                   "features": features,
                    "protocol_version": self.config.protocol_version,
                    "public_key_fingerprint": self.key_provider.public_key_fingerprint(key_id),
                    "key_id": key_id}
