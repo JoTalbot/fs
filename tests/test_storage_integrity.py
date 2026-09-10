@@ -1,6 +1,7 @@
 """Integrity qualification for content-addressed storage and manifests."""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -28,8 +29,11 @@ def test_tampered_manifest_is_rejected(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     manifest = engine.put(b"manifest integrity")
     manifest_path = engine.store.manifests / manifest.object_id
-    data = manifest_path.read_bytes()
-    manifest_path.write_bytes(data.replace(b"manifest integrity", b"tampered"))
+    raw = json.loads(manifest_path.read_text())
+    raw["size"] += 1
+    manifest_path.write_text(
+        json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    )
 
     with pytest.raises(ValueError, match="manifest identity verification failed"):
         engine.store.get_manifest(manifest.object_id)
