@@ -6,57 +6,43 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation batch: durable federation state, audited reconciliation, failure-domain-aware replica policy, and adapter contracts.
+- Current architecture: portable local storage substrate with federation/control-plane reference primitives.
 - Updated: 2026-09-10
 
-## Current architectural phase
+## Completed federation/control-plane foundation
 
-**Durable federation state + audited reconciliation + deterministic failure-domain-aware placement**
+- Explicit `NodeIdentity` and fingerprint-bound `TrustStore` with expiry/revocation.
+- Signed capability advertisements with fail-closed trust and freshness admission.
+- Monotonic `FederationDirectory` observations and deterministic reconciliation planning.
+- Canonical `FederationEnvelope` with SHA-256 digest, signature boundary, replay protection, and deterministic byte serialization.
+- Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
+- `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
+- Verified `ReplicaExecutor` with source and post-copy target integrity checks.
+- Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
+- Failure-domain-aware `ReplicaPolicy` with deterministic candidate ordering.
+- Transport, signing, and key-provider dependency-injection contracts.
+- Deterministic capability negotiation with protocol-version fail-closed behavior.
+- Explicit key lifecycle model for active, retired, and revoked keys.
+- Versioned federation conformance vectors and envelope round-trip tests.
+- `MinimalInitiator` that requires explicit bootstrap configuration and injected key/signing/transport capabilities, and sends the complete signed envelope without peer discovery.
+- Cross-platform capability discovery remains conservative and host-local.
+- Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 
-The repository now has a concrete local content-addressed storage spine, transactional visibility, immutable snapshots, deterministic recovery planning, semantic state primitives, and an explicit federation boundary for trusted node observations, replay-safe message semantics, durable acceptance state, verified replica execution, self-healing planning, and auditable reconciliation.
+## Safety boundaries
 
-## Completed
-
-- Added explicit `NodeIdentity` with provisioned public-key fingerprint.
-- Added `TrustStore` with explicit allowlist, expiry and revocation.
-- Added signed capability-advertisement verification boundary using an injected verifier.
-- Rejected unknown, unsigned, revoked, fingerprint-mismatched and stale advertisements.
-- Added trusted `FederationDirectory` with monotonic observation handling.
-- Fixed `FederationReconciler` to consume `NodeAdvertisement.identity.node_id` correctly.
-- Added deterministic `FederationReconciler` for desired replica-count repair planning.
-- Added transport-neutral `FederationEnvelope` with canonical digest and signature-verification boundary.
-- Added `ReplayGuard` for duplicate IDs, stale/future timestamps and non-increasing sender sequences.
-- Added `ReplicaExecutor` with source hash verification and post-copy target verification through an injected adapter.
-- Added `SelfHealingPlanner` that produces repair actions only from explicit trusted, healthy observations.
-- Added `DurableFederationState` backed by the existing append-only `EventLog`, reconstructing accepted message IDs and sender sequence high-water marks after restart.
-- Added `FederationAuditTrail` for reconciliation decisions and replica execution results, including causal links.
-- Added deterministic `ReplicaPolicy` that prefers healthy candidates in distinct failure domains before filling remaining capacity.
-- Added dependency-injection contracts for federation transport, signing and key providers.
-- Added focused regression tests for protocol, replication, self-healing, durable state, audit trail and adapter contracts.
-- Kept reconciliation and self-healing as planning/execution boundaries; no implicit peer discovery or host mutation.
-- Kept network transport, cryptography and distributed consensus outside the reference implementation boundary.
-- Added `MinimalBootstrap` that creates only an explicitly selected FS root and atomic node configuration.
+The reference implementation does not silently scan or modify the host, discover arbitrary peers, grant trust from discovery, select unauthorized carriers, or claim distributed consensus. Network transport, production cryptography, secure key storage, concurrency coordination, and deployment-specific policy remain explicit adapters/operational boundaries.
 
 ## Validation
 
-- GitHub Actions CI runs #163, #167 and #169 completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
-- Current batch is still under CI validation; the newest run must finish before the latest head is called green.
+- GitHub Actions CI runs #163, #167 and #169 previously completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
+- The current federation/conformance batch has triggered CI from the latest main head; final green status must be observed before declaring the complete batch validated.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
-- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from reference primitives.
+- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
-## Important truthfulness boundaries
+## Release-readiness boundary
 
-- A fingerprint is an identity binding, not proof of possession; advertisement signatures require an external verifier and real key-management implementation.
-- Discovery does not grant authority.
-- Federation envelopes provide protocol semantics and replay protection, not a network transport.
-- Durable replay state is journal-backed single-process reference state; production deployments still need compaction, concurrency coordination and durable storage policy.
-- Reconciliation produces decisions; an authorized executor performs and verifies them.
-- Placement does not grant permission to mutate a carrier.
-- Snapshots catalog immutable object identities; they do not duplicate object bytes.
-- `HMACIntegrityEnvelope` is integrity-only, not encryption.
-- `AuthenticatedEncryption` and `ErasureCoder` remain explicit provider contracts until audited implementations/dependencies are selected.
-- FreeBSD native validation remains dependent on external Cirrus execution evidence.
+The codebase now has the reference architecture needed to implement platform-specific production adapters without changing the core protocol model. A production deployment still requires audited cryptographic algorithms/providers, authenticated and encrypted transport, secure key lifecycle storage, persistent/compacted replay state, multi-process/concurrency rules, failure-domain policy backed by authoritative observations, interoperability with an independent implementation, and operational recovery testing.
 
-## Next safe step
+## Next phase
 
-After the current CI is green, add interoperability/conformance vectors for federation envelopes and policy decisions, then build the minimal initiator around explicit configuration and injected transport/signing providers. Keep production cryptography, external networking, key rotation and distributed consensus separately auditable.
+No additional core protocol abstraction is required before production adapters. Future work should be implementation-specific: audited crypto/keystore, mutually authenticated transport, platform launchers, authoritative node admission, carrier adapters, distributed coordination where actually required, packaging, and deployment/recovery validation.
