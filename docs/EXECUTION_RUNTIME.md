@@ -1,10 +1,10 @@
 # FS Execution Runtime
 
-The reference runtime now has three explicit layers that must not be conflated:
+The reference runtime has three explicit layers that must not be conflated:
 
 1. **Admission**: the coordinator validates workspace ownership/delegation,
    backend availability, and resource lease authority.
-2. **Execution**: concrete Linux backends execute an already-admitted workload.
+2. **Execution**: concrete platform backends execute an already-admitted workload.
 3. **Observation/verification**: the transaction layer accepts only evidence
    produced by the exact execution that created the declared boundary.
 
@@ -32,13 +32,12 @@ The resource scope is treated as delegated authority, not discovered authority.
 The backend rejects symlink scopes so the lease cannot silently redirect the
 write target during scope resolution.
 
-Admission now declares `resource-controller` as a guarantee whenever a
-non-empty budget is admitted with a valid lease. The transaction layer converts
-that guarantee into the required `resource:enforcement` verification check.
-Only a `ProcessSupervisor` execution result carrying
-`resource-controller-enforced` satisfies that check. A valid lease by itself is
-therefore never treated as proof that the native controller actually enforced
-the budget.
+Admission declares `resource-controller` as a guarantee whenever a non-empty
+budget is admitted with a valid lease. The transaction layer converts that
+guarantee into the required `resource:enforcement` verification check. Only a
+`ProcessSupervisor` execution result carrying `resource-controller-enforced`
+satisfies that check. A valid lease by itself is therefore never treated as
+proof that the native controller actually enforced the budget.
 
 The current cgroup attachment occurs immediately after process creation. The
 runtime reports enforcement only after controller writes and readback succeed;
@@ -61,15 +60,46 @@ The supervisor also carries the exact resource lease identity in
 `ProcessResult` when resource enforcement succeeds, allowing later runtime
 layers to correlate the observation with the admitted lease.
 
-## Platform boundary
+## Cross-platform backend boundary
 
-The Linux implementation is the first concrete isolation/runtime adapter. The
-long-term roadmap still requires Windows Job Objects, a macOS service/runtime
-adapter, POSIX/BSD baselines, capability negotiation and a versioned backend
-contract. macOS's general-purpose `sandbox-exec` interface is deprecated and
-undocumented for third-party custom sandbox profiles, so it must not be adopted
-as an unverified substitute for the Linux boundary.
+### Windows
 
-These components are intentionally composable. They do not yet constitute the
-full cross-platform supervisor, lifecycle API, recovery system, or federation
-scheduler described by the long-term roadmap.
+`WindowsJobObjectBackend` is a native Win32 adapter. It creates a per-execution
+Job Object, applies CPU hard-cap, job-memory and active-process limits through
+`SetInformationJobObject`, assigns the spawned process to that job, and queries
+the limits back before reporting `verified=True`. The Job Object handle remains
+owned by the backend until the supervisor releases it after process completion.
+Unsupported disk limits and invalid budgets fail closed. Microsoft documents Job
+Objects as the native mechanism for grouping processes and applying these
+limits.
+
+### macOS
+
+There is deliberately no generic Python `sandbox-exec` fallback. Apple's App
+Sandbox is kernel-enforced and entitlement/signing based, so a production FS
+adapter must launch a signed helper/runtime carrying the required entitlements.
+The current capability negotiation therefore reports macOS as requiring a
+signed sandbox runtime rather than pretending that a normal child process has
+been sandboxed.
+
+### POSIX/BSD
+
+Generic POSIX process execution is not advertised as an isolation backend. BSD
+platforms require their own native capability adapters, such as Capsicum where
+supported. Until the exact mechanism is configured and observed, capability
+negotiation fails closed rather than mapping generic POSIX semantics to a
+stronger security guarantee.
+
+## Capability and backend contracts
+
+`backend_capabilities.py` performs conservative platform negotiation and never
+advertises a resource or isolation feature without a concrete backend contract.
+`backend_contract.py` provides a versioned contract for backend identity,
+evidence markers and supported resource types. Contract compatibility is
+explicit and can be rejected when the runtime and backend versions differ.
+
+These components are intentionally composable. The Linux and Windows resource
+paths now have concrete native implementations and tests. macOS signed-runtime
+and BSD native isolation remain explicit follow-on adapters, not hidden claims.
+The repository also remains below the full production lifecycle, recovery and
+federation scheduler roadmap.
