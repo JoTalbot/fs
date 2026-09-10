@@ -46,6 +46,7 @@
 - Added `docs/ADMISSION_CONFORMANCE.md` to make the independent admission boundary, required negative cases, adapter obligations, and fail-closed rule explicit.
 - Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
 - Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
+- Added a reusable `run_adapter_conformance()` qualification harness with injected adapter factories, stable check IDs, and explicit separation between semantic contract checks and production security certification.
 
 ## Safety boundaries
 
@@ -76,6 +77,7 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - The defect was fixed by marking `SecureKeyStore`, `AuthenticatedTransport`, `NodeAdmission`, and `KeyAdmission` as `@runtime_checkable`, matching the already-runtime-checkable coordinator contract.
 - CI run #274 completed successfully across all 9 OS/Python matrix jobs on the protocol fix commit.
 - CI run #275 completed successfully across all 9 OS/Python matrix jobs after the status update, confirming the adapter contract fix remains green on the current `main` history.
+- The reusable qualification harness and its memory-double integration were added after run #275; fresh CI validation is required for these new commits.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -85,7 +87,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-- Build reusable authoritative-adapter qualification harnesses that accept injected production implementations without replacing them with insecure test doubles.
+- Run the reusable qualification harness against each real production adapter as those adapters are introduced.
 - Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
 - Keep `FileAdmissionCoordinator` explicitly local multi-process; stronger backends must define their own transaction, ordering, durability, and crash semantics.
 - Use the full CI matrix as the release gate for every adapter-contract change.
