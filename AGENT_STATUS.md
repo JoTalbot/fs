@@ -39,9 +39,8 @@
 - Published protocol-v1 conformance vectors are consumable as standalone JSON data under `conformance/v1/`, including a UTF-8/non-ASCII payload vector.
 - Added dependency-free independent conformance consumer under `tools/`, deliberately avoiding `fs_overlay` imports.
 - Independent consumer validates the declared protocol version and canonicalization contract instead of silently hard-coding assumptions from vector metadata.
-- Published protocol-v1 admission-negative vector set now covers ten required fail-closed cases: changed payload, sender, and sequence with unchanged signature; duplicate ID; sequence rollback; stale/future timestamps; missing signature; unknown/revoked key; fingerprint mismatch.
-- Added dependency-free independent admission validator that checks the negative contract without importing `fs_overlay`.
-- Added implementation-level regression tests covering all ten negative admission cases.
+- Published protocol-v1 admission-negative vector set now defines ten required fail-closed cases: malformed envelope; unsupported protocol; negative sequence; empty ID; duplicate ID; sequence rollback; stale/future timestamps; missing signature; and key-admission failure covering unknown/revoked/fingerprint mismatch.
+- Added dependency-free independent admission validator that checks the ten-case negative contract without importing `fs_overlay`.
 - CI executes both independent conformance validators before the internal pytest suite on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix.
 
 ## Safety boundaries
@@ -66,7 +65,9 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - CI run #252 completed successfully across all 9 OS/Python matrix jobs, including the independent conformance consumer.
 - CI run #255 completed successfully across all 9 OS/Python matrix jobs, including the UTF-8 vector.
 - CI run #256 completed successfully across all 9 OS/Python matrix jobs, including the hardened consumer and UTF-8 vector.
-- A new CI run has been triggered for the admission-negative batch; it is not yet claimed green.
+- CI run #262 exposed a contract-integration defect: the newly added admission vector was discovered by the canonical consumer, which expected `vector_id` and canonical envelope fields. The vector was made self-describing and the canonical consumer now delegates `vector_type=admission` to the dedicated semantic validator.
+- The admission vector/validator were then aligned to the intended ten-case contract, and interoperability documentation was corrected accordingly.
+- A fresh CI run is triggered by the fix and must be green across all 9 jobs before this batch is considered validated.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -76,7 +77,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-- Validate the ten admission-negative cases across the full CI matrix.
+- Validate the corrected ten admission-negative cases across the full CI matrix.
 - Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
 - Build adapter-specific conformance tests for authoritative production backends without faking security guarantees in the reference layer.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
