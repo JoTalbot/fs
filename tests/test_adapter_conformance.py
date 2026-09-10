@@ -240,6 +240,8 @@ def test_file_admission_coordinator_qualifies(tmp_path) -> None:
 
 class PermissiveKeyStore(MemoryKeyStore):
     def store(self, key_id: str, key_material: bytes) -> None:
+        if not key_id:
+            raise ValueError("key id must be non-empty")
         self._keys[key_id] = bytes(key_material)
 
 
