@@ -38,16 +38,18 @@ def plan_execution_boundaries(
     else:
         workspace_plan = plan_workspace(workspace)
 
-    if workspace is None:
-        network_plan = plan_network_namespace(spec.policy.network)
+    reasons = list(workspace_plan.reasons) if spec.policy.filesystem == "workspace-only" else []
+    if spec.policy.filesystem == "workspace-only" and workspace is not None:
+        mount_plan = plan_mount_namespace(workspace)
+        reasons.extend(mount_plan.reasons)
     else:
-        network_plan = plan_network_namespace(spec.policy.network)
+        mount_plan = MountNamespacePlan(True, True, guarantees=("filesystem-host",))
 
+    network_plan = plan_network_namespace(requested=spec.policy.network)
     resource_plan = plan_resources(spec.policy.resources, resource_lease)
-
-    reasons = list(workspace_plan.reasons)
     reasons.extend(network_plan.reasons)
     reasons.extend(resource_plan.reasons)
+
     return ExecutionBoundaryPlan(
         admitted=not reasons,
         workspace=workspace_plan,
