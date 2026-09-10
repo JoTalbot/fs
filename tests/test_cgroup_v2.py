@@ -4,6 +4,7 @@ from fs_overlay.resource_control import ResourceLease
 
 
 def delegated_scope(tmp_path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "cgroup.controllers").write_text("cpu memory pids\n", encoding="ascii")
     (tmp_path / "cgroup.procs").write_text("\n", encoding="ascii")
     (tmp_path / "cpu.max").write_text("max 100000\n", encoding="ascii")
