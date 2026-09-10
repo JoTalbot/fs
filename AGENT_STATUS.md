@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `25b02bbdfe0ebb7e93b6e2cf2fb2f764c2f7441c`
+- Last known head: `ecbc4fdf969e742af6f642a9dee1365e339229fa`
 - Updated: 2026-09-10
 
 ## Current architectural phase
