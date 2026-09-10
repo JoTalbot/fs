@@ -17,6 +17,12 @@ class EventLog:
         self._journal = AppendJournal(path)
         self._sequence = 0
         self._last_hash = ""
+        self.reload()
+
+    def reload(self) -> None:
+        """Refresh sequence/hash state from the journal after external coordination."""
+        self._sequence = 0
+        self._last_hash = ""
         for event in self.replay():
             self._sequence = max(self._sequence, int(event.get("sequence", 0)))
             self._last_hash = str(event.get("event_hash", self._last_hash))
