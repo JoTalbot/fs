@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current architecture: portable local storage substrate with federation/control-plane reference primitives.
+- Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
 - Updated: 2026-09-10
 
 ## Completed federation/control-plane foundation
@@ -27,6 +27,7 @@
 - `MinimalInitiator` that requires explicit bootstrap configuration and injected key/signing/transport capabilities, and sends the complete signed envelope without peer discovery.
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
+- Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, and authoritative node admission/revocation.
 
 ## Safety boundaries
 
@@ -34,8 +35,9 @@ The reference implementation does not silently scan or modify the host, discover
 
 ## Validation
 
-- GitHub Actions CI runs #163, #167 and #169 previously completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
-- The current federation/conformance batch has triggered CI from the latest main head; final green status must be observed before declaring the complete batch validated.
+- GitHub Actions CI run #198 (`1fc3e820`) completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
+- GitHub Actions CI run #199 (`62d140ce`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
+- The latest production-adapter commits now require a new CI run; it has not yet been observed, so the new batch is not declared green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -45,4 +47,4 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-No additional core protocol abstraction is required before production adapters. Future work should be implementation-specific: audited crypto/keystore, mutually authenticated transport, platform launchers, authoritative node admission, carrier adapters, distributed coordination where actually required, packaging, and deployment/recovery validation.
+Implement concrete adapters only behind the new boundaries: audited crypto/keystore integration, mutually authenticated transport, authoritative node admission, platform launchers, carrier adapters, distributed coordination where actually required, packaging, and deployment/recovery validation. Do not turn the reference contracts into implicit discovery, trust, or host-wide mutation.
