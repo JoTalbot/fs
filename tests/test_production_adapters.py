@@ -24,4 +24,6 @@ def test_durable_admission_coordinator_contract_shape() -> None:
             return nullcontext()
 
     coordinator = Coordinator()
-    assert isinstance(coordinator.acquire("federation-events"), nullcontext)
+    assert isinstance(coordinator, DurableAdmissionCoordinator)
+    with coordinator.acquire("federation-events"):
+        pass
