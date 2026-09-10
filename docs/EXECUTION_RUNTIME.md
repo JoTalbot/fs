@@ -96,11 +96,17 @@ therefore does not equate Capsicum with a Linux network namespace.
 
 The adapter exposes `cap_enter()` plus `cap_getmode()` read-back in the workload
 process and emits explicit capability-mode evidence only after the kernel
-confirms the process entered capability mode. It is intentionally not wired
-into the generic `ProcessSupervisor` yet: entering Capsicum in the supervisor
-parent would sandbox the wrong process. A dedicated helper must open all
-required descriptors first and then enter capability mode inside the workload
-boundary.
+confirms the process entered capability mode. A native C helper now forms the
+safe execution boundary: it resolves the target before `cap_enter()`, reduces
+the executable descriptor to `CAP_READ` + `CAP_FEXECVE`, enters capability
+mode, verifies kernel state, proves that an absolute global filesystem lookup
+is rejected, and only then calls `fexecve()` on the pre-opened descriptor.
+
+The helper is deliberately not wired into the generic `ProcessSupervisor` yet.
+The supervisor must remain outside the Capsicum sandbox, while the workload
+helper owns the process-local transition. The native test compiles the helper
+with `-Wall -Wextra -Werror` and checks workload output plus the three helper
+evidence markers. Native FreeBSD execution still requires a real FreeBSD kernel.
 
 Other BSD systems remain fail-closed until an equivalent native mechanism is
 implemented and verified.
@@ -115,8 +121,8 @@ explicit and can be rejected when the runtime and backend versions differ.
 
 The Linux and Windows resource paths have concrete native implementations and
 real platform CI. macOS now has a signed-helper admission contract and macOS CI
-coverage, while FreeBSD has a native Capsicum entry/read-back adapter whose
-kernel path still requires a real FreeBSD host for native validation. These
-components are deliberately explicit follow-on boundaries, not hidden claims.
-The repository also remains below the full production lifecycle, recovery and
-federation scheduler roadmap.
+coverage, while FreeBSD has a native Capsicum helper boundary whose kernel path
+still requires a real FreeBSD host for native validation. These components are
+deliberately explicit follow-on boundaries, not hidden claims. The repository
+also remains below the full production lifecycle, recovery and federation
+scheduler roadmap.
