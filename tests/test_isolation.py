@@ -10,6 +10,12 @@ from fs_overlay.isolation import (
 )
 
 
+linux_only = pytest.mark.skipif(
+    platform.system().lower() != "linux",
+    reason="Linux namespace and bubblewrap backend",
+)
+
+
 def test_linux_namespace_backend_is_explicit_and_bounded():
     backend = LinuxNamespaceBackend()
     plan = backend.plan()
@@ -21,6 +27,7 @@ def test_linux_namespace_backend_is_explicit_and_bounded():
         assert not plan.available
 
 
+@linux_only
 def test_linux_wrap_rejects_empty_argv():
     backend = LinuxNamespaceBackend()
     if not backend.plan().available:
@@ -29,6 +36,7 @@ def test_linux_wrap_rejects_empty_argv():
         backend.wrap(())
 
 
+@linux_only
 def test_bubblewrap_requires_explicit_workspace():
     backend = BubblewrapWorkspaceBackend()
     plan = backend.plan()
@@ -40,6 +48,7 @@ def test_bubblewrap_requires_explicit_workspace():
     }
 
 
+@linux_only
 def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
@@ -57,6 +66,7 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     assert "--ro-bind" in wrapped
 
 
+@linux_only
 def test_bubblewrap_supports_writable_workspace(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
@@ -67,6 +77,7 @@ def test_bubblewrap_supports_writable_workspace(tmp_path, monkeypatch):
     assert plan.argv_prefix[workspace_index - 1] == "--bind"
 
 
+@linux_only
 def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
@@ -76,6 +87,7 @@ def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
     assert plan.reason == "workspace_path_overlaps_runtime_root"
 
 
+@linux_only
 def test_bubblewrap_preserves_network_policy(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
@@ -86,17 +98,18 @@ def test_bubblewrap_preserves_network_policy(tmp_path, monkeypatch):
     assert "--unshare-net" not in hosted.argv_prefix
 
 
+@linux_only
 def test_bubblewrap_boundary_script_observes_network_namespace():
     backend = BubblewrapWorkspaceBackend()
     assert "readlink /proc/self/ns/net" in backend._boundary_script
     assert 'network_mode" = "deny' in backend._boundary_script
 
 
-def test_windows_backend_never_claims_implemented_binding():
+def test_windows_backend_never_claims_filesystem_or_network_isolation():
     plan = WindowsJobObjectBackend().plan()
     if platform.system().lower() == "windows":
         assert not plan.available
-        assert "not yet implemented" in plan.reason
+        assert "filesystem/network isolation" in plan.reason
     else:
         assert not plan.available
 
