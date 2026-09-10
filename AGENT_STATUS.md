@@ -17,6 +17,7 @@
 - Canonical `FederationEnvelope` with SHA-256 digest, signature boundary, replay protection, and deterministic byte serialization.
 - Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
 - Durable replay reconstruction now fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
+- `DurableFederationState` now accepts an injected admission coordinator and holds it across validation, journal emission, and state mutation, preserving the complete durable admission critical section for deployment-specific multi-process/transactional implementations.
 - `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
 - Verified `ReplicaExecutor` with source and post-copy target integrity checks.
 - Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
@@ -37,10 +38,12 @@ The reference implementation does not silently scan or modify the host, discover
 
 The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply an explicit `DurableAdmissionCoordinator` or equivalent file-locking/transactional backend.
 
+The coordinator integration is intentionally dependency-injected. The reference state does not guess at OS locking, stale-lock ownership, process liveness, or crash recovery, because pretending those are portable would be a particularly efficient way to manufacture corruption.
+
 ## Validation
 
 - GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The durable admission coordination contract/test/documentation batch (`dacb0a52`, `ed9cd1da`, `932d74bd`) now requires fresh CI validation and is not declared green yet.
+- The coordination batch (`bb5ae5af`, `291a47ca`, `b109a877`) requires fresh CI validation and is not declared green yet.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
