@@ -83,6 +83,22 @@ def test_supervisor_rejects_invalid_restart_policy():
     assert "max_restarts_requires_on_failure" in result.stderr
 
 
+def test_supervisor_emits_resource_enforcement_evidence(tmp_path):
+    backend = FakeResourceBackend(verified=True)
+    supervisor = ProcessSupervisor(backend)
+    lease = ResourceLease("lease-1", str(tmp_path), "fs")
+    result = supervisor.execute(
+        python_command("print('resource-ok')"),
+        admitted=True,
+        resource_lease=lease,
+        resource_budget=ResourceBudget(memory_bytes=1024),
+    )
+    assert result.status == "succeeded"
+    assert "resource-controller-enforced" in result.execution_evidence
+    assert result.resource_lease_id == "lease-1"
+    assert backend.calls
+
+
 def test_supervisor_fails_closed_when_resource_enforcement_fails(tmp_path):
     backend = FakeResourceBackend(verified=False)
     supervisor = ProcessSupervisor(backend)
