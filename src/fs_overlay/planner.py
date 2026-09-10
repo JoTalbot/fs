@@ -52,6 +52,8 @@ class BackendPlanner:
             reasons.append("cpu_limit_requires_resource_controller")
         if policy.resources.memory_bytes is not None:
             reasons.append("memory_limit_requires_resource_controller")
+        if policy.resources.disk_bytes is not None:
+            reasons.append("disk_limit_requires_resource_controller")
         if policy.resources.pids is not None:
             reasons.append("pid_limit_requires_resource_controller")
         return reasons
@@ -72,9 +74,13 @@ class BackendPlanner:
                 reasons.append("privileged_mode_unavailable")
             if spec.policy.devices:
                 reasons.append("device_policy_requires_device_aware_container")
-            if spec.policy.resources.cpu_millis is not None or spec.policy.resources.memory_bytes is not None or spec.policy.resources.pids is not None:
-                if not caps.supports("isolation", "resource_controller"):
-                    reasons.append("resource_controller_unavailable")
+            if any(v is not None for v in (
+                spec.policy.resources.cpu_millis,
+                spec.policy.resources.memory_bytes,
+                spec.policy.resources.disk_bytes,
+                spec.policy.resources.pids,
+            )) and not caps.supports("isolation", "resource_controller"):
+                reasons.append("resource_controller_unavailable")
             return BackendDecision(backend, not reasons, tuple(reasons), 0.90 if not reasons else 0.0)
 
         if backend == "microvm":
