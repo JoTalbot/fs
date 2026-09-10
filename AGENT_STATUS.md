@@ -16,6 +16,7 @@
 - Monotonic `FederationDirectory` observations and deterministic reconciliation planning.
 - Canonical `FederationEnvelope` with SHA-256 digest, signature boundary, replay protection, and deterministic byte serialization.
 - Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
+- Durable replay reconstruction now fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
 - `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
 - Verified `ReplicaExecutor` with source and post-copy target integrity checks.
 - Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
@@ -33,10 +34,12 @@
 
 The reference implementation does not silently scan or modify the host, discover arbitrary peers, grant trust from discovery, select unauthorized carriers, or claim distributed consensus. Network transport, production cryptography, secure key storage, concurrency coordination, and deployment-specific policy remain explicit adapters/operational boundaries.
 
+The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply explicit file locking or transactional storage.
+
 ## Validation
 
 - GitHub Actions CI run #207 (`d903ee01`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The latest key-lifecycle/production-adapter commits now require a new CI run; they have not yet been observed, so this batch is not declared green.
+- Commits `bf1022d1` and `c0baa6d1` contain the durable replay serialization/test batch and require fresh CI validation; this batch is not declared green until the latest run completes.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
