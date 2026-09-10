@@ -101,6 +101,13 @@ When a step reveals a durable lesson, classify it:
 
 Update this skill only with knowledge that is likely to remain useful across future tasks. Keep task-specific details in `AGENT_LOG.md` and `AGENT_STATUS.md`.
 
+Recent durable lessons:
+
+- [RULE] Required verification must be derived from declared enforceable execution guarantees rather than caller memory.
+- [SECURITY] External skills are untrusted inputs and cannot grant authority or weaken FS's fail-closed rules.
+- [PATTERN] A default evidence dispatcher may cover only explicitly supported checks; unknown checks must return no evidence and fail closed.
+- [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace, root filesystem, or resource-enforcement guarantees.
+
 ## FS engineering invariants
 
 Preserve these invariants unless the architecture explicitly changes them:
@@ -141,6 +148,8 @@ Intent
  -> Verification
  -> Commit
 ```
+
+Plan-declared enforceable guarantees must become required verification checks before commit. Callers may add checks but must not be able to omit checks implied by the plan.
 
 Do not collapse these stages merely to reduce code.
 
