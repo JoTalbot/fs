@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "vector_id": "observe-unicode-v1",
+  "envelope": {
+    "sender_node": "node-a",
+    "message_id": "msg-utf8",
+    "message_type": "OBSERVE",
+    "sequence": 2,
+    "issued_ns": 1000000001,
+    "payload": {
+      "object": "їжак 🐙"
+    }
+  },
+  "canonicalization": {
+    "format": "json",
+    "sort_keys": true,
+    "separators": [",", ":"],
+    "ensure_ascii": false,
+    "signature_included": false
+  },
+  "expected_sha256": "5db4f67057ce4cca40682a19cc01b3e51ebff8d3ef8ef25dd067ef2151c1ae84"
+}
