@@ -4,7 +4,6 @@ from __future__ import annotations
 import platform
 
 from .execution_coordinator import ExecutionBoundaryPlan, plan_execution_boundaries
-from .execution_coordinator import ExecutionBoundaryPlan
 from .linux_executor import LinuxExecutionPolicy, LinuxNamespaceExecutor
 from .model import EnvironmentSpec
 from .resource_control import ResourceLease
