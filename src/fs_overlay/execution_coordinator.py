@@ -41,11 +41,13 @@ def plan_execution_boundaries(
     else:
         workspace_plan = plan_workspace(workspace)
 
+    reasons: list[str]
     if spec.policy.filesystem == "workspace-only":
         workspace_backend = BubblewrapWorkspaceBackend()
         backend_plan = workspace_backend.plan(
             workspace_plan.binding.host_path if workspace_plan.admitted else None,
             network=spec.policy.network,
+            read_only=workspace_plan.binding.read_only if workspace_plan.admitted else True,
         )
         reasons = list(workspace_plan.reasons)
         if not backend_plan.available:
@@ -60,14 +62,33 @@ def plan_execution_boundaries(
             guarantees=("workspace-filesystem-boundary",) if backend_plan.available else (),
             reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
         )
+        if spec.policy.network == "deny":
+            network_plan = NetworkNamespacePlan(
+                available=backend_plan.available,
+                admitted=backend_plan.available and workspace_plan.admitted,
+                backend=backend_plan.backend,
+                guarantees=("network-namespace", "network-deny-requested")
+                if backend_plan.available
+                else (),
+                reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
+            )
+        else:
+            network_plan = NetworkNamespacePlan(
+                available=backend_plan.available,
+                admitted=backend_plan.available and workspace_plan.admitted,
+                backend=backend_plan.backend,
+                guarantees=("host-network",),
+                reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
+            )
     elif spec.policy.filesystem == "host":
         mount_plan = MountNamespacePlan(True, True, guarantees=("filesystem-host",))
         reasons = []
+        network_plan = plan_network_namespace(requested=spec.policy.network)
     else:
         mount_plan = MountNamespacePlan(False, False, reasons=("unsupported_filesystem_policy",))
         reasons = list(mount_plan.reasons)
+        network_plan = NetworkNamespacePlan(False, False, reasons=("unsupported_filesystem_policy",))
 
-    network_plan = plan_network_namespace(requested=spec.policy.network)
     resource_plan = plan_resources(spec.policy.resources, resource_lease)
     reasons.extend(network_plan.reasons)
     reasons.extend(resource_plan.reasons)
