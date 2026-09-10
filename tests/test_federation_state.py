@@ -1,6 +1,8 @@
 import concurrent.futures
+import multiprocessing
 from contextlib import nullcontext
 
+from fs_overlay.durable_coordination import FileAdmissionCoordinator
 from fs_overlay.federation_protocol import FederationEnvelope
 from fs_overlay.federation_state import DurableFederationState
 
@@ -118,3 +120,28 @@ def test_coordinator_contract_shape() -> None:
     coordinator = Coordinator()
     with coordinator.acquire("federation-events"):
         pass
+
+
+def _accept_with_file_coordinator(path: str, locks: str, message_id: str, result: multiprocessing.Queue) -> None:
+    state = DurableFederationState(path, coordinator=FileAdmissionCoordinator(locks, timeout=5))
+    result.put(state.accept(message(1, message_id)))
+
+
+def test_coordinated_processes_refresh_stale_admission_state(tmp_path) -> None:
+    state_path = str(tmp_path / "events.journal")
+    locks_path = str(tmp_path / "locks")
+    ctx = multiprocessing.get_context("spawn")
+    result = ctx.Queue()
+    first = ctx.Process(target=_accept_with_file_coordinator, args=(state_path, locks_path, "m1", result))
+    second = ctx.Process(target=_accept_with_file_coordinator, args=(state_path, locks_path, "m2", result))
+    first.start()
+    second.start()
+    first.join(timeout=10)
+    second.join(timeout=10)
+    assert first.exitcode == 0
+    assert second.exitcode == 0
+    assert sorted(result.get(timeout=5) for _ in range(2)) == [False, True]
+
+    restored = DurableFederationState(state_path)
+    assert restored.snapshot().last_sequence == {"node-a": 1}
+    assert restored.snapshot().seen_message_ids == frozenset({"m1"}) or restored.snapshot().seen_message_ids == frozenset({"m2"})
