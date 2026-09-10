@@ -21,9 +21,9 @@ def test_invalid_lease_fails_closed():
     assert "lease_id is required" in plan.reasons
 
 
-def test_valid_lease_still_requires_native_controller():
+def test_valid_lease_is_admitted_for_backend_enforcement():
     lease = ResourceLease("lease-1", "fs/workloads/demo", "node-1")
     plan = plan_resources(ResourceBudget(memory_bytes=1024), lease)
     assert plan.lease_id == "lease-1"
-    assert not plan.enforceable
-    assert "native_resource_controller_not_attached" in plan.reasons
+    assert plan.enforceable
+    assert plan.reasons == ()
