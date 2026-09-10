@@ -60,6 +60,15 @@ def test_durable_transaction_commit_replays_after_restart(tmp_path: Path) -> Non
     assert recovered.audit()["ok"] is True
 
 
+def test_single_object_commit_replays_after_restart(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"ordinary durable object")
+
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert tuple(recovered.inventory.records) == (manifest.object_id,)
+    assert recovered.get(manifest.object_id) == b"ordinary durable object"
+
+
 def test_rollback_remains_unpublished_after_restart(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     tx = StorageTransaction(engine)
