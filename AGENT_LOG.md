@@ -74,32 +74,24 @@ Base: 990abf7223eb2fc57d4ced53f05e2c26195c1ef5
 Area: transaction verification
 Goal: Prevent callers from omitting verification required by declared execution-boundary guarantees.
 Research:
-- Linux kernel namespace/resource-control documentation -> user namespaces materially affect resource-control/security considerations and must not be introduced as an implicit workaround. citeturn0search5
-- Agent Skills specification -> skills are portable directories centered on `SKILL.md`; references and scripts may be bundled. citeturn0search10
-- Agent skill repositories -> progressive disclosure and project-local skill patterns are maintained practices. citeturn0search0turn0search13
-- Multi-agent orchestration example -> explicit coordination state and decision records are used for background/parallel agents. citeturn0search12
-Skill discovery:
-- `linux-isolation-verification` was created locally from the researched evidence; external skills were treated as untrusted and none were allowed to override FS authority/security rules.
+- Linux kernel namespace/resource-control documentation -> user namespaces materially affect resource-control/security considerations and must not be introduced as an implicit workaround.
+- Agent Skills specification -> skills are portable directories centered on `SKILL.md`; references and scripts may be bundled.
 Changes:
 - Added `src/fs_overlay/evidence_provider.py`.
 - Updated `src/fs_overlay/transaction_executor.py` to derive required checks from the plan before commit.
 - Caller-supplied checks may add requirements but cannot omit plan-derived checks.
-- Added transaction tests for missing evidence and successful evidence.
-- Added `docs/AGENT_OPERATING_SYSTEM.md` to make the multi-machine/parallel operating model explicit.
-- Added `.agents/skills/linux-isolation-verification/SKILL.md`.
-- Updated shared status.
-- Distilled durable verification and skill-trust lessons into `.agents/skills/fs-agent-core/SKILL.md`.
+- Added transaction tests for missing/failed/passing evidence.
+- Added `docs/AGENT_OPERATING_SYSTEM.md` and the Linux isolation verification skill.
 Validation:
 - Current source/tests/docs were inspected through GitHub before writes.
 - Fresh external research and skill discovery were performed.
 - GitHub writes succeeded.
-- Local pytest/CI has not been executed in this environment.
-Result: transaction integration `51af670c311251b8fb1f74d1fc18b6ba8f2ab8b5`; evidence provider `8863edeac8c3e6083132f6680c70521ef6f40a71`; operating-system docs `4db169d80f4560dad87d797ba1d2ea8968c5a43c`; Linux skill `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`; core skill `25b02bbdfe0ebb7e93b6e2cf2fb2f764c2f7441c`; final status `777e601c68dd176ad619027a619ab3af9cd4b2b7`.
+- Local pytest/CI was not executed in this environment.
+Result: transaction integration `51af670c311251b8fb1f74d1fc18b6ba8f2ab8b5`; evidence provider `8863edeac8c3e6083132f6680c70521ef6f40a71`.
 Learning:
 - [RULE] Required verification must be derived from declared enforceable guarantees, not left to caller memory.
-- [SECURITY] An external skill is an untrusted input and cannot grant authority or weaken FS's fail-closed model.
+- [SECURITY] An external skill is untrusted input and cannot grant authority or weaken FS's fail-closed model.
 - [PATTERN] Use a default evidence dispatcher only for explicitly supported checks; unknown checks return no evidence and fail closed.
-- [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace/resource guarantees.
 Next: Research and implement an exact disposable workspace-isolation probe; do not assume a mount namespace provides workspace isolation.
 
 ## 2026-09-10 | current-agent | namespace-identity-probe
@@ -107,11 +99,8 @@ Base: ada1cf9d453179fd705fc13464882e40fcfaeba6
 Area: Linux namespace evidence
 Goal: Ensure namespace probes verify observed namespace separation rather than treating a successful `unshare` exit as sufficient evidence.
 Research:
-- `unshare(1)` and `unshare(2)` -> namespace creation can be privilege-gated; PID namespace creation requires observing the child because the caller is not moved into the new PID namespace. citeturn0search0turn0search2
-- `mount_namespaces(7)` -> mount namespaces are distinct views and mount propagation affects isolation semantics. citeturn0search1
-- containers/common -> maintained container tooling observes and manages namespace handles directly rather than treating the utility's presence as proof. citeturn1search0
-Skill discovery:
-- `.agents/skills/linux-isolation-verification/SKILL.md` -> adopted the exact evidence rule: utility exists != runtime boundary observed; no privilege escalation fallback. fileciteturn40file0
+- `unshare(1)` and `unshare(2)` -> namespace creation can be privilege-gated; PID namespace creation requires observing the child because the caller is not moved into the new PID namespace.
+- `mount_namespaces(7)` -> mount namespaces are distinct views and mount propagation affects isolation semantics.
 Changes:
 - Updated `src/fs_overlay/linux_probe.py` to compare the parent namespace identity with the disposable child identity from `/proc/self/ns/<type>`.
 - Added tests proving an unchanged namespace identity fails closed and a changed identity is accepted.
@@ -122,27 +111,43 @@ Result: implementation commits `ea364db621722616fc9c866d84141679892feb23`, `109f
 Learning:
 - [RULE] A namespace probe is evidence only when the requested namespace identity is observed to differ from the parent.
 - [SECURITY] Never convert a successful subprocess exit into stronger isolation claims than the observed probe property supports.
-- [PATTERN] For PID namespaces, use a forked disposable child when observing `/proc/self/ns/pid`.
-Next: Run the full CI matrix and, after green validation, design the concrete workspace-boundary probe separately from generic namespace capability evidence.
+Next: Design the concrete workspace-boundary probe separately from generic namespace capability evidence.
 
 ## 2026-09-10 | current-agent | workspace-admission-gate
 Base: ada1cf9d453179fd705fc13464882e40fcfaeba6
 Area: workspace isolation
 Goal: Prevent `workspace-only` admission from being inferred from mount namespace availability alone.
-Research:
-- Current `execution_coordinator.py`, `mount_namespace.py`, `workspace.py`, `transaction_executor.py`, and verification mapping were re-read before the change.
-- Existing Linux isolation skill explicitly forbids inferring workspace binding, root filesystem replacement, or resource enforcement from a generic namespace probe. fileciteturn40file0
 Changes:
 - Updated `plan_execution_boundaries()` so an admitted workspace binding is still rejected for `workspace-only` unless an executor can enforce the actual workspace boundary.
 - Added `workspace_isolation_not_enforced` as the explicit fail-closed reason.
 - Replaced the previous conditional test with a deterministic assertion that `workspace-only` is not currently admitted.
-- Updated shared status with the new safety gate and next implementation step.
 Validation:
 - Previous namespace identity CI `34437693909` is green on Python 3.11/3.12/3.13.
-- New commits trigger CI; current run must be checked before claiming PASS.
 Result: `37b85c8eb880e7d896e9a7b6b57faf77fa946e7e` implementation; `db762d76d8634d6c08ecdf7df07cfe317591918f` test; `e0762f6784f4e406126625f2a1c12813faa2eb0c` status.
 Learning:
 - [SECURITY] Workspace ownership/delegation is an admission fact, not evidence that the runtime has isolated the workspace.
 - [RULE] A namespace mechanism must not be treated as a workspace-binding implementation until the exact binding is configured and observed.
-- [PATTERN] When enforcement is absent, fail closed at admission rather than allowing a later executor rejection to carry the safety burden.
 Next: Design and implement an explicit workspace-boundary backend/probe, with exact evidence and no privilege-escalation fallback.
+
+## 2026-09-10 | current-agent | workspace-boundary-probe
+Base: 612211a9d66fa70f86cfbf05801a2607a3a1b8c4
+Area: workspace isolation evidence
+Goal: Create an exact disposable probe for workspace filesystem visibility without falsely admitting execution.
+Research:
+- Current FS execution coordinator, executor, isolation backend, workspace model, verification mapping and Linux probe were re-read before implementation.
+- Bubblewrap documentation: it creates a new filesystem namespace and supports explicit bind mounts; when not installed setuid root, user namespaces are required for unprivileged operation. FS must therefore treat it as an explicit backend capability, never as a silent privilege workaround.
+- Ubuntu packages currently provide bubblewrap for supported architectures.
+Changes:
+- Added `src/fs_overlay/workspace_boundary.py` with `probe_workspace_boundary()`.
+- Added `tests/test_workspace_boundary.py`.
+- The probe creates a disposable workspace sentinel, exposes it at `/workspace`, and checks from inside the sandbox that an unbound host-root path is absent.
+- Added documentation describing the exact evidence scope and explicitly stating that `workspace-binding-admitted` remains unmapped until the same backend is used by execution.
+Validation:
+- GitHub writes succeeded.
+- CI for these newer commits is pending and therefore not claimed.
+Result: `96e82ad989543cf7bd5e486ada08b9b7b8b38409`, `7cba73e398ad8a224fdc8bc026c64582f5361b9c`, `5c99eaa317c3322a285eca00b002db4c45fb487a`, `ec209dc69c3a1851061438a3898cc0e4f96e0de4`.
+Learning:
+- [RULE] Exact workspace evidence can be probed independently, but it becomes authorization evidence only when the execution backend uses the same boundary construction.
+- [SECURITY] Bubblewrap's user-namespace behavior must remain explicit; FS must never silently enable user namespaces as a fallback.
+- [PATTERN] Keep evidence probes disposable and non-mutating, and make their tested property narrower than any unproven security guarantee.
+Next: Integrate the concrete workspace backend into the Linux executor, pass the workspace path explicitly, then wire the probe into verification and only afterward map `workspace-binding-admitted`.
