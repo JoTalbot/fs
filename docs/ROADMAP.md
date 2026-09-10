@@ -24,6 +24,15 @@
 - [x] Unified Resource Fabric concept
 - [x] Universal Runtime concept
 - [x] logical hardware profile and application mobility model
+- [x] vertical FS stack from hardware/firmware to user intent
+- [x] FS Hardware Abstraction Layer concept
+- [x] FS Time Fabric concept
+- [x] FS Reality Engine concept
+- [x] FS Object Graph as system-wide model
+- [x] hierarchical Meta Scheduler concept
+- [x] Intent Layer concept
+- [x] recursive Computer composition model
+- [x] cross-cutting Security / Identity / Policy / Knowledge / Simulation / Observability / Recovery planes
 
 ## Phase 1 - local reference engine
 
@@ -55,6 +64,9 @@
 - [ ] capability discovery
 - [ ] capability negotiation
 - [ ] versioned backend contracts
+- [ ] hardware abstraction adapter
+- [ ] hardware capability fingerprint
+- [ ] platform time adapter
 
 ## Phase 3 - managed workspaces
 
@@ -89,6 +101,9 @@
 - [ ] resource leases
 - [ ] workload priorities
 - [ ] data-locality-aware placement
+- [ ] universal application manifest
+- [ ] universal execution API
+- [ ] application compatibility matrix
 
 ## Phase 5 - resilience
 
@@ -104,6 +119,8 @@
 - [ ] deterministic recovery planner
 - [ ] recovery graph
 - [ ] failure injection suite
+- [ ] reality snapshots
+- [ ] confidence-aware observations
 
 ## Phase 6 - isolation platform
 
@@ -116,6 +133,8 @@
 - [ ] host-independent workspace import/export
 - [ ] migration protocol
 - [ ] live migration where supported
+- [ ] virtual hardware fabric
+- [ ] virtual device model
 
 ## Phase 7 - FS control plane
 
@@ -137,6 +156,10 @@
 - [ ] safety governor
 - [ ] explainable decision records
 - [ ] autonomy budgets
+- [ ] intent API
+- [ ] object graph engine
+- [ ] reality engine
+- [ ] meta-scheduler
 
 ## Phase 8 - federation and resource mesh
 
@@ -158,6 +181,8 @@
 - [ ] capability leases across nodes
 - [ ] network-aware placement
 - [ ] energy/thermal-aware placement
+- [ ] recursive Computer federation
+- [ ] cross-Computer scheduling
 
 ## Phase 9 - autonomous optimization
 
@@ -177,6 +202,8 @@
 - [ ] shadow planning
 - [ ] what-if simulation
 - [ ] confidence scoring
+- [ ] intent-driven autonomous planning
+- [ ] hierarchical scheduling optimization
 
 ## Phase 10 - simulation and digital twin
 
@@ -189,6 +216,9 @@
 - [ ] state time travel
 - [ ] branch/compare/promote workflow
 - [ ] predictive impact analysis
+- [ ] full Object Graph simulation
+- [ ] hardware/resource simulation
+- [ ] time-fabric simulation
 
 ## Phase 11 - production
 
@@ -204,6 +234,9 @@
 - [ ] supply-chain verification
 - [ ] canary update mechanism
 - [ ] formal/property-based invariant tests
+- [ ] hardware compatibility certification
+- [ ] runtime compatibility certification
+- [ ] end-to-end intent-to-execution tests
 
 ## Guiding rules
 
@@ -232,3 +265,10 @@
 23. Ordinary applications are never silently distributed when their runtime semantics do not support distribution.
 24. Logical application, environment and session identity survives physical placement changes where the backend supports migration or checkpoint/restore.
 25. A resource contributes to a Computer only after explicit admission and capability verification.
+26. Hardware authority is explicit and adapter-mediated.
+27. Wall-clock time is not the sole source of distributed ordering.
+28. Reality observations are evidence, not assumptions.
+29. Intent describes desired outcomes; implementation remains planner-controlled.
+30. Higher schedulers constrain lower schedulers; lower schedulers cannot expand authority.
+31. Recursive Computer composition preserves explicit identity, capability and trust boundaries.
+32. The same logical object model must remain valid across deployment levels.
