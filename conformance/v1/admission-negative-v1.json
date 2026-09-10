@@ -1,5 +1,6 @@
 {
   "protocol_version": 1,
+  "vector_id": "admission-negative-v1",
   "vector_set_id": "admission-negative-v1",
   "description": "Protocol-v1 negative admission cases. These vectors describe required fail-closed outcomes; cryptographic provider behavior remains adapter-specific.",
   "cases": [
