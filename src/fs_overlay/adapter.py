@@ -1,8 +1,9 @@
 """Explicit host execution adapter for the reference runtime.
 
-Only an already-admitted operation may reach this adapter. Commands are passed
-as argv without a shell, and execution is bounded by timeout/cwd/environment.
-The adapter does not elevate privileges or modify system configuration.
+The adapter refuses to execute unless the caller supplies an already-admitted
+execution scope. Commands are passed as argv without a shell and bounded by
+timeout/cwd/environment. No privilege elevation or system configuration is
+performed here.
 """
 from __future__ import annotations
 
@@ -37,10 +38,13 @@ class NativeProcessAdapter:
         self,
         argv: tuple[str, ...],
         *,
+        admitted: bool = False,
         cwd: str | None = None,
         environment: Mapping[str, str] | None = None,
         timeout: float = 30.0,
     ) -> ProcessResult:
+        if not admitted:
+            return ProcessResult("rejected", None, "", "execution scope is not admitted")
         if not argv or not argv[0]:
             raise ValueError("argv must contain an executable")
         if timeout <= 0:
@@ -50,26 +54,12 @@ class NativeProcessAdapter:
             env.update(environment)
         try:
             completed = subprocess.run(
-                list(argv),
-                cwd=cwd,
-                env=env,
-                shell=False,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
+                list(argv), cwd=cwd, env=env, shell=False,
+                capture_output=True, text=True, timeout=timeout, check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            return ProcessResult(
-                status="timed_out",
-                returncode=None,
-                stdout=exc.stdout or "",
-                stderr=exc.stderr or "",
-                timed_out=True,
-            )
+            return ProcessResult("timed_out", None, exc.stdout or "", exc.stderr or "", True)
         return ProcessResult(
-            status="succeeded" if completed.returncode == 0 else "failed",
-            returncode=completed.returncode,
-            stdout=completed.stdout,
-            stderr=completed.stderr,
+            "succeeded" if completed.returncode == 0 else "failed",
+            completed.returncode, completed.stdout, completed.stderr,
         )
