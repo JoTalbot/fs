@@ -35,6 +35,7 @@
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 - Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
+- Versioned interoperability boundary documentation and fail-closed strict conformance validation for published vectors.
 
 ## Safety boundaries
 
@@ -52,6 +53,7 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - Run #233 exposed a real synchronization flaw in the crash test: `multiprocessing.Queue` could lose its notification when the child called `os._exit()`. The test was corrected to use a process-shared `Event`.
 - Run #233 also showed the suite reached 186 passed / 3 skipped with only that test failing on the then-current commit; the failure was test synchronization, not the coordinator implementation.
 - GitHub Actions CI run #242 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
+- GitHub Actions CI run #244 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
 - The validated matrix includes the cross-process coordinator and crash-release regression coverage.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
@@ -63,6 +65,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 ## Next phase
 
 - Transactional backend requirements are documented in `docs/DURABLE_ADMISSION.md`, including commit, failure, recovery, ordering, durability, concurrency, clock, compaction and audit semantics.
+- Interoperability requirements are documented in `docs/INTEROPERABILITY.md`, including independent vector consumption, negative cases, versioning and production qualification boundaries.
 - Next engineering gate: independent interoperability vectors and production-adapter validation against an authoritative backend.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
 - Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
