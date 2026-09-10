@@ -58,6 +58,10 @@
 - [x] FS Plan DAG
 - [x] FS Universal State Transition Machine
 - [x] FS Intermediate Representation
+- [x] FS executable semantic reference core
+- [x] FS Genesis Bootstrap model
+- [x] FS Resource Fabric admission model
+- [x] FS Universal Session / Application Mobility model
 
 ## Phase 1 - local reference engine
 
@@ -84,10 +88,14 @@
 - [ ] decision record primitives
 - [ ] world-state snapshot primitives
 - [ ] unified control-loop primitives
-- [ ] computation/transition primitives
-- [ ] Plan DAG representation
-- [ ] universal state transition primitives
+- [x] computation/transition primitives
+- [x] Plan DAG representation
+- [x] universal state transition primitives
 - [ ] FS-IR schema and validation
+- [x] Genesis node primitives
+- [ ] capability matching engine
+- [ ] application session primitives
+- [ ] presentation endpoint primitives
 
 ## Phase 2 - cross-platform runtime
 
@@ -109,6 +117,9 @@
 - [ ] semantic ABI adapters
 - [ ] semantic verification adapters
 - [ ] FS-IR backend lowering
+- [ ] Genesis bootstrap executable
+- [ ] local node identity store
+- [ ] platform capability adapters
 
 ## Phase 3 - managed workspaces
 
@@ -154,6 +165,8 @@
 - [ ] transition precondition/postcondition enforcement
 - [ ] idempotent operation semantics
 - [ ] plan execution coordinator
+- [ ] application mobility coordinator
+- [ ] remote presentation transport
 
 ## Phase 5 - resilience
 
@@ -228,10 +241,13 @@
 - [ ] learning/adaptation plane
 - [ ] world-state coordinator
 - [ ] unified control-loop coordinator
-- [ ] executable world coordinator
+- [ ] executable-world coordinator
 - [ ] computation planner
 - [ ] Plan DAG compiler
 - [ ] FS-IR compiler/lowering pipeline
+- [ ] Genesis coordinator
+- [ ] resource admission coordinator
+- [ ] universal session coordinator
 
 ## Phase 8 - federation and resource mesh
 
@@ -265,6 +281,10 @@
 - [ ] federated decision provenance
 - [ ] distributed Plan DAG execution
 - [ ] cross-node semantic verification
+- [ ] reciprocal resource participation
+- [ ] execution/presentation separation
+- [ ] cross-node application session placement
+- [ ] federation privacy boundaries
 
 ## Phase 9 - autonomous optimization
 
@@ -321,6 +341,9 @@
 - [ ] Plan DAG simulation
 - [ ] state-transition replay
 - [ ] FS-IR simulation
+- [ ] Genesis federation simulation
+- [ ] reciprocal two-node scenario
+- [ ] application mobility simulation
 
 ## Phase 11 - production
 
@@ -357,6 +380,9 @@
 - [ ] Plan DAG correctness tests
 - [ ] transition-machine invariant tests
 - [ ] FS-IR compatibility tests
+- [ ] Genesis bootstrap compatibility tests
+- [ ] federation admission tests
+- [ ] application mobility conformance tests
 
 ## Guiding rules
 
@@ -424,3 +450,11 @@
 62. Backend lowering must preserve declared observable semantics or fail explicitly.
 63. Retried operations must declare idempotency semantics.
 64. State-changing events require the applicable verification boundary before becoming authoritative state.
+65. Genesis bootstrap is an entry point, not the world itself.
+66. Federation membership does not imply access to private resources.
+67. A participant may consume, provide, or both, but each resource scope is independently admitted.
+68. Execution location and presentation location are distinct capabilities.
+69. Application mobility requires declared compatibility and migration semantics.
+70. Remote execution never implies unrestricted remote data access.
+71. A node may become part of the Resource Fabric without surrendering host functionality.
+72. The smallest resident component should expose only the minimum trusted bootstrap boundary; heavy functionality remains replaceable modules.
