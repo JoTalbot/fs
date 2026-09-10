@@ -4,11 +4,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import threading
 
 from .genesis_runtime import build_local_service
 from .genesis_server import GenesisServer
 from .identity import NodeIdentity
-from .transport import LocalhostTransport
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,7 +25,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _make_service(node_id: str):
     identity = NodeIdentity.from_public_key(node_id, node_id.encode("utf-8"))
-    return build_local_service(identity, {})
+    # Passing None is intentional: Genesis observes the local machine instead
+    # of presenting an empty, misleading capability snapshot.
+    return build_local_service(identity, None)
 
 
 def _print_response(response) -> int:
@@ -48,9 +50,11 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
         server = GenesisServer(service, port=args.port)
         host, port = server.start()
-        print(json.dumps({"ok": True, "operation": "serve", "host": host, "port": port}, sort_keys=True), flush=True)
+        print(
+            json.dumps({"ok": True, "operation": "serve", "host": host, "port": port}, sort_keys=True),
+            flush=True,
+        )
         try:
-            import threading
             threading.Event().wait()
         except KeyboardInterrupt:
             return 0
