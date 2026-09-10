@@ -22,6 +22,52 @@ This document defines architectural invariants for FS. It governs implementation
 16. **Simulation precedes risky autonomy where practical.** High-impact plans should support dry-run, shadow, or what-if validation before execution.
 17. **Failure is a normal state.** Recovery, degradation, migration, and repair are first-class lifecycle paths.
 18. **Portability is a design property.** Platform-specific behavior belongs behind capability-aware adapters and versioned contracts.
+19. **Emergent project changes require explicit approval.** A newly discovered idea, improvement, correction, architectural change, roadmap addition, or material implementation change that is not already authorized by the project contract must be proposed to the project owner before being applied.
+20. **Approved changes are immediately persisted.** Once the project owner approves an emergent change, the decision and resulting project change should be recorded in the appropriate repository documentation, roadmap, specification, issue, or implementation without unnecessary delay, then development continues.
+21. **Deferred and rejected proposals remain distinguishable.** When useful for future work and traceability, proposals that are not applied should be recorded as `DEFERRED` or `REJECTED` rather than silently disappearing.
+22. **Approved implementation should not repeatedly block on reconfirmation.** Once a change is explicitly approved, its direct implementation steps and already-authorized consequences may proceed without asking for approval at every sub-step.
+
+## Change proposal workflow
+
+The normative workflow for emergent project ideas is:
+
+```text
+DISCOVER
+   -> CLASSIFY
+   -> ASSESS
+   -> PROPOSE
+   -> APPROVE / DEFER / REJECT
+
+APPROVE
+   -> PERSIST DECISION
+   -> IMPLEMENT
+   -> VERIFY
+   -> RECORD RESULT
+   -> CONTINUE DEVELOPMENT
+
+DEFER
+   -> RECORD BACKLOG ITEM
+   -> CONTINUE DEVELOPMENT
+
+REJECT
+   -> RECORD DECISION WHEN TRACEABILITY IS USEFUL
+   -> CONTINUE DEVELOPMENT
+```
+
+A proposal should normally state:
+
+```text
+idea
+why_it_matters
+scope
+benefit
+risks
+cost_or_complexity
+architectural_impact
+recommended_action
+```
+
+The proposal workflow must not become a bottleneck for ordinary execution. Existing approved requirements, constitutional laws, accepted roadmap items, and direct implementation details do not require repeated approval.
 
 ## Four spaces
 
