@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `db762d76d8634d6c08ecdf7df07cfe317591918f`
+- Latest work chain: `96e82ad989543cf7bd5e486ada08b9b7b8b38409` → `7cba73e398ad8a224fdc8bc026c64582f5361b9c` → `5c99eaa317c3322a285eca00b002db4c45fb487a`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -19,62 +19,55 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | workspace boundary admission | `src/fs_overlay/execution_coordinator.py`, `tests/test_execution_coordinator.py` | `ada1cf9d453179fd705fc13464882e40fcfaeba6` | fail-closed gate implemented, CI pending | Build an explicit backend/probe for actual workspace binding before re-admitting `workspace-only` |
+| current-agent | ChatGPT | workspace boundary evidence | `src/fs_overlay/workspace_boundary.py`, `tests/test_workspace_boundary.py`, `docs/LINUX_CAPABILITY_PROBES.md` | `612211a9d66fa70f86cfbf05801a2607a3a1b8c4` | probe implemented, CI pending | Integrate the same concrete backend into execution before mapping `workspace-binding-admitted` to evidence |
 
 ## Recently completed
 
 ### Namespace identity verification
 
-- `probe_namespace()` now executes a disposable namespace child and observes `/proc/self/ns/<type>` inside it.
+- `probe_namespace()` executes a disposable namespace child and observes `/proc/self/ns/<type>` inside it.
 - A successful `unshare` exit is insufficient if the child reports the same namespace identity as the parent.
 - PID probes use `--fork` so the observed child is actually inside the new PID namespace.
 
-### Workspace admission safety gate
+### Workspace boundary evidence probe
 
-- `workspace-only` no longer becomes admitted merely because `unshare --mount` is available.
-- The coordinator now returns `workspace_isolation_not_enforced` until an executor/backend can perform and verify the actual workspace boundary.
-- This deliberately separates workspace binding admission from namespace capability evidence.
-
-### Probe-to-verification bridge
-
-- Added `src/fs_overlay/probe_verification.py`.
-- Added `tests/test_probe_verification.py`.
-- Updated `docs/TRANSACTION_EXECUTOR.md`.
-- Linux checks use explicit `namespace:<mount|pid|net>` identifiers.
+- Added `src/fs_overlay/workspace_boundary.py`.
+- Added `tests/test_workspace_boundary.py`.
+- The probe uses an explicitly installed `bubblewrap` backend when available.
+- It creates a temporary workspace and verifies from inside the sandbox that the workspace sentinel is visible while an unbound host-root path is absent.
+- Backend absence or kernel rejection fails closed.
+- The probe does not yet imply that the FS execution backend uses the same boundary.
 
 ### Guarantee-to-check mapping
 
-- Added `src/fs_overlay/verification_requirements.py`.
-- `mount-namespace`, `pid-namespace`, and `network-namespace` guarantees map deterministically to required namespace verification checks.
-- `workspace-binding-admitted` remains intentionally unmapped because it is not runtime workspace-isolation evidence.
+- `mount-namespace`, `pid-namespace`, and `network-namespace` map to explicit namespace verification checks.
+- `workspace-binding-admitted` remains deliberately unmapped because the execution path does not yet consume the concrete workspace boundary backend.
 
-### CI baseline
+## Research record for current phase
 
-- Added `.github/workflows/ci.yml`.
-- CI runs the complete pytest suite on every push to `main` and every pull request.
-- CI covers Python 3.11, 3.12, and 3.13 on `ubuntu-latest`.
-- CI run `34437693909` passed all three Python jobs for the namespace identity probe.
-- The current fail-closed workspace gate has triggered a new CI run; its result must be checked before claiming PASS.
+- Bubblewrap documentation describes an unprivileged sandbox with a new filesystem namespace and explicit bind mounts; user namespace creation is required when bwrap is not installed setuid root.
+- FS therefore treats bubblewrap as an explicit backend capability, never as an invisible privilege workaround.
+- The local Linux isolation skill requires exact evidence scope and fail-closed behavior.
 
 ## Validation state
 
-- Previous namespace identity CI: PASS, Python 3.11/3.12/3.13.
-- Workspace fail-closed gate: committed; current CI pending.
-- No claim is made that `workspace-only` is currently enforceable.
+- CI run `34437693909`: PASS, Python 3.11/3.12/3.13.
+- Workspace boundary probe commits are newer than that run; their CI result is not claimed until observed.
+- No claim is made yet that `workspace-only` execution is safely enforced by the concrete executor.
 
 ## Recommended next implementation step
 
-1. Check CI for the current head.
-2. Design a disposable workspace-boundary probe that tests the exact property FS claims, not merely mount namespace creation.
-3. Keep user namespace support explicit and fail-closed; never add privilege escalation as a fallback.
-4. Implement a backend only when it can both configure and verify workspace binding.
-5. Integrate workspace evidence with an explicit guarantee/check mapping.
-6. Run the full suite and record actual results.
+1. Integrate the workspace backend into the concrete Linux executor with an explicit workspace path.
+2. Make execution admission depend on the backend's actual availability, not merely `unshare` presence.
+3. Route the exact workspace probe through the evidence provider only for executions that used that backend.
+4. Only then map `workspace-binding-admitted` to `workspace:boundary` verification.
+5. Run the full CI matrix and record actual results.
 
 ## Known non-goals for this phase
 
 - Do not implement privileged namespace creation.
 - Do not assume `unshare` proves workspace isolation.
+- Do not silently introduce user namespaces as a fallback.
 - Do not mutate host-wide cgroups.
 - Do not claim resource enforcement without an enforceable FS-owned/delegated resource lease.
 - Do not turn FS-IR directly into host mutation without authority, admission, execution, observation, and verification gates.
