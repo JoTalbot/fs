@@ -39,28 +39,28 @@ def test_file_coordinator_rejects_invalid_configuration(tmp_path) -> None:
         coordinator.acquire("")
 
 
-def _hold_lock(path: str, ready: multiprocessing.Queue, release: multiprocessing.Event) -> None:
+def _hold_lock(path: str, ready: multiprocessing.Event, release: multiprocessing.Event) -> None:
     coordinator = FileAdmissionCoordinator(path, timeout=1)
     with coordinator.acquire("federation-events"):
-        ready.put(True)
+        ready.set()
         release.wait(2)
 
 
-def _crash_with_lock(path: str, ready: multiprocessing.Queue) -> None:
+def _crash_with_lock(path: str, ready: multiprocessing.Event) -> None:
     coordinator = FileAdmissionCoordinator(path, timeout=1)
     with coordinator.acquire("federation-events"):
-        ready.put(True)
+        ready.set()
         os._exit(17)
 
 
 def test_file_coordinator_serializes_across_processes(tmp_path) -> None:
     ctx = multiprocessing.get_context("spawn")
-    ready = ctx.Queue()
+    ready = ctx.Event()
     release = ctx.Event()
     process = ctx.Process(target=_hold_lock, args=(str(tmp_path / "locks"), ready, release))
     process.start()
     try:
-        assert ready.get(timeout=5) is True
+        assert ready.wait(5)
         coordinator = FileAdmissionCoordinator(tmp_path / "locks", timeout=0.05)
         started = time.monotonic()
         with pytest.raises(CoordinationTimeout):
@@ -76,10 +76,10 @@ def test_file_coordinator_serializes_across_processes(tmp_path) -> None:
 
 def test_file_coordinator_lock_is_released_after_process_crash(tmp_path) -> None:
     ctx = multiprocessing.get_context("spawn")
-    ready = ctx.Queue()
+    ready = ctx.Event()
     process = ctx.Process(target=_crash_with_lock, args=(str(tmp_path / "locks"), ready))
     process.start()
-    assert ready.get(timeout=5) is True
+    assert ready.wait(5)
     process.join(timeout=5)
     assert process.exitcode == 17
 
