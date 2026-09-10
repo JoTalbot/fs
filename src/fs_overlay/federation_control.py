@@ -134,11 +134,11 @@ class FederationReconciler:
         if desired_copies <= 0:
             raise ValueError("desired_copies must be positive")
         present = sorted(set(present_on))
-        trusted = {node.node_id for node in self.directory.available()}
+        trusted = {node.identity.node_id for node in self.directory.available()}
         sources = [node for node in present if node in trusted]
         if not sources:
             return ()
-        targets = [node.node_id for node in self.directory.available() if node.node_id not in present]
+        targets = [node.identity.node_id for node in self.directory.available() if node.identity.node_id not in present]
         needed = max(0, desired_copies - len(present))
         return tuple(
             ReconciliationDecision(object_id, sources[0], target, "REPLICATE", "restore desired replica count")
