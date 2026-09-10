@@ -19,7 +19,14 @@ def default_evidence_provider(
     backend = getattr(execution_result, "backend", None)
     evidence = getattr(execution_result, "execution_evidence", ())
     if check.check_id == "workspace:boundary":
-        passed = backend == "bubblewrap-workspace" and "workspace-filesystem-boundary-observed" in evidence
+        exact_bubblewrap = (
+            backend == "bubblewrap-workspace"
+            or (
+                backend == "process-supervisor"
+                and "execution-backend:bubblewrap-workspace" in evidence
+            )
+        )
+        passed = exact_bubblewrap and "workspace-filesystem-boundary-observed" in evidence
         return VerificationEvidence(
             check.check_id,
             passed,
@@ -29,17 +36,25 @@ def default_evidence_provider(
             },
             "workspace_boundary_not_observed" if not passed else "workspace_boundary_observed",
         )
-    if check.check_id == "namespace:net" and backend == "bubblewrap-workspace":
-        passed = "network-namespace-observed" in evidence
-        return VerificationEvidence(
-            check.check_id,
-            passed,
-            {
-                "backend": backend,
-                "execution_evidence": tuple(evidence),
-            },
-            "network_namespace_not_observed" if not passed else "network_namespace_observed",
+    if check.check_id == "namespace:net":
+        exact_bubblewrap = (
+            backend == "bubblewrap-workspace"
+            or (
+                backend == "process-supervisor"
+                and "execution-backend:bubblewrap-workspace" in evidence
+            )
         )
+        if exact_bubblewrap:
+            passed = "network-namespace-observed" in evidence
+            return VerificationEvidence(
+                check.check_id,
+                passed,
+                {
+                    "backend": backend,
+                    "execution_evidence": tuple(evidence),
+                },
+                "network_namespace_not_observed" if not passed else "network_namespace_observed",
+            )
     if check.check_id == "resource:enforcement":
         passed = (
             backend == "process-supervisor"
