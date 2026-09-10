@@ -10,16 +10,16 @@ def default_evidence_provider(
     *,
     execution_result: object | None = None,
 ) -> VerificationEvidence | None:
-    """Return evidence for checks supported by the reference runtime.
+    """Return execution-scoped or reference evidence without inventing proof.
 
-    Workspace evidence is accepted only from the concrete Bubblewrap executor's
-    execution result. The generic disposable workspace probe is deliberately
-    not used here because it proves a different process.
+    Concrete Bubblewrap network evidence is accepted only from the exact
+    Bubblewrap execution result. Other namespace checks continue to use the
+    disposable Linux capability probes.
     """
+    backend = getattr(execution_result, "backend", None)
+    evidence = getattr(execution_result, "execution_evidence", ())
     if check.check_id == "workspace:boundary":
-        backend = getattr(execution_result, "backend", None)
-        evidence = getattr(execution_result, "execution_evidence", ())
-        passed = backend == "bubblewrap-workspace" and "workspace:boundary-observed" in evidence
+        passed = backend == "bubblewrap-workspace" and "workspace-filesystem-boundary-observed" in evidence
         return VerificationEvidence(
             check.check_id,
             passed,
@@ -28,5 +28,16 @@ def default_evidence_provider(
                 "execution_evidence": tuple(evidence),
             },
             "workspace_boundary_not_observed" if not passed else "workspace_boundary_observed",
+        )
+    if check.check_id == "namespace:net" and backend == "bubblewrap-workspace":
+        passed = "network-namespace-observed" in evidence
+        return VerificationEvidence(
+            check.check_id,
+            passed,
+            {
+                "backend": backend,
+                "execution_evidence": tuple(evidence),
+            },
+            "network_namespace_not_observed" if not passed else "network_namespace_observed",
         )
     return linux_namespace_evidence(check)
