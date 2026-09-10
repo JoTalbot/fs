@@ -48,17 +48,29 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     assert plan.available
     assert "workspace-filesystem-boundary" in plan.guarantees
     wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
-    assert wrapped[-7:] == (
+    assert wrapped[-10:] == (
         "--",
         "/bin/sh",
         "-c",
         backend._boundary_script,
         "fs-boundary",
         str(tmp_path),
+        "host",
+        "deny",
         "/bin/true",
     )
     assert "/workspace" in wrapped
     assert "--ro-bind" in wrapped
+
+
+def test_bubblewrap_supports_writable_workspace(tmp_path, monkeypatch):
+    backend = BubblewrapWorkspaceBackend()
+    monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
+    monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
+    plan = backend.plan(str(tmp_path), read_only=False)
+    assert plan.available
+    assert "--bind" in plan.argv_prefix
+    assert "--ro-bind" not in plan.argv_prefix
 
 
 def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
@@ -78,6 +90,12 @@ def test_bubblewrap_preserves_network_policy(tmp_path, monkeypatch):
     hosted = backend.plan(str(tmp_path), network="host")
     assert "--unshare-net" in denied.argv_prefix
     assert "--unshare-net" not in hosted.argv_prefix
+
+
+def test_bubblewrap_boundary_script_observes_network_namespace():
+    backend = BubblewrapWorkspaceBackend()
+    assert "readlink /proc/self/ns/net" in backend._boundary_script
+    assert 'network_mode" = "deny' in backend._boundary_script
 
 
 def test_windows_backend_never_claims_implemented_binding():
