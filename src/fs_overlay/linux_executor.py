@@ -13,6 +13,9 @@ from typing import Mapping
 
 from .adapter import ProcessResult
 from .isolation import BubblewrapWorkspaceBackend, LinuxNamespaceBackend
+from .model import ResourceBudget
+from .resource_control import ResourceLease
+from .supervisor import ProcessSupervisor, SupervisorPolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,9 +33,11 @@ class LinuxNamespaceExecutor:
         self,
         backend: LinuxNamespaceBackend | None = None,
         workspace_backend: BubblewrapWorkspaceBackend | None = None,
+        supervisor: ProcessSupervisor | None = None,
     ) -> None:
         self.backend = backend or LinuxNamespaceBackend()
         self.workspace_backend = workspace_backend or BubblewrapWorkspaceBackend()
+        self.supervisor = supervisor
 
     def execute(
         self,
@@ -45,6 +50,9 @@ class LinuxNamespaceExecutor:
         policy: LinuxExecutionPolicy | None = None,
         workspace_path: str | None = None,
         workspace_read_only: bool = True,
+        supervisor_policy: SupervisorPolicy | None = None,
+        resource_lease: ResourceLease | None = None,
+        resource_budget: ResourceBudget | None = None,
     ) -> ProcessResult:
         if not admitted:
             return ProcessResult("rejected", None, "", "execution scope is not admitted")
@@ -83,6 +91,28 @@ class LinuxNamespaceExecutor:
                 "rejected", None, "", "requested filesystem/network policy is not enforced by this backend"
             )
 
+        execution_evidence: tuple[str, ...] = ()
+        if workspace_execution:
+            execution_evidence = ("workspace-filesystem-boundary-observed",)
+            if policy.network == "deny":
+                execution_evidence += ("network-namespace-observed",)
+
+        if self.supervisor is not None:
+            effective_policy = supervisor_policy or SupervisorPolicy(timeout=timeout)
+            return self.supervisor.execute(
+                tuple(wrapped),
+                admitted=True,
+                cwd=None if policy.filesystem == "workspace-only" else cwd,
+                environment=environment,
+                policy=effective_policy,
+                resource_lease=resource_lease,
+                resource_budget=resource_budget,
+                execution_evidence=(
+                    *execution_evidence,
+                    f"execution-backend:{backend_name}",
+                ),
+            )
+
         env = None
         if environment is not None:
             env = os.environ.copy()
@@ -104,16 +134,10 @@ class LinuxNamespaceExecutor:
                 backend=backend_name,
             )
 
-        evidence: tuple[str, ...] = ()
         status = "succeeded" if completed.returncode == 0 else "failed"
-        if workspace_execution and completed.returncode not in self.workspace_backend.boundary_check_exit_codes:
-            if completed.returncode == 0:
-                evidence = ("workspace-filesystem-boundary-observed",)
-                if policy.network == "deny":
-                    evidence += ("network-namespace-observed",)
-        elif workspace_execution and completed.returncode in self.workspace_backend.boundary_check_exit_codes:
+        if workspace_execution and completed.returncode in self.workspace_backend.boundary_check_exit_codes:
             status = "failed"
-            evidence = ()
+            execution_evidence = ()
 
         return ProcessResult(
             status,
@@ -121,5 +145,5 @@ class LinuxNamespaceExecutor:
             completed.stdout,
             completed.stderr,
             backend=backend_name,
-            execution_evidence=evidence,
+            execution_evidence=execution_evidence,
         )
