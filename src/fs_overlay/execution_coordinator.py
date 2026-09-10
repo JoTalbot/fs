@@ -57,7 +57,7 @@ def plan_execution_boundaries(
             argv_prefix=backend_plan.argv_prefix,
             workspace_path=workspace_plan.binding.host_path if workspace_plan.admitted else None,
             read_only=workspace_plan.binding.read_only,
-            guarantees=(),
+            guarantees=("workspace-filesystem-boundary",) if backend_plan.available else (),
             reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
         )
     elif spec.policy.filesystem == "host":
