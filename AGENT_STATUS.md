@@ -22,12 +22,12 @@
 - Failure-domain-aware `ReplicaPolicy` with deterministic candidate ordering.
 - Transport, signing, and key-provider dependency-injection contracts.
 - Deterministic capability negotiation with protocol-version fail-closed behavior.
-- Explicit key lifecycle model for active, retired, and revoked keys.
+- Explicit key lifecycle model for active, retired, and revoked keys, including fail-closed duplicate-ID and silent-fingerprint-change checks.
 - Versioned federation conformance vectors and envelope round-trip tests.
 - `MinimalInitiator` that requires explicit bootstrap configuration and injected key/signing/transport capabilities, and sends the complete signed envelope without peer discovery.
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
-- Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, and authoritative node admission/revocation.
+- Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
 
 ## Safety boundaries
 
@@ -35,9 +35,8 @@ The reference implementation does not silently scan or modify the host, discover
 
 ## Validation
 
-- GitHub Actions CI run #198 (`1fc3e820`) completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
-- GitHub Actions CI run #199 (`62d140ce`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The latest production-adapter commits now require a new CI run; it has not yet been observed, so the new batch is not declared green.
+- GitHub Actions CI run #207 (`d903ee01`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
+- The latest key-lifecycle/production-adapter commits now require a new CI run; they have not yet been observed, so this batch is not declared green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
