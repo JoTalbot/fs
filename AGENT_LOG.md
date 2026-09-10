@@ -101,3 +101,28 @@ Learning:
 - [PATTERN] Use a default evidence dispatcher only for explicitly supported checks; unknown checks return no evidence and fail closed.
 - [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace/resource guarantees.
 Next: Research and implement an exact disposable workspace-isolation probe; do not assume a mount namespace provides workspace isolation.
+
+## 2026-09-10 | current-agent | namespace-identity-probe
+Base: ada1cf9d453179fd705fc13464882e40fcfaeba6
+Area: Linux namespace evidence
+Goal: Ensure namespace probes verify observed namespace separation rather than treating a successful `unshare` exit as sufficient evidence.
+Research:
+- `unshare(1)` and `unshare(2)` -> namespace creation can be privilege-gated; PID namespace creation requires observing the child because the caller is not moved into the new PID namespace. citeturn0search0turn0search2
+- `mount_namespaces(7)` -> mount namespaces are distinct views and mount propagation affects isolation semantics. citeturn0search1
+- containers/common -> maintained container tooling observes and manages namespace handles directly rather than treating the utility's presence as proof. citeturn1search0
+Skill discovery:
+- `.agents/skills/linux-isolation-verification/SKILL.md` -> adopted the exact evidence rule: utility exists != runtime boundary observed; no privilege escalation fallback. fileciteturn40file0
+Changes:
+- Updated `src/fs_overlay/linux_probe.py` to compare the parent namespace identity with the disposable child identity from `/proc/self/ns/<type>`.
+- Added tests proving an unchanged namespace identity fails closed and a changed identity is accepted.
+- Updated `docs/LINUX_CAPABILITY_PROBES.md` with the observed-identity contract.
+Validation:
+- GitHub source inspection completed before implementation.
+- GitHub writes succeeded.
+- CI execution is the authoritative runtime validation and is pending for this new commit chain.
+Result: implementation commits `ea364db621722616fc9c866d84141679892feb23`, `109f17981453ce00aae4aa9e1e84042be0a1a1b8`, and `ada1cf9d453179fd705fc13464882e40fcfaeba6`.
+Learning:
+- [RULE] A namespace probe is evidence only when the requested namespace identity is observed to differ from the parent.
+- [SECURITY] Never convert a successful subprocess exit into stronger isolation claims than the observed probe property supports.
+- [PATTERN] For PID namespaces, use a forked disposable child when observing `/proc/self/ns/pid`.
+Next: Run the full CI matrix and, after green validation, design the concrete workspace-boundary probe separately from generic namespace capability evidence.
