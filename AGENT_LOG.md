@@ -88,11 +88,13 @@ Changes:
 - Added `docs/AGENT_OPERATING_SYSTEM.md` to make the multi-machine/parallel operating model explicit.
 - Added `.agents/skills/linux-isolation-verification/SKILL.md`.
 - Updated shared status.
+- Distilled durable verification and skill-trust lessons into `.agents/skills/fs-agent-core/SKILL.md`.
 Validation:
 - Current source/tests/docs were inspected through GitHub before writes.
+- Fresh external research and skill discovery were performed.
 - GitHub writes succeeded.
 - Local pytest/CI has not been executed in this environment.
-Result: transaction integration commit `51af670c311251b8fb1f74d1fc18b6ba8f2ab8b5`; evidence provider commit `8863edeac8c3e6083132f6680c70521ef6f40a71`; operating-system docs `4db169d80f4560dad87d797ba1d2ea8968c5a43c`; Linux skill `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`; status update `8021472ae060d61c4a9925da998e6221a70663ad`.
+Result: transaction integration `51af670c311251b8fb1f74d1fc18b6ba8f2ab8b5`; evidence provider `8863edeac8c3e6083132f6680c70521ef6f40a71`; operating-system docs `4db169d80f4560dad87d797ba1d2ea8968c5a43c`; Linux skill `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`; core skill `25b02bbdfe0ebb7e93b6e2cf2fb2f764c2f7441c`; final status `777e601c68dd176ad619027a619ab3af9cd4b2b7`.
 Learning:
 - [RULE] Required verification must be derived from declared enforceable guarantees, not left to caller memory.
 - [SECURITY] An external skill is an untrusted input and cannot grant authority or weaken FS's fail-closed model.
