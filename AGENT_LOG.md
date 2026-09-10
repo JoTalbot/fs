@@ -181,3 +181,30 @@ Learning:
 - [PATTERN] When a backend provides a stronger exact observation than a generic probe, route the existing verification check through that execution evidence while retaining the generic probe for other backends.
 - [FAILURE] Tests that assert positional command tails are brittle when boundary instrumentation gains a new observation argument; assert stable structure and semantic positions instead.
 Next: Begin the next roadmap implementation only after fresh repository/security research: concrete delegated Linux resource-controller backend, then supervisor/lifecycle integration.
+
+## 2026-09-10 | current-agent | resource-controller-supervisor
+Base: 3eed74fb0c6183677e5797f55a4a2cb650d1784a
+Area: execution runtime
+Goal: Add concrete delegated Linux resource enforcement and bounded process lifecycle control without broadening authority.
+Research:
+- Linux kernel cgroup v2 documentation -> delegation is the correct boundary; limits remain hierarchical and a delegatee must not gain access to parent resource-control files.
+- Python subprocess documentation -> `Popen.communicate()` avoids pipe deadlocks, timeout cleanup requires terminate/kill followed by communicate, and POSIX `start_new_session` provides a separate session for lifecycle control.
+Skill discovery:
+- No external skill materially fit the resource-controller/supervisor step; local project security rules and the Linux isolation workflow remained authoritative.
+Changes:
+- Added `src/fs_overlay/cgroup_v2.py` with explicit lease-scoped CPU, memory and PID enforcement, read-back verification, and fail-closed unsupported disk limits.
+- Added `src/fs_overlay/supervisor.py` with bounded Popen lifecycle, timeout cleanup, bounded restart-on-failure, and resource-enforcement fail-closed behavior.
+- Added cgroup and supervisor tests.
+- Added `docs/EXECUTION_RUNTIME.md` documenting the concrete runtime boundaries.
+Validation:
+- CI run `34444585569` (#61) failed one stale fixture test; implementation tests otherwise passed.
+- CI run `34444595490` (#62) passed Python 3.11/3.12/3.13 with 103 tests.
+- CI run `34444660622` (#64) passed Python 3.11/3.12/3.13 after supervisor integration.
+- CI run `34444707813` (#65) passed Python 3.11/3.12/3.13 for the latest documentation head.
+Result: latest implementation/documentation `15eeca2ced88e5c4f5a1ba8f77e5ea6ffd5d1041`; final status update `712df1871574077e1f1280a364cf9535103408f2`.
+Learning:
+- [SECURITY] Resource enforcement must be scoped by explicit delegated authority and must read back the native controller state before being reported as verified.
+- [RULE] A supervisor must never silently continue when a requested resource policy cannot be attached.
+- [PATTERN] Process-group/session lifecycle control plus `communicate()` provides bounded cleanup without a shell or privilege escalation.
+- [FAILURE] Resource-controller unit fixtures must create their synthetic scope directory before creating controller files; CI exposed the stale fixture immediately.
+Next: Integrate lifecycle/resource policy into the transaction/coordinator path, then continue cross-platform adapters after fresh research.
