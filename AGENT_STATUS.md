@@ -38,8 +38,11 @@
 - Versioned interoperability boundary documentation and fail-closed strict conformance validation for published vectors.
 - Published protocol-v1 conformance vectors are consumable as standalone JSON data under `conformance/v1/`, including a UTF-8/non-ASCII payload vector.
 - Added dependency-free independent conformance consumer under `tools/`, deliberately avoiding `fs_overlay` imports.
-- Independent consumer now validates the declared protocol version and canonicalization contract instead of silently hard-coding assumptions from the vector metadata.
-- CI executes the independent consumer on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix before the internal pytest suite.
+- Independent consumer validates the declared protocol version and canonicalization contract instead of silently hard-coding assumptions from vector metadata.
+- Published protocol-v1 admission-negative vector set now covers ten required fail-closed cases: changed payload, sender, and sequence with unchanged signature; duplicate ID; sequence rollback; stale/future timestamps; missing signature; unknown/revoked key; fingerprint mismatch.
+- Added dependency-free independent admission validator that checks the negative contract without importing `fs_overlay`.
+- Added implementation-level regression tests covering all ten negative admission cases.
+- CI executes both independent conformance validators before the internal pytest suite on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix.
 
 ## Safety boundaries
 
@@ -61,7 +64,9 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - GitHub Actions CI run #248 completed successfully after strict conformance regression coverage.
 - GitHub Actions CI run #249 completed successfully after the interoperability boundary documentation update.
 - CI run #252 completed successfully across all 9 OS/Python matrix jobs, including the independent conformance consumer.
-- A follow-up CI run for the hardened consumer and UTF-8 vector is in progress; it is not yet claimed green.
+- CI run #255 completed successfully across all 9 OS/Python matrix jobs, including the UTF-8 vector.
+- CI run #256 completed successfully across all 9 OS/Python matrix jobs, including the hardened consumer and UTF-8 vector.
+- A new CI run has been triggered for the admission-negative batch; it is not yet claimed green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -71,8 +76,8 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-- Validate the hardened standalone protocol-v1 consumer and UTF-8 vector across the CI matrix.
-- Expand the published vector set with negative/admission cases only when their expected wire/semantic results can be specified independently of the reference implementation.
+- Validate the ten admission-negative cases across the full CI matrix.
+- Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
 - Build adapter-specific conformance tests for authoritative production backends without faking security guarantees in the reference layer.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
 - Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
