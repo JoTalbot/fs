@@ -13,12 +13,13 @@ def build_local_service(identity: NodeIdentity, capabilities: dict[str, Any]) ->
     adapter = NativeProcessAdapter()
 
     def execute(argv: tuple[str, ...]) -> dict[str, Any]:
-        result = adapter.execute(argv, timeout=30.0)
+        result = adapter.execute(argv, admitted=True, timeout=30.0)
         return {
             "status": result.status,
             "returncode": result.returncode,
             "stdout": result.stdout,
             "stderr": result.stderr,
+            "timed_out": result.timed_out,
         }
 
     return GenesisService(identity, capabilities, executor=execute)
