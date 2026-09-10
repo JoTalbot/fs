@@ -1,0 +1,17 @@
+{
+  "protocol_version": 1,
+  "vector_set_id": "admission-negative-v1",
+  "description": "Protocol-v1 negative admission cases. These vectors describe required fail-closed outcomes; cryptographic provider behavior remains adapter-specific.",
+  "cases": [
+    {"case_id":"changed-payload","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"payload.object"},
+    {"case_id":"changed-sender","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"sender_node"},
+    {"case_id":"changed-sequence","gate":"signature","expected":"reject","reason":"invalid_signature","mutation":"sequence"},
+    {"case_id":"duplicate-message-id","gate":"replay","expected":"reject","reason":"duplicate_message_id","mutation":"message_id_reuse"},
+    {"case_id":"sequence-rollback","gate":"replay","expected":"reject","reason":"non_increasing_sequence","mutation":"sequence_decrease"},
+    {"case_id":"stale-timestamp","gate":"freshness","expected":"reject","reason":"stale_timestamp","mutation":"issued_ns_too_old"},
+    {"case_id":"future-timestamp","gate":"freshness","expected":"reject","reason":"future_timestamp","mutation":"issued_ns_in_future"},
+    {"case_id":"missing-signature","gate":"signature","expected":"reject","reason":"missing_signature","mutation":"signature_null"},
+    {"case_id":"unknown-or-revoked-key","gate":"trust","expected":"reject","reason":"untrusted_key","mutation":"key_unknown_or_revoked"},
+    {"case_id":"fingerprint-mismatch","gate":"trust","expected":"reject","reason":"fingerprint_mismatch","mutation":"identity_fingerprint_changed"}
+  ]
+}
