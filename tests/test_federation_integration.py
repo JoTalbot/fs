@@ -1,8 +1,13 @@
-from fs_overlay.federation_control import NodeIdentity, TrustEntry, TrustStore
+from fs_overlay.federation_control import BootstrapConfig, NodeIdentity, TrustEntry, TrustStore
 from fs_overlay.federation_protocol import FederationEnvelope, FederationReceiver
 from fs_overlay.federation_state import DurableFederationState
 from fs_overlay.initiator import InitiatorCapabilities, MinimalInitiator
 from fs_overlay.reference_adapters import HmacReferenceSigner, MemoryKeyProvider
+
+
+class NullTransport:
+    def send(self, peer_node: str, payload: bytes) -> None:
+        return None
 
 
 def test_local_federation_admission_persists_replay_state(tmp_path) -> None:
@@ -11,10 +16,10 @@ def test_local_federation_admission_persists_replay_state(tmp_path) -> None:
     provider = MemoryKeyProvider({key_id: key}, {key_id: key_id})
     signer = HmacReferenceSigner({key_id: key})
     initiator = MinimalInitiator(
-        config=type("Config", (), {"node_id": key_id, "protocol_version": 1})(),
+        config=BootstrapConfig(key_id, str(tmp_path), protocol_version=1, initialized_ns=1_000_000_000),
         key_provider=provider,
         signer=signer,
-        transport=type("Transport", (), {"send": lambda *args: None})(),
+        transport=NullTransport(),
         capabilities=InitiatorCapabilities("test", ("storage",)),
     )
 
@@ -47,12 +52,12 @@ def test_local_federation_rejects_tamper_and_revocation(tmp_path) -> None:
     key = b"local-reference-key"
     provider = MemoryKeyProvider({key_id: key}, {key_id: key_id})
     signer = HmacReferenceSigner({key_id: key})
-    config = type("Config", (), {"node_id": key_id, "protocol_version": 1})()
+    config = BootstrapConfig(key_id, str(tmp_path), protocol_version=1, initialized_ns=1_000_000_000)
     initiator = MinimalInitiator(
         config=config,
         key_provider=provider,
         signer=signer,
-        transport=type("Transport", (), {"send": lambda *args: None})(),
+        transport=NullTransport(),
         capabilities=InitiatorCapabilities("test"),
     )
     envelope = initiator.build_advertisement("m2", 2_000_000_000)
