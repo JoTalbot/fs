@@ -1,3 +1,4 @@
+from fs_overlay.evidence_provider import default_evidence_provider
 from fs_overlay.probe_verification import linux_namespace_evidence
 from fs_overlay.verification import VerificationCheck
 
@@ -19,3 +20,29 @@ def test_namespace_provider_returns_explicit_evidence(monkeypatch):
     assert evidence.check_id == "namespace:mount"
     assert evidence.passed
     assert evidence.observed["namespace"] == "mount"
+
+
+def test_workspace_provider_rejects_generic_or_wrong_backend_evidence():
+    check = VerificationCheck("workspace:boundary", "workspace boundary")
+    evidence = default_evidence_provider(
+        check,
+        execution_result=type(
+            "Result", (), {"backend": "native-process", "execution_evidence": ("workspace:boundary-observed",)}
+        )(),
+    )
+    assert evidence is not None
+    assert not evidence.passed
+
+
+def test_workspace_provider_accepts_exact_execution_evidence():
+    check = VerificationCheck("workspace:boundary", "workspace boundary")
+    result = type(
+        "Result", (), {
+            "backend": "bubblewrap-workspace",
+            "execution_evidence": ("workspace:boundary-observed",),
+        }
+    )()
+    evidence = default_evidence_provider(check, execution_result=result)
+    assert evidence is not None
+    assert evidence.passed
+    assert evidence.observed["backend"] == "bubblewrap-workspace"
