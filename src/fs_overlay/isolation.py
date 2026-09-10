@@ -93,7 +93,7 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return None
         return int(parts[0]), int(parts[1]), int(patch)
 
-    def plan(self, workspace_path: str | None = None) -> IsolationPlan:
+    def plan(self, workspace_path: str | None = None, *, network: str = "deny") -> IsolationPlan:
         binary = self._binary()
         if binary is None:
             return IsolationPlan(self.name, (), (), False, "bubblewrap utility is unavailable")
@@ -104,6 +104,8 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return IsolationPlan(self.name, (), (), False, "bubblewrap version is below 0.12.0")
         if not workspace_path:
             return IsolationPlan(self.name, (), (), False, "workspace_path_required")
+        if network not in {"host", "deny"}:
+            return IsolationPlan(self.name, (), (), False, "unsupported network policy")
         path = Path(workspace_path)
         if not path.is_absolute():
             return IsolationPlan(self.name, (), (), False, "workspace_path_must_be_absolute")
@@ -111,35 +113,46 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return IsolationPlan(self.name, (), (), False, "workspace_path_not_directory")
         return IsolationPlan(
             self.name,
-            self._prefix(binary, path),
+            self._prefix(binary, path, network=network),
             ("workspace-filesystem-boundary",),
             True,
             "explicit bubblewrap workspace backend",
         )
 
-    def _prefix(self, binary: str, workspace: Path) -> tuple[str, ...]:
+    def _prefix(self, binary: str, workspace: Path, *, network: str) -> tuple[str, ...]:
         prefix: list[str] = [
             binary,
             "--die-with-parent",
             "--new-session",
             "--unshare-pid",
-            "--unshare-net",
-            "--ro-bind",
-            str(workspace),
-            "/workspace",
-            "--proc",
-            "/proc",
-            "--dev",
-            "/dev",
         ]
+        if network == "deny":
+            prefix.append("--unshare-net")
+        prefix.extend(
+            (
+                "--ro-bind",
+                str(workspace),
+                "/workspace",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+            )
+        )
         for root in ("/usr", "/bin", "/lib", "/lib64", "/etc"):
             if os.path.exists(root):
                 prefix.extend(("--ro-bind", root, root))
         prefix.extend(("--chdir", "/workspace"))
         return tuple(prefix)
 
-    def wrap(self, argv: tuple[str, ...], *, workspace_path: str) -> tuple[str, ...]:
-        plan = self.plan(workspace_path)
+    def wrap(
+        self,
+        argv: tuple[str, ...],
+        *,
+        workspace_path: str,
+        network: str = "deny",
+    ) -> tuple[str, ...]:
+        plan = self.plan(workspace_path, network=network)
         if not plan.available:
             raise RuntimeError(plan.reason)
         if not argv or not argv[0]:
