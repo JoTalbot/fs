@@ -6,27 +6,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `4333e57481e0523dab5a3037927f3a671bcb63db`
+- Last known head: `990abf7223eb2fc57d4ced53f05e2c26195c1ef5`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
 **Evidence-backed execution boundaries and multi-agent execution discipline**
 
-The current implementation is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes can now be adapted into explicit verification evidence. The next implementation target is to make required verification checks derive from declared execution guarantees and boundary plans rather than being manually supplied by callers.
+FS is moving from descriptive execution planning toward a verified execution loop. Linux namespace capability probes can now become explicit verification evidence, and boundary guarantees can now be deterministically translated into required verification checks.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| unassigned | - | - | - | - | idle | Claim a task after reading this file |
+| unassigned | - | - | - | - | idle | Claim the next transaction-verification integration step |
 
 ## Recently completed
 
 ### Multi-agent operating contract
 
 - Added canonical `AGENTS.md`.
-- Defined shared status, parallel ownership, research-before-step, skill discovery, evidence, security, and handoff rules.
+- Added `AGENT_STATUS.md`.
+- Added `AGENT_LOG.md`.
+- Added `.agents/skills/fs-agent-core/SKILL.md`.
+- Defined shared status, parallel ownership, research-before-step, skill discovery, evidence, security, learning, and handoff rules.
 
 ### Probe-to-verification bridge
 
@@ -35,15 +38,22 @@ The current implementation is moving from descriptive execution planning toward 
 - Updated `docs/TRANSACTION_EXECUTOR.md`.
 - Linux checks use explicit `namespace:<mount|pid|net>` identifiers.
 
+### Guarantee-to-check mapping
+
+- Added `src/fs_overlay/verification_requirements.py`.
+- Added `tests/test_verification_requirements.py`.
+- `mount-namespace`, `pid-namespace`, and `network-namespace` guarantees now map deterministically to required namespace verification checks.
+- Unmapped guarantees do not silently create fake evidence requirements.
+
 ## Recommended next implementation step
 
-1. Re-read the current `execution_coordinator.py`, `transaction_executor.py`, `verification.py`, `linux_probe.py`, and `probe_verification.py` from `main`.
+1. Re-read current transaction and verification code from `main`.
 2. Research current Linux namespace semantics and maintained implementations before changing execution behavior.
-3. Discover an appropriate external agent skill for Linux isolation / verification / systems engineering and inspect it before use.
-4. Design a deterministic mapping from admitted boundary guarantees to required `VerificationCheck` objects.
-5. Make the transaction layer unable to commit a transaction whose declared enforceable boundary guarantees lack required evidence.
-6. Add tests for required-check derivation, missing evidence, failed evidence, and successful evidence.
-7. Update documentation and the shared status/log/skill learning records.
+3. Discover and inspect an appropriate external agent skill for Linux isolation / verification / systems engineering.
+4. Integrate `required_verification_checks(plan)` into the transaction path so callers cannot accidentally omit required checks for declared isolation guarantees.
+5. Integrate `linux_namespace_evidence` as the reference evidence provider for those exact namespace checks.
+6. Add tests proving that an admitted plan with required namespace guarantees cannot commit when evidence is missing or failed, and can commit only when required evidence passes.
+7. Update docs, status, log, and skill learning records.
 
 ## Known non-goals for this phase
 
