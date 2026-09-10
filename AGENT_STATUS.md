@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `ecbc4fdf969e742af6f642a9dee1365e339229fa`
+- Last known head: `816cd4bd1612aac8da651b70ecf161b99f66bf29`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -55,6 +55,13 @@ FS is moving from descriptive execution planning toward a verified execution loo
 - The reference evidence provider dispatches exact Linux namespace checks to the disposable namespace probe.
 - Core skill now records the durable verification and external-skill trust lessons.
 
+### CI baseline
+
+- Added `.github/workflows/ci.yml`.
+- CI runs the complete pytest suite on every push to `main` and every pull request.
+- CI covers Python 3.11, 3.12, and 3.13 on `ubuntu-latest`.
+- No test PASS is claimed yet: the workflow has just been added and GitHub Actions execution must provide the evidence.
+
 ## Research record for current phase
 
 - Linux kernel namespace/resource-control documentation: user namespaces alter resource-control/security considerations; resource limits must be treated explicitly. citeturn0search5
@@ -64,7 +71,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 ## Validation state
 
-The repository changes above were inspected through GitHub, but local pytest execution has not been performed in this environment. Do not report test PASS until tests are actually executed by an available runtime/CI.
+The CI workflow is now committed, but its run result is not yet available. Do not report test PASS until GitHub Actions or another available runtime actually executes the suite.
 
 ## Recommended next implementation step
 
