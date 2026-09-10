@@ -1,9 +1,8 @@
-"""Explicit Linux namespace execution adapter.
+"""Explicit Linux execution adapters.
 
-This adapter is intentionally narrow: it executes only when the caller has
-already admitted the operation and explicitly selected Linux namespaces. It
-never invokes a shell, escalates privileges, changes host policy, or treats
-`unshare` availability as proof that the kernel will permit isolation.
+Adapters execute only after admission. The workspace backend is explicit and
+requires a caller-supplied admitted workspace path; it never falls back to
+privileged namespace creation or silently enables a different backend.
 """
 from __future__ import annotations
 
@@ -12,7 +11,7 @@ import subprocess
 from typing import Mapping
 
 from .adapter import ProcessResult
-from .isolation import LinuxNamespaceBackend
+from .isolation import BubblewrapWorkspaceBackend, LinuxNamespaceBackend
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,10 +23,15 @@ class LinuxExecutionPolicy:
 
 
 class LinuxNamespaceExecutor:
-    """Execute an already-admitted command through Linux namespaces."""
+    """Execute an already-admitted command through the selected Linux backend."""
 
-    def __init__(self, backend: LinuxNamespaceBackend | None = None) -> None:
+    def __init__(
+        self,
+        backend: LinuxNamespaceBackend | None = None,
+        workspace_backend: BubblewrapWorkspaceBackend | None = None,
+    ) -> None:
         self.backend = backend or LinuxNamespaceBackend()
+        self.workspace_backend = workspace_backend or BubblewrapWorkspaceBackend()
 
     def execute(
         self,
@@ -38,6 +42,7 @@ class LinuxNamespaceExecutor:
         environment: Mapping[str, str] | None = None,
         timeout: float = 30.0,
         policy: LinuxExecutionPolicy | None = None,
+        workspace_path: str | None = None,
     ) -> ProcessResult:
         if not admitted:
             return ProcessResult("rejected", None, "", "execution scope is not admitted")
@@ -46,15 +51,25 @@ class LinuxNamespaceExecutor:
         if timeout <= 0:
             raise ValueError("timeout must be positive")
         policy = policy or LinuxExecutionPolicy()
-        if policy.filesystem != "host" or policy.network != "host":
+
+        if policy.filesystem == "workspace-only":
+            if policy.network not in {"host", "deny"}:
+                return ProcessResult("rejected", None, "", "unsupported network policy")
+            if workspace_path is None:
+                return ProcessResult("rejected", None, "", "workspace_path_required")
+            try:
+                wrapped = self.workspace_backend.wrap(argv, workspace_path=workspace_path)
+            except (RuntimeError, ValueError) as exc:
+                return ProcessResult("rejected", None, "", str(exc))
+        elif policy.filesystem == "host" and policy.network == "host":
+            try:
+                wrapped = self.backend.wrap(argv)
+            except (RuntimeError, ValueError) as exc:
+                return ProcessResult("rejected", None, "", str(exc))
+        else:
             return ProcessResult(
                 "rejected", None, "", "requested filesystem/network policy is not enforced by this backend"
             )
-
-        try:
-            wrapped = self.backend.wrap(argv)
-        except RuntimeError as exc:
-            return ProcessResult("rejected", None, "", str(exc))
 
         env = None
         if environment is not None:
@@ -64,7 +79,7 @@ class LinuxNamespaceExecutor:
         try:
             completed = subprocess.run(
                 list(wrapped),
-                cwd=cwd,
+                cwd=None if policy.filesystem == "workspace-only" else cwd,
                 env=env,
                 shell=False,
                 capture_output=True,
