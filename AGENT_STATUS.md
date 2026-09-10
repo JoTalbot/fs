@@ -48,7 +48,8 @@
 - Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
 - Added a reusable `run_adapter_conformance()` qualification harness with injected adapter factories, stable check IDs, and explicit separation between semantic contract checks and production security certification.
 - Added fail-open regression tests proving the reusable harness rejects permissive key storage and unauthenticated transport implementations.
-- The concrete `FileAdmissionCoordinator` is now exercised through the same reusable qualification harness, so the local durable-coordination adapter is checked against the shared contract rather than only bespoke tests.
+- The concrete `FileAdmissionCoordinator` is exercised through the same reusable qualification harness, so the local durable-coordination adapter is checked against the shared contract rather than only bespoke tests.
+- Added ambiguous durable-admission recovery coverage: a simulated post-append acknowledgement failure leaves the in-memory state uncommitted, while a fresh state reconstructs the persisted acceptance from the journal and rejects a sequence-equivalent retry.
 
 ## Safety boundaries
 
@@ -59,6 +60,8 @@ The durable federation state lock serializes concurrent threads within one proce
 `FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and validated by the CI matrix.
 
 Coordinated writers refresh durable admission indexes and journal sequence/hash state after acquiring the lock. This closes the stale-reader gap without claiming cross-store ACID atomicity.
+
+If a durable append outcome is ambiguous, the current in-memory process must not guess. Recovery must reconstruct authoritative admission state from durable storage before retrying or treating the message as newly admitted.
 
 ## Validation
 
@@ -79,8 +82,10 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - The defect was fixed by marking `SecureKeyStore`, `AuthenticatedTransport`, `NodeAdmission`, and `KeyAdmission` as `@runtime_checkable`, matching the already-runtime-checkable coordinator contract.
 - CI run #274 completed successfully across all 9 OS/Python matrix jobs on the protocol fix commit.
 - CI run #275 completed successfully across all 9 OS/Python matrix jobs after the status update, confirming the adapter contract fix remains green on the current `main` history.
-- The reusable qualification harness and its memory-double integration were added after run #275; subsequent CI run #279 completed successfully across all 9 jobs before the latest concrete-coordinator qualification commit.
-- The latest concrete-coordinator qualification commit is `e7b43d46e83aff8b5c6e1cf3280e7a04faa4ebaf`; fresh CI validation is pending and is not claimed yet.
+- The reusable qualification harness and its memory-double integration were added after run #275; CI run #279 completed successfully across all 9 jobs before the latest qualification/recovery commits.
+- Commit `e7b43d46e83aff8b5c6e1cf3280e7a04faa4ebaf` added concrete `FileAdmissionCoordinator` qualification; fresh CI validation is pending.
+- Commit `cb5727f49d00bc573818faf698ac7c87ce5307b9` added ambiguous journal-write recovery coverage; fresh CI validation is pending.
+- Commit `5fce6a3c9d1ed29424535c9af510f192a3ee9a85` documented the ambiguous-outcome recovery rule; fresh CI validation is pending.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
