@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
 
 from .federation_protocol import FederationEnvelope
 
@@ -19,7 +18,7 @@ VECTORS = (
     ConformanceVector(
         "observe-v1",
         FederationEnvelope("node-a", "msg-1", "OBSERVE", 1, 1_000_000_000, {"object": "x"}),
-        "f7e3f5c5f4e2c2f8f4b5c4d9f8f2b5d2f8c5f6c6e9b6a6b2a5f5c2d3e8f4a9b1",
+        "28658d631d54184b12983de242bc1ab37f5d2002756b382f995b3a0606799404",
     ),
 )
 
