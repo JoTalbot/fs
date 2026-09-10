@@ -8,29 +8,21 @@ The long-term goal is not merely to hide more bytes inside files. It is to make 
 
 ## Storage foundation
 
-```text
-container data
-    -> compress (optional)
-    -> encrypt/authenticate
-    -> chunk
-    -> erasure-code
-    -> place shards into approved carriers
-    -> verify
-
-carrier loss/corruption
-    -> audit
-    -> reconstruct
-    -> choose approved replacement
-    -> repair redundancy
-```
-
-FS uses erasure coding rather than relying on identical copies. The configured `data_shards` / `parity_shards` policy determines how many carrier failures can be tolerated.
-
-The 30% carrier rule is a **hard maximum overhead**, not a target:
+The local reference engine now provides the first concrete storage spine:
 
 ```text
-usable_capacity = min(file_size * 0.30, configured_limit, format_safe_limit)
+input
+  -> deterministic chunks
+  -> content-addressed chunk objects
+  -> immutable manifest
+  -> fsync journal commit
+  -> inventory
+  -> audit / recovery
 ```
+
+The storage engine includes versioned manifests, deterministic fixed-size chunking, SHA-256 content addressing, atomic temporary-file replacement, an append-only length-prefixed journal, replayable inventory, Merkle-DAG root primitives, an explicit authenticated-encryption provider boundary, an explicit erasure-coding provider boundary, and an explicit carrier adapter boundary.
+
+The HMAC development envelope is **integrity-only** and is deliberately not presented as encryption. Production confidentiality requires an audited AEAD provider. Erasure coding likewise remains an explicit provider interface until an audited implementation is selected.
 
 ## One object model
 
@@ -95,6 +87,17 @@ The same object model is intended to work across multiple nodes. Storage and exe
 
 This gives FS a path from local storage overlay to a portable **system substrate** capable of orchestrating storage, execution and recovery across heterogeneous machines.
 
+## CLI
+
+```text
+fs-overlay genesis ping
+fs-overlay genesis capabilities
+fs-overlay storage audit <root>
+fs-overlay storage recover <root>
+```
+
+Storage commands operate only on the explicitly supplied storage root.
+
 ## Repository layout
 
 - `docs/ARCHITECTURE.md` — normative storage architecture and invariants
@@ -107,15 +110,16 @@ This gives FS a path from local storage overlay to a portable **system substrate
 - `docs/DISTRIBUTED_FUTURE.md` — multi-node architecture direction
 - `docs/RUNTIME.md` — minimal resident runtime
 - `docs/SYSTEM_IN_SYSTEM.md` — host/guest/system-in-system model
-- `src/fs_overlay/` — Python reference implementation scaffold
-- `tests/` — reference tests
+- `src/fs_overlay/storage_engine.py` — local manifest/chunk/object/journal/inventory/Merkle foundation
+- `src/fs_overlay/carrier.py` — explicit carrier adapter boundary
+- `src/fs_overlay/event_log.py` — structured append-only event records
+- `src/fs_overlay/` — Python reference implementation
+- `tests/` — existing reference tests
 - `config.example.toml` — explicit-root configuration example
 
 ## Current implementation status
 
-The repository currently contains a safe reference architecture plus the first dependency-free control-plane models and capability-aware backend planner.
-
-The next engineering milestone is the local storage engine: manifests, deterministic chunking, authenticated-encryption interfaces, erasure-coding interfaces, carrier adapters, atomic append/recovery journal, redundant inventory metadata, and audit/recovery commands.
+The repository now has a concrete local storage spine in addition to the control-plane and execution reference layers. The next storage/resilience work is to integrate audited AEAD, an audited erasure-coding implementation, richer recovery semantics, carrier placement, snapshots and transactional state reconciliation.
 
 Production cryptography, erasure coding, cross-platform adapters and isolation backends must be independently tested and security-reviewed before production data or privileged workloads are entrusted to FS.
 
