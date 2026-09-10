@@ -42,3 +42,15 @@ WINDOWS_JOB_OBJECT_CONTRACT = BackendContract(
     evidence_markers=("resource-controller-enforced",),
     resource_types=("cpu_millis", "memory_bytes", "pids"),
 )
+
+MACOS_SIGNED_HELPER_CONTRACT = BackendContract(
+    backend_id="macos-signed-sandbox-helper",
+    version=BACKEND_CONTRACT_VERSION,
+    evidence_markers=("signed-sandbox-helper-admitted", "helper-sandbox-inheritance-configured"),
+)
+
+FREEBSD_CAPSICUM_CONTRACT = BackendContract(
+    backend_id="freebsd-capsicum",
+    version=BACKEND_CONTRACT_VERSION,
+    evidence_markers=("capsicum-capability-mode-entered", "capsicum-capability-mode-verified"),
+)
