@@ -5,7 +5,7 @@ FS treats interoperability as a separate validation boundary from the internal P
 ## Conformance layers
 
 1. **Canonical serialization**: an implementation must reproduce the versioned envelope bytes and digest for the published vectors.
-2. **Admission semantics**: implementations must reject malformed, stale, future, replayed, reordered, unsigned, and invalidly signed messages according to the protocol contract.
+2. **Admission semantics**: implementations must reject malformed, unsupported, stale, future, replayed, reordered, unsigned, and otherwise invalid messages according to the protocol contract.
 3. **Trust semantics**: discovery observations never grant authority; node and key admission remain explicit policy decisions.
 4. **Durable semantics**: accepted message IDs and sender sequence high-water marks must survive restart and concurrent writers must converge on one authoritative admission decision.
 5. **Adapter semantics**: production transports, key stores, and admission backends must expose the required contracts without weakening the protocol invariants.
@@ -20,20 +20,22 @@ An independent harness should treat the vector files as data, not import FS impl
 
 Protocol-v1 publishes a machine-readable negative set at `conformance/v1/admission-negative-v1.json`. It contains ten required fail-closed cases covering:
 
-1. changed payload with unchanged signature;
-2. changed sender identity;
-3. changed sequence number;
-4. duplicate message ID;
-5. sender sequence rollback;
-6. stale timestamp;
-7. future timestamp outside accepted clock skew;
-8. missing signature;
-9. unknown or revoked key;
-10. node/key fingerprint mismatch.
+1. malformed envelope;
+2. unsupported protocol version;
+3. negative sequence;
+4. empty message ID;
+5. duplicate message ID;
+6. sender sequence rollback;
+7. stale timestamp;
+8. future timestamp outside accepted clock skew;
+9. missing signature;
+10. key-admission failure, including unknown/revoked key or fingerprint mismatch.
 
 Each case declares its admission gate, expected `reject` result, stable reason code, and mutation. The dependency-free independent validator checks that this contract is complete and internally consistent without importing `fs_overlay`. Cryptographic verification remains provider-specific and is therefore tested by implementation-level conformance tests rather than represented as a fake universal signature algorithm.
 
 A conforming implementation must fail closed for cases where the protocol requires rejection. It must not turn an unsupported security property into an implicit fallback.
+
+The negative vector set intentionally specifies semantic outcomes rather than pretending to contain enough cryptographic material to independently prove an invalid signature. Concrete providers must additionally test tampered signed envelopes against their own verification implementation.
 
 ## Versioning
 
