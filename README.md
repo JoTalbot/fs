@@ -21,11 +21,26 @@ input
   -> immutable snapshots
 ```
 
-Implemented primitives include versioned manifests, deterministic fixed-size chunking, SHA-256 content addressing, atomic temporary-file replacement, replayable journal-backed inventory, transaction begin/commit/abort visibility, Merkle roots, structured events, immutable snapshots, deterministic recovery graphs, failure-domain-aware carrier ranking, and quarantine records.
+Implemented primitives include versioned manifests, deterministic fixed-size chunking, SHA-256 content addressing, atomic temporary-file replacement, replayable journal-backed inventory, transaction begin/commit/abort visibility, Merkle roots, structured events, immutable snapshots, deterministic recovery graphs, failure-domain-aware carrier ranking, quarantine records, and semantic object/state primitives.
 
 `StorageTransaction` stages immutable data and publishes metadata only after a durable transaction commit marker. Recovery ignores transactions without that marker.
 
 The HMAC development envelope is **integrity-only** and is deliberately not presented as encryption. Production confidentiality requires an audited AEAD provider. Erasure coding likewise remains an explicit provider interface until an audited implementation is selected.
+
+## Semantic state layer
+
+`state_primitives.py` supplies dependency-free contracts for the next control-plane boundary:
+
+- `ObjectContract` for desired/actual/health/generation state;
+- `ProvenanceRecord` for attributable state history and evidence links;
+- `DependencyGraph` with cycle rejection;
+- expiring, revocable `Lease` objects with fencing tokens;
+- confidence-bounded `KnowledgeRecord` objects;
+- reproducible `DecisionRecord` objects tied to evidence and policy;
+- immutable `WorldStateSnapshot` records;
+- deterministic `reconcile()` and explicit `safe_stop()` results.
+
+These structures do not grant authority. Execution still requires policy, admission, backend capability and observable verification.
 
 ## Resilience model
 
@@ -130,15 +145,16 @@ Storage commands operate only on the explicitly supplied storage root.
 - `docs/SYSTEM_IN_SYSTEM.md` — host/guest/system-in-system model
 - `src/fs_overlay/storage_engine.py` — local manifest/chunk/object/journal/inventory/Merkle/transaction foundation
 - `src/fs_overlay/storage_resilience.py` — snapshots, recovery ordering, placement and quarantine
+- `src/fs_overlay/state_primitives.py` — object, provenance, dependency, lease, knowledge, decision and control-loop primitives
 - `src/fs_overlay/carrier.py` — explicit carrier adapter boundary
-- `src/fs_overlay/event_log.py` — structured append-only event records
+- `src/fs_overlay/event_log.py` — structured append-only event records with causal metadata
 - `src/fs_overlay/` — Python reference implementation
 - `tests/` — existing reference tests
 - `config.example.toml` — explicit-root configuration example
 
 ## Current implementation status
 
-The local storage/resilience reference layer is implemented through transactional journal visibility, immutable snapshots, deterministic recovery planning, carrier placement scoring and quarantine evidence. Production AEAD, erasure coding, cross-platform adapters, isolation backends and distributed federation still require independently reviewed implementations and platform-specific validation.
+The local storage and semantic foundation is now implemented through transactional journal visibility, immutable snapshots, deterministic recovery planning, carrier placement scoring, quarantine evidence and explicit state/provenance/dependency/lease/knowledge/decision primitives. Production AEAD, erasure coding, cross-platform adapters, isolation backends and distributed federation still require independently reviewed implementations and platform-specific validation.
 
 This repository deliberately does not claim production durability, cryptographic certification, distributed transaction guarantees or successful recovery when the available evidence is insufficient.
 
