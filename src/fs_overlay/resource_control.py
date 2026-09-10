@@ -36,6 +36,7 @@ class ResourcePlan:
     budget: ResourceBudget
     lease_id: str | None
     enforceable: bool
+    guarantees: tuple[str, ...] = ()
     reasons: tuple[str, ...] = ()
 
 
@@ -44,7 +45,8 @@ def plan_resources(budget: ResourceBudget, lease: ResourceLease | None = None) -
 
     A non-empty budget requires an active, valid lease. The concrete runtime
     backend is responsible for proving that the lease scope can enforce the
-    requested controller values.
+    requested controller values. A resource guarantee is therefore a required
+    post-execution verification, not proof supplied by admission itself.
     """
     requested = any(
         value is not None
@@ -54,12 +56,17 @@ def plan_resources(budget: ResourceBudget, lease: ResourceLease | None = None) -
         return ResourcePlan(budget, lease.lease_id if lease else None, True)
 
     if lease is None:
-        return ResourcePlan(budget, None, False, ("resource_lease_required",))
+        return ResourcePlan(budget, None, False, reasons=("resource_lease_required",))
     errors = lease.validate()
     if errors:
-        return ResourcePlan(budget, lease.lease_id, False, errors)
+        return ResourcePlan(budget, lease.lease_id, False, reasons=errors)
     if not lease.active:
-        return ResourcePlan(budget, lease.lease_id, False, ("resource_lease_inactive",))
+        return ResourcePlan(budget, lease.lease_id, False, reasons=("resource_lease_inactive",))
 
     # Admission is intentionally separate from backend enforcement.
-    return ResourcePlan(budget, lease.lease_id, True)
+    return ResourcePlan(
+        budget,
+        lease.lease_id,
+        True,
+        guarantees=("resource-controller",),
+    )
