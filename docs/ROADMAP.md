@@ -20,6 +20,10 @@
 - [x] immutable state and content lineage model
 - [x] simulation / what-if / failure-injection architecture
 - [x] security and supply-chain principles
+- [x] FS Unified Computer architecture
+- [x] Unified Resource Fabric concept
+- [x] Universal Runtime concept
+- [x] logical hardware profile and application mobility model
 
 ## Phase 1 - local reference engine
 
@@ -223,3 +227,8 @@
 18. The carrier-file fragment mechanism is a storage backend, not the definition of the FS itself.
 19. Explicit federation boundaries are required for cross-node discovery, trust, storage and execution.
 20. Safe-stop preserves the last verified state when confidence, integrity, compatibility or policy is insufficient.
+21. A Unified Computer is a logical computer, not a claim of physically coherent shared hardware across heterogeneous hosts.
+22. Resource pooling preserves measurable differences in latency, bandwidth, capability, locality, reliability and failure domain.
+23. Ordinary applications are never silently distributed when their runtime semantics do not support distribution.
+24. Logical application, environment and session identity survives physical placement changes where the backend supports migration or checkpoint/restore.
+25. A resource contributes to a Computer only after explicit admission and capability verification.
