@@ -17,4 +17,4 @@ def test_deny_plan_does_not_claim_runtime_success():
     plan = plan_network_namespace(requested="deny")
     if plan.admitted:
         assert "network-namespace" in plan.guarantees
-        assert "kernel_policy_may_reject_unprivileged_network_namespace" in plan.reasons
+        assert "kernel_policy_may_reject_unprivileged_network_namespace" in plan.warnings
