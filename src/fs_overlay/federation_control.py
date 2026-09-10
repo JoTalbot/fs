@@ -13,9 +13,7 @@ import tempfile
 import time
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Iterable
-
-from .storage_resilience import CarrierState, PlacementPlanner
+from typing import Callable, Iterable
 
 
 def _canonical(value: object) -> bytes:
@@ -78,6 +76,7 @@ class NodeAdvertisement:
     capabilities: tuple[str, ...]
     carrier_ids: tuple[str, ...] = ()
     observed_ns: int = 0
+    signature: bytes | None = None
 
     def canonical_bytes(self) -> bytes:
         return _canonical({
@@ -87,19 +86,27 @@ class NodeAdvertisement:
             "observed_ns": self.observed_ns,
         })
 
+    def verify_signature(self, verifier: Callable[[bytes, bytes, str], bool] | None) -> bool:
+        if verifier is None or self.signature is None:
+            return False
+        return verifier(self.canonical_bytes(), self.signature, self.identity.public_key_fingerprint)
+
 
 class FederationDirectory:
-    """Last-observation directory gated by an explicit TrustStore."""
+    """Last-observation directory gated by explicit trust and optional signature verification."""
 
-    def __init__(self, trust: TrustStore):
+    def __init__(self, trust: TrustStore, verifier: Callable[[bytes, bytes, str], bool] | None = None):
         self.trust = trust
+        self.verifier = verifier
         self.nodes: dict[str, NodeAdvertisement] = {}
 
     def observe(self, advertisement: NodeAdvertisement, *, now_ns: int | None = None) -> bool:
         if not self.trust.admit(advertisement.identity, now_ns=now_ns):
             return False
+        if not advertisement.verify_signature(self.verifier):
+            return False
         previous = self.nodes.get(advertisement.identity.node_id)
-        if previous is not None and advertisement.observed_ns < previous.observed_ns:
+        if previous is not None and advertisement.observed_ns <= previous.observed_ns:
             return False
         self.nodes[advertisement.identity.node_id] = advertisement
         return True
@@ -123,8 +130,7 @@ class FederationReconciler:
     def __init__(self, directory: FederationDirectory):
         self.directory = directory
 
-    def plan_repairs(self, object_id: str, *, present_on: Iterable[str], desired_copies: int = 2,
-                     carriers: Iterable[CarrierState] = ()) -> tuple[ReconciliationDecision, ...]:
+    def plan_repairs(self, object_id: str, *, present_on: Iterable[str], desired_copies: int = 2) -> tuple[ReconciliationDecision, ...]:
         if desired_copies <= 0:
             raise ValueError("desired_copies must be positive")
         present = sorted(set(present_on))
@@ -133,20 +139,11 @@ class FederationReconciler:
         if not sources:
             return ()
         targets = [node.node_id for node in self.directory.available() if node.node_id not in present]
-        ranked = PlacementPlanner().rank(carriers, required_bytes=1,
-                                         excluded_domains={node for node in present})
-        target_ids = [carrier.carrier_id for carrier in ranked]
         needed = max(0, desired_copies - len(present))
-        decisions: list[ReconciliationDecision] = []
-        for target in sorted(set(targets + target_ids)):
-            if needed == 0:
-                break
-            if target in present:
-                continue
-            decisions.append(ReconciliationDecision(object_id, sources[0], target, "REPLICATE",
-                                                    "restore desired replica count"))
-            needed -= 1
-        return tuple(decisions)
+        return tuple(
+            ReconciliationDecision(object_id, sources[0], target, "REPLICATE", "restore desired replica count")
+            for target in sorted(targets)[:needed]
+        )
 
 
 @dataclass(frozen=True)
