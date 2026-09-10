@@ -6,20 +6,20 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `b186b3b6b48f79e7def64e7b0902f846b8b9641f`
+- Latest implementation commit: `513f03776b86f0710e6892ad52734c9411b714b0`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Cross-platform execution backend contracts / FreeBSD helper boundary**
+**Release hardening / FreeBSD helper boundary**
 
-Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS has a signed/entitled helper admission boundary and CI coverage. FreeBSD now has a native Capsicum capability-mode adapter, kernel read-back, an isolated child-process test, and a native C helper design that opens the target before `cap_enter()`, limits its executable descriptor, verifies capability mode, then uses `fexecve()`.
+Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS has a signed/entitled helper admission boundary and CI coverage. FreeBSD has a native Capsicum capability-mode adapter, kernel read-back, an isolated child-process test, and a native C helper that opens the target before `cap_enter()`, limits its executable descriptor, verifies capability mode, then uses `fexecve()`.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | FreeBSD execution boundary | `native/freebsd/capsicum_exec.c`, `tests/test_freebsd_capsicum.py`, `.cirrus.yml` | `e52232a9aaf340475f13295cdb29f19f2404e970` | helper implemented; native execution still unobserved | Run/observe the real FreeBSD task, then integrate the helper into a platform-specific supervisor adapter only after native evidence is green |
+| current-agent | ChatGPT | FreeBSD release hardening | `native/freebsd/capsicum_exec.c`, `tests/test_freebsd_capsicum.py`, `docs/EXECUTION_RUNTIME.md` | `513f03776b86f0710e6892ad52734c9411b714b0` | CLAIMED / RESEARCHED | Add an explicit negative global-namespace enforcement assertion to the native helper path, validate the complete release test matrix where executable, then record the remaining external FreeBSD/Cirrus gate without manufacturing evidence |
 
 ## Completed in this batch
 
@@ -36,18 +36,20 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 
 ## Research / decision evidence
 
-- FreeBSD `cap_enter(2)`: capability mode applies to the calling process and descendants; `cap_getmode()` provides kernel state read-back; effective sandboxes require deliberate capability-right preparation. citeturn0search1
-- FreeBSD `cap_rights_limit(2)` and rights documentation: capability rights can only be reduced; `CAP_FEXECVE` permits `fexecve()` and requires `CAP_READ`. citeturn0search3turn2search1
-- FreeBSD `fexecve(2)`: execution can be driven from an already-open executable descriptor rather than resolving a path after entering the sandbox. citeturn1search10
-- FreeBSD documentation explicitly recommends `fexecve()` when constructing a carefully controlled runtime environment because inherited rights must be considered. citeturn0search1
-- Skill discovery found no external skill materially applicable to this FreeBSD kernel-boundary implementation; local `fs-agent-core` remains authoritative.
+- FreeBSD `cap_enter(2)`: capability mode applies to the calling process and descendants; `cap_getmode()` provides kernel state read-back; effective sandboxes require deliberate capability-right preparation. Official FreeBSD 14.3 manual.
+- FreeBSD `cap_rights_limit(2)`: capability rights can only be reduced, never expanded; the helper therefore pre-opens the target and limits its descriptor before entering capability mode.
+- FreeBSD `open(2)`: in capability mode, global-path `open()` is rejected with capability errors, providing a direct negative enforcement assertion for the helper.
+- Cirrus CI officially supports `freebsd_instance` with `freebsd-14-3`; the repository already has `.cirrus.yml`. Native execution still depends on an externally connected Cirrus service, which is not exposed through the current GitHub connector.
+- Agent Skills specification confirms reusable skills are centered on `SKILL.md`; repository-local `fs-agent-core` remains authoritative. No external skill materially fits this kernel-boundary implementation, so `no suitable external skill found`.
 
 ## Validation
 
 - CI #120 `34451098521`: PASS on Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13 and macOS 3.11/3.12/3.13.
-- `.cirrus.yml` was committed successfully as `e52232a9aaf340475f13295cdb29f19f2404e970`.
+- `.cirrus.yml` was committed successfully.
 - Native helper source and test commits succeeded: `ed7f92392df17d6162747e58e48b77e375b9fbf2` and `b186b3b6b48f79e7def64e7b0902f846b8b9641f`.
-- No FreeBSD kernel execution result is claimed yet. GitHub workflow lookup for `b186b3b6b48f79e7def64e7b0902f846b8b9641f` returned no GitHub Actions workflow runs; the native task is hosted by Cirrus and must be observed there.
+- Current `main` head is `513f03776b86f0710e6892ad52734c9411b714b0`.
+- GitHub combined status for the current head is empty, so no new GitHub CI result is claimed here.
+- No FreeBSD kernel execution result is claimed yet. The native task is hosted by Cirrus and must be observed there.
 
 ## Safety constraints
 
