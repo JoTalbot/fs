@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+from fs_overlay.adapter_conformance import run_adapter_conformance
 from fs_overlay.production_adapters import (
     AuthenticatedTransport,
     DurableAdmissionCoordinator,
@@ -106,6 +107,28 @@ class MemoryCoordinator:
             self.resources.remove(resource_id)
 
 
+class NodeAllowlist:
+    def __init__(self) -> None:
+        self.nodes: dict[str, str] = {}
+        self.revoked: set[str] = set()
+
+    def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
+        if not node_id or not public_key_fingerprint or node_id in self.revoked:
+            return False
+        previous = self.nodes.get(node_id)
+        if previous is not None and previous != public_key_fingerprint:
+            return False
+        self.nodes[node_id] = public_key_fingerprint
+        return True
+
+    def revoke(self, node_id: str, reason: str = "") -> None:
+        self.nodes.pop(node_id, None)
+        self.revoked.add(node_id)
+
+    def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
+        return node_id not in self.revoked and self.nodes.get(node_id) == public_key_fingerprint
+
+
 def test_secure_key_store_contract_and_fail_closed_empty_key() -> None:
     store = MemoryKeyStore()
     assert isinstance(store, SecureKeyStore)
@@ -153,27 +176,6 @@ def test_key_admission_rejects_fingerprint_change_and_revocation() -> None:
 
 
 def test_node_admission_contract_is_distinct_from_key_admission() -> None:
-    class NodeAllowlist:
-        def __init__(self) -> None:
-            self.nodes: dict[str, str] = {}
-            self.revoked: set[str] = set()
-
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            if not node_id or not public_key_fingerprint or node_id in self.revoked:
-                return False
-            previous = self.nodes.get(node_id)
-            if previous is not None and previous != public_key_fingerprint:
-                return False
-            self.nodes[node_id] = public_key_fingerprint
-            return True
-
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            self.nodes.pop(node_id, None)
-            self.revoked.add(node_id)
-
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return node_id not in self.revoked and self.nodes.get(node_id) == public_key_fingerprint
-
     admission = NodeAllowlist()
     assert isinstance(admission, NodeAdmission)
     assert admission.admit("node-a", "fp-a")
@@ -189,3 +191,20 @@ def test_durable_coordinator_contract_requires_release() -> None:
     with coordinator.acquire("federation-events"):
         assert coordinator.resources == ["federation-events"]
     assert coordinator.resources == []
+
+
+def test_reusable_adapter_qualification_harness() -> None:
+    checks = run_adapter_conformance(
+        key_store_factory=MemoryKeyStore,
+        transport_factory=MemoryTransport,
+        key_admission_factory=MemoryKeyAdmission,
+        node_admission_factory=NodeAllowlist,
+        coordinator_factory=MemoryCoordinator,
+    )
+    assert checks == (
+        "secure-key-store",
+        "authenticated-transport",
+        "key-admission",
+        "node-admission",
+        "durable-coordinator-release",
+    )
