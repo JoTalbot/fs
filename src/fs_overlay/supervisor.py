@@ -92,7 +92,7 @@ class ProcessSupervisor:
         except OSError as exc:
             return ProcessResult("failed", None, "", f"spawn_failed:{type(exc).__name__}")
 
-        if any(
+        resource_requested = any(
             value is not None
             for value in (
                 resource_budget.cpu_millis,
@@ -100,7 +100,10 @@ class ProcessSupervisor:
                 resource_budget.disk_bytes,
                 resource_budget.pids,
             )
-        ):
+        )
+        resource_evidence = ()
+        resource_lease_id = None
+        if resource_requested:
             resource_result = self.resource_backend.apply(process.pid, resource_lease, resource_budget)
             if not resource_result.verified:
                 self._terminate(process)
@@ -111,6 +114,8 @@ class ProcessSupervisor:
                     process.communicate()
                 reason = resource_result.reasons or ("resource_enforcement_failed",)
                 return ProcessResult("failed", process.returncode, "", ";".join(reason))
+            resource_evidence = ("resource-controller-enforced",)
+            resource_lease_id = resource_lease.lease_id if resource_lease is not None else None
 
         try:
             stdout, stderr = process.communicate(timeout=policy.timeout)
@@ -128,7 +133,8 @@ class ProcessSupervisor:
                 stderr or exc.stderr or "",
                 True,
                 backend="process-supervisor",
-                execution_evidence=("supervised-lifecycle-observed",),
+                execution_evidence=("supervised-lifecycle-observed", *resource_evidence),
+                resource_lease_id=resource_lease_id,
             )
 
         return ProcessResult(
@@ -137,7 +143,8 @@ class ProcessSupervisor:
             stdout,
             stderr,
             backend="process-supervisor",
-            execution_evidence=("supervised-lifecycle-observed",),
+            execution_evidence=("supervised-lifecycle-observed", *resource_evidence),
+            resource_lease_id=resource_lease_id,
         )
 
     def execute(
