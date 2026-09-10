@@ -145,3 +145,32 @@ def test_coordinated_processes_refresh_stale_admission_state(tmp_path) -> None:
     restored = DurableFederationState(state_path)
     assert restored.snapshot().last_sequence == {"node-a": 1}
     assert restored.snapshot().seen_message_ids == frozenset({"m1"}) or restored.snapshot().seen_message_ids == frozenset({"m2"})
+
+
+def test_ambiguous_journal_write_is_resolved_from_durable_state(tmp_path) -> None:
+    """A post-write failure is resolved by restart, not by guessing in memory."""
+    path = tmp_path / "events.journal"
+    state = DurableFederationState(path)
+    original_emit = state.events.emit
+
+    def emit_then_fail(*args, **kwargs):
+        original_emit(*args, **kwargs)
+        raise OSError("simulated acknowledgement loss after durable append")
+
+    state.events.emit = emit_then_fail
+    try:
+        try:
+            state.accept(message(1, "ambiguous"))
+        except OSError:
+            pass
+        else:
+            raise AssertionError("simulated durable acknowledgement loss must surface")
+    finally:
+        state.events.emit = original_emit
+
+    assert state.snapshot().seen_message_ids == frozenset()
+    restored = DurableFederationState(path)
+    assert restored.snapshot().last_sequence == {"node-a": 1}
+    assert restored.snapshot().seen_message_ids == frozenset({"ambiguous"})
+    assert not restored.accept(message(1, "retry"))
+    assert restored.accept(message(2, "retry"))
