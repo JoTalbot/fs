@@ -1,5 +1,8 @@
+import platform
+
+import pytest
+
 from fs_overlay.adapter import ProcessResult
-from fs_overlay.linux_executor import LinuxExecutionPolicy
 from fs_overlay.model import EnvironmentSpec, ExecutionPolicy, ResourceBudget
 from fs_overlay.resource_control import ResourceLease
 from fs_overlay.runtime import ExecutionRuntime
@@ -22,6 +25,7 @@ class FakeLinuxExecutor:
         )
 
 
+@pytest.mark.skipif(platform.system().lower() != "linux", reason="Linux execution runtime")
 def test_runtime_commits_only_after_resource_evidence(tmp_path):
     executor = FakeLinuxExecutor()
     runtime = ExecutionRuntime(linux_executor=executor)
