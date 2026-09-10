@@ -8,6 +8,9 @@
 - [x] managed workspace concept
 - [x] minimal runtime concept
 - [x] system-in-system execution model
+- [x] unified FS object model
+- [x] capability-aware runtime planner
+- [x] control-plane architecture
 
 ## Phase 1 - local reference engine
 
@@ -48,7 +51,7 @@
 
 ## Phase 4 - execution runtime
 
-- [ ] declarative workload manifest
+- [x] declarative workload model
 - [ ] process supervisor
 - [ ] resource policy engine
 - [ ] restart/recovery policies
@@ -82,7 +85,8 @@
 
 ## Phase 7 - FS control plane
 
-- [ ] unified identity/policy model
+- [x] unified object/policy model foundation
+- [x] control-plane reconciliation concept
 - [ ] virtual filesystem namespace
 - [ ] network policy abstraction
 - [ ] device/resource policy abstraction
