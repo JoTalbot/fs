@@ -218,16 +218,25 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
 
 
 class WindowsJobObjectBackend(IsolationBackend):
+    """Isolation facade for Windows.
+
+    Job Objects provide process/resource control, not the filesystem and network
+    isolation guarantees represented by this module. The native resource
+    backend lives in ``windows_job.py``; this isolation facade therefore stays
+    fail-closed until a separate Windows filesystem/network boundary exists.
+    """
+
     name = "windows-job-objects"
 
     def plan(self) -> IsolationPlan:
-        available = platform.system().lower() == "windows"
+        if platform.system().lower() != "windows":
+            return IsolationPlan(self.name, (), (), False, "host is not Windows")
         return IsolationPlan(
             self.name,
             (),
-            ("job-object",) if available else (),
-            available,
-            "native Job Object binding is not yet implemented" if available else "host is not Windows",
+            (),
+            False,
+            "Windows Job Object resource control is not filesystem/network isolation",
         )
 
 
