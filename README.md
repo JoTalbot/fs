@@ -6,23 +6,39 @@ The long-term goal is not merely to hide more bytes inside files. It is to make 
 
 > **Safety boundary:** FS never silently scans or modifies the whole operating system. Carrier roots and managed workspaces are explicitly configured, protected/system paths are denied, and mutations are attributable and auditable.
 
-## Storage foundation
+## Local storage spine
 
-The local reference engine now provides the first concrete storage spine:
+The reference engine provides a concrete, dependency-free storage path:
 
 ```text
 input
   -> deterministic chunks
   -> content-addressed chunk objects
   -> immutable manifest
-  -> fsync journal commit
-  -> inventory
+  -> durable journal visibility
+  -> replayable inventory
   -> audit / recovery
+  -> immutable snapshots
 ```
 
-The storage engine includes versioned manifests, deterministic fixed-size chunking, SHA-256 content addressing, atomic temporary-file replacement, an append-only length-prefixed journal, replayable inventory, Merkle-DAG root primitives, an explicit authenticated-encryption provider boundary, an explicit erasure-coding provider boundary, and an explicit carrier adapter boundary.
+Implemented primitives include versioned manifests, deterministic fixed-size chunking, SHA-256 content addressing, atomic temporary-file replacement, replayable journal-backed inventory, transaction begin/commit/abort visibility, Merkle roots, structured events, immutable snapshots, deterministic recovery graphs, failure-domain-aware carrier ranking, and quarantine records.
+
+`StorageTransaction` stages immutable data and publishes metadata only after a durable transaction commit marker. Recovery ignores transactions without that marker.
 
 The HMAC development envelope is **integrity-only** and is deliberately not presented as encryption. Production confidentiality requires an audited AEAD provider. Erasure coding likewise remains an explicit provider interface until an audited implementation is selected.
+
+## Resilience model
+
+The storage layer distinguishes:
+
+- **HEALTHY** — full configured redundancy is present;
+- **DEGRADED** — enough shards remain for recovery, but redundancy is below target;
+- **REPAIRING** — an approved repair is being executed;
+- **UNRECOVERABLE** — fewer than the required data-shard threshold remains.
+
+Snapshots contain object identities and a deterministic Merkle root rather than another copy of the data. Recovery dependencies are ordered explicitly by `RecoveryGraph`; cycles are rejected. Carrier selection consumes approved/healthy carrier facts and failure-domain information, while a plan itself never grants authority to mutate a carrier. Unexpected carrier changes are recorded in a quarantine ledger rather than silently overwritten.
+
+See `docs/STORAGE_RESILIENCE.md` for the durability and recovery contract.
 
 ## One object model
 
@@ -94,6 +110,7 @@ fs-overlay genesis ping
 fs-overlay genesis capabilities
 fs-overlay storage audit <root>
 fs-overlay storage recover <root>
+fs-overlay storage snapshot <root> --generation 1 --metadata purpose=checkpoint
 ```
 
 Storage commands operate only on the explicitly supplied storage root.
@@ -101,6 +118,7 @@ Storage commands operate only on the explicitly supplied storage root.
 ## Repository layout
 
 - `docs/ARCHITECTURE.md` — normative storage architecture and invariants
+- `docs/STORAGE_RESILIENCE.md` — durability, snapshots, recovery, placement and quarantine model
 - `docs/FORMAT.md` — FSOV carrier and manifest format
 - `docs/OBJECT_MODEL.md` — unified managed-object model
 - `docs/CONTROL_PLANE.md` — reconciliation, events and recovery authority
@@ -110,7 +128,8 @@ Storage commands operate only on the explicitly supplied storage root.
 - `docs/DISTRIBUTED_FUTURE.md` — multi-node architecture direction
 - `docs/RUNTIME.md` — minimal resident runtime
 - `docs/SYSTEM_IN_SYSTEM.md` — host/guest/system-in-system model
-- `src/fs_overlay/storage_engine.py` — local manifest/chunk/object/journal/inventory/Merkle foundation
+- `src/fs_overlay/storage_engine.py` — local manifest/chunk/object/journal/inventory/Merkle/transaction foundation
+- `src/fs_overlay/storage_resilience.py` — snapshots, recovery ordering, placement and quarantine
 - `src/fs_overlay/carrier.py` — explicit carrier adapter boundary
 - `src/fs_overlay/event_log.py` — structured append-only event records
 - `src/fs_overlay/` — Python reference implementation
@@ -119,9 +138,9 @@ Storage commands operate only on the explicitly supplied storage root.
 
 ## Current implementation status
 
-The repository now has a concrete local storage spine in addition to the control-plane and execution reference layers. The next storage/resilience work is to integrate audited AEAD, an audited erasure-coding implementation, richer recovery semantics, carrier placement, snapshots and transactional state reconciliation.
+The local storage/resilience reference layer is implemented through transactional journal visibility, immutable snapshots, deterministic recovery planning, carrier placement scoring and quarantine evidence. Production AEAD, erasure coding, cross-platform adapters, isolation backends and distributed federation still require independently reviewed implementations and platform-specific validation.
 
-Production cryptography, erasure coding, cross-platform adapters and isolation backends must be independently tested and security-reviewed before production data or privileged workloads are entrusted to FS.
+This repository deliberately does not claim production durability, cryptographic certification, distributed transaction guarantees or successful recovery when the available evidence is insufficient.
 
 ## Non-goals
 
