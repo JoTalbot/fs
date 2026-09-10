@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from .event_log import EventLog
 from .federation_protocol import FederationEnvelope
@@ -16,7 +15,12 @@ class FederationState:
 
 
 class DurableFederationState:
-    """Persist accepted protocol state without coupling it to network transport."""
+    """Persist already-validated protocol admissions across process restarts.
+
+    Signature, trust and freshness checks belong to ``FederationReceiver`` or
+    another admission layer. This class is deliberately the durable state
+    boundary, not an authentication mechanism.
+    """
 
     def __init__(self, path: str | Path):
         self.events = EventLog(path)
@@ -39,6 +43,7 @@ class DurableFederationState:
                 self.seen_message_ids.add(message_id)
 
     def accept(self, envelope: FederationEnvelope) -> bool:
+        """Durably admit an envelope after external authentication/admission."""
         if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
             return False
         if envelope.message_id in self.seen_message_ids:
