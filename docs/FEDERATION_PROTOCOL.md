@@ -71,7 +71,13 @@ Those responsibilities remain outside the execution boundary.
 - `FederationSigner`;
 - `KeyProvider`.
 
-The contracts deliberately do not select a network protocol, cryptographic library or key storage mechanism. Those choices remain replaceable and auditable.
+`production_adapters.py` adds explicit deployment boundaries for:
+
+- `SecureKeyStore` for protected key-material storage;
+- `AuthenticatedTransport` for authenticated/encrypted federation channels and peer identity;
+- `NodeAdmission` for authoritative node admission and revocation.
+
+These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, or admission database. Implementations must supply those policies and security properties explicitly.
 
 ## Regression coverage
 
@@ -88,7 +94,8 @@ Focused tests cover:
 - failure-domain-aware placement;
 - exclusion of unhealthy/untrusted repair participants;
 - audit decision/result causal linkage;
-- adapter contract importability.
+- adapter contract importability;
+- production security adapter contract importability.
 
 ## Minimal initiator
 
@@ -96,4 +103,4 @@ A node may begin with only an explicitly selected FS root and local configuratio
 
 ## Production boundary
 
-The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, transport security, persistent protocol state, and interoperability testing.
+The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, transport security, persistent protocol state, and interoperability testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
