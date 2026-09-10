@@ -19,8 +19,10 @@
 - Durable replay reconstruction now fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
 - `DurableFederationState` accepts an injected admission coordinator and holds it across validation, journal emission, and state mutation.
 - Coordinated admissions refresh both the durable state indexes and `EventLog` sequence/hash state while holding the coordinator, preventing long-lived multi-process writers from making decisions from stale high-water marks or emitting duplicate event sequences.
+- `EventLog.reload()` provides an explicit refresh boundary for processes that coordinate externally before emitting new journal records.
 - `FileAdmissionCoordinator` provides an explicit local cross-process coordination adapter using OS file locks, with deterministic resource paths, bounded acquisition timeout, retained lock files, and no stale-lock stealing.
 - Crash semantics are covered: the adapter relies on the operating system to release a held lock when the owning process exits; it never deletes or steals a supposedly stale lock.
+- `DurableAdmissionCoordinator` is runtime-checkable for structural adapter conformance.
 - `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
 - Verified `ReplicaExecutor` with source and post-copy target integrity checks.
 - Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
@@ -33,7 +35,6 @@
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 - Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
-- `DurableAdmissionCoordinator` is runtime-checkable for structural adapter conformance.
 
 ## Safety boundaries
 
@@ -48,7 +49,9 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 ## Validation
 
 - GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The latest coordinated-state batch (`8a95193c`, `342b62b7`, `2ccde6b`, `c0b1a923`, `2a162aab`, `81460226`) requires fresh CI validation and is not declared green yet.
+- Run #233 exposed a real synchronization flaw in the crash test: `multiprocessing.Queue` could lose its notification when the child called `os._exit()`. The test was corrected to use a process-shared `Event`.
+- Run #233 also showed the suite reached 186 passed / 3 skipped with only that test failing on the then-current commit; the failure was test synchronization, not the coordinator implementation.
+- The latest fix commit `6d0af807` has fresh CI run #241, currently queued across all 9 OS/Python matrix jobs and therefore is not declared green yet.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -58,4 +61,4 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-Validate the coordinated state refresh and file coordinator across the full OS/Python CI matrix. Then add transactional-durability guidance and, where justified, an explicit transactional backend adapter. Do not claim cross-store atomicity unless a single transactional backend actually provides it.
+Validate run #241 across the full OS/Python matrix. If green, add an explicit coordinated multi-process federation admission integration test to the end-to-end suite and document transactional backend requirements without conflating locking with ACID atomicity. If the matrix exposes platform-specific locking differences, fix the adapter rather than weakening the regression gate.
