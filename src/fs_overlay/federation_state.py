@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import threading
 
 from .event_log import EventLog
 from .federation_protocol import FederationEnvelope
@@ -20,12 +21,17 @@ class DurableFederationState:
     Signature, trust and freshness checks belong to ``FederationReceiver`` or
     another admission layer. This class is deliberately the durable state
     boundary, not an authentication mechanism.
+
+    The admission critical section is serialized for threads sharing one
+    instance. Multi-process writers still require deployment-specific file
+    locking or transactional storage and are intentionally not implied here.
     """
 
     def __init__(self, path: str | Path):
         self.events = EventLog(path)
         self.last_sequence: dict[str, int] = {}
         self.seen_message_ids: set[str] = set()
+        self._lock = threading.RLock()
         self._replay()
 
     def _replay(self) -> None:
@@ -38,31 +44,39 @@ class DurableFederationState:
             sender = details.get("sender_node")
             message_id = details.get("message_id")
             sequence = details.get("sequence")
-            if isinstance(sender, str) and isinstance(message_id, str) and isinstance(sequence, int):
-                self.last_sequence[sender] = max(self.last_sequence.get(sender, -1), sequence)
-                self.seen_message_ids.add(message_id)
+            if not (isinstance(sender, str) and sender and isinstance(message_id, str) and message_id and isinstance(sequence, int)):
+                continue
+            if message_id in self.seen_message_ids:
+                raise ValueError("duplicate federation message ID in durable state")
+            previous = self.last_sequence.get(sender, -1)
+            if sequence <= previous:
+                raise ValueError("non-increasing federation sequence in durable state")
+            self.last_sequence[sender] = sequence
+            self.seen_message_ids.add(message_id)
 
     def accept(self, envelope: FederationEnvelope) -> bool:
         """Durably admit an envelope after external authentication/admission."""
-        if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
-            return False
-        if envelope.message_id in self.seen_message_ids:
-            return False
-        if envelope.sequence <= self.last_sequence.get(envelope.sender_node, -1):
-            return False
-        self.events.emit(
-            "federation.accepted",
-            details={
-                "sender_node": envelope.sender_node,
-                "message_id": envelope.message_id,
-                "message_type": envelope.message_type,
-                "sequence": envelope.sequence,
-                "digest": envelope.digest(),
-            },
-        )
-        self.last_sequence[envelope.sender_node] = envelope.sequence
-        self.seen_message_ids.add(envelope.message_id)
-        return True
+        with self._lock:
+            if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
+                return False
+            if envelope.message_id in self.seen_message_ids:
+                return False
+            if envelope.sequence <= self.last_sequence.get(envelope.sender_node, -1):
+                return False
+            self.events.emit(
+                "federation.accepted",
+                details={
+                    "sender_node": envelope.sender_node,
+                    "message_id": envelope.message_id,
+                    "message_type": envelope.message_type,
+                    "sequence": envelope.sequence,
+                    "digest": envelope.digest(),
+                },
+            )
+            self.last_sequence[envelope.sender_node] = envelope.sequence
+            self.seen_message_ids.add(envelope.message_id)
+            return True
 
     def snapshot(self) -> FederationState:
-        return FederationState(dict(self.last_sequence), frozenset(self.seen_message_ids))
+        with self._lock:
+            return FederationState(dict(self.last_sequence), frozenset(self.seen_message_ids))
