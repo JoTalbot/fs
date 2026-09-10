@@ -105,3 +105,56 @@ def test_recovery_can_complete_a_transaction_after_restart(tmp_path: Path) -> No
 
     assert tuple(restarted.inventory.records) == (manifest.object_id,)
     assert restarted.get(manifest.object_id) == b"recoverable"
+
+
+def test_truncated_journal_tail_does_not_corrupt_prior_commits(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    first = engine.put(b"durable before tail")
+    with engine.journal.path.open("ab") as handle:
+        handle.write(b"0000000000000100{\"truncated\":true")
+
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert tuple(recovered.inventory.records) == (first.object_id,)
+    assert recovered.get(first.object_id) == b"durable before tail"
+    assert recovered.audit()["ok"] is True
+
+
+def test_malformed_journal_record_does_not_hide_prior_commits(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    first = engine.put(b"prior commit")
+    with engine.journal.path.open("ab") as handle:
+        body = b"not-json"
+        handle.write(f"{len(body):016x}".encode() + body + b"\n")
+
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert tuple(recovered.inventory.records) == (first.object_id,)
+    assert recovered.get(first.object_id) == b"prior commit"
+
+
+def test_recovery_replay_is_idempotent(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    first = engine.put(b"idempotent recovery")
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+
+    before = dict(recovered.inventory.records)
+    assert recovered.recover()["objects_after"] == 1
+    assert recovered.recover()["objects_after"] == 1
+    assert recovered.inventory.records == before
+    assert recovered.get(first.object_id) == b"idempotent recovery"
+
+
+def test_multiple_transactions_replay_in_commit_order(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    first_tx = StorageTransaction(engine)
+    first = first_tx.prepare(b"first transaction")
+    first_tx.commit()
+
+    second_tx = StorageTransaction(engine)
+    second = second_tx.prepare(b"second transaction")
+    second_tx.commit()
+
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert tuple(recovered.inventory.records) == (first.object_id, second.object_id)
+    assert recovered.get(first.object_id) == b"first transaction"
+    assert recovered.get(second.object_id) == b"second transaction"
+    assert recovered.audit()["ok"] is True
