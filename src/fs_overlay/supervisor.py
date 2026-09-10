@@ -10,12 +10,16 @@ from dataclasses import dataclass
 import os
 import signal
 import subprocess
-from typing import Mapping
+from typing import Mapping, Protocol
 
 from .adapter import ProcessResult
 from .cgroup_v2 import LinuxCgroupV2Backend
 from .model import ResourceBudget
 from .resource_control import ResourceLease
+
+
+class ResourceController(Protocol):
+    def apply(self, pid: int, lease: ResourceLease | None, budget: ResourceBudget) -> object: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +44,7 @@ class SupervisorPolicy:
 class ProcessSupervisor:
     """Run an admitted argv under a bounded lifecycle policy."""
 
-    def __init__(self, resource_backend: LinuxCgroupV2Backend | None = None) -> None:
+    def __init__(self, resource_backend: ResourceController | None = None) -> None:
         self.resource_backend = resource_backend or LinuxCgroupV2Backend()
 
     def _terminate(self, process: subprocess.Popen[str]) -> None:
@@ -74,6 +78,7 @@ class ProcessSupervisor:
         policy: SupervisorPolicy,
         resource_lease: ResourceLease | None,
         resource_budget: ResourceBudget,
+        execution_evidence: tuple[str, ...] = (),
     ) -> ProcessResult:
         env = os.environ.copy()
         if environment is not None:
@@ -105,18 +110,19 @@ class ProcessSupervisor:
         resource_lease_id = None
         if resource_requested:
             resource_result = self.resource_backend.apply(process.pid, resource_lease, resource_budget)
-            if not resource_result.verified:
+            if not getattr(resource_result, "verified", False):
                 self._terminate(process)
                 try:
                     process.communicate(timeout=2.0)
                 except subprocess.TimeoutExpired:
                     self._kill(process)
                     process.communicate()
-                reason = resource_result.reasons or ("resource_enforcement_failed",)
+                reason = getattr(resource_result, "reasons", ()) or ("resource_enforcement_failed",)
                 return ProcessResult("failed", process.returncode, "", ";".join(reason))
             resource_evidence = ("resource-controller-enforced",)
             resource_lease_id = resource_lease.lease_id if resource_lease is not None else None
 
+        evidence = (*execution_evidence, "supervised-lifecycle-observed", *resource_evidence)
         try:
             stdout, stderr = process.communicate(timeout=policy.timeout)
         except subprocess.TimeoutExpired as exc:
@@ -133,7 +139,7 @@ class ProcessSupervisor:
                 stderr or exc.stderr or "",
                 True,
                 backend="process-supervisor",
-                execution_evidence=("supervised-lifecycle-observed", *resource_evidence),
+                execution_evidence=evidence,
                 resource_lease_id=resource_lease_id,
             )
 
@@ -143,7 +149,7 @@ class ProcessSupervisor:
             stdout,
             stderr,
             backend="process-supervisor",
-            execution_evidence=("supervised-lifecycle-observed", *resource_evidence),
+            execution_evidence=evidence,
             resource_lease_id=resource_lease_id,
         )
 
@@ -157,6 +163,7 @@ class ProcessSupervisor:
         policy: SupervisorPolicy | None = None,
         resource_lease: ResourceLease | None = None,
         resource_budget: ResourceBudget | None = None,
+        execution_evidence: tuple[str, ...] = (),
     ) -> ProcessResult:
         if not admitted:
             return ProcessResult("rejected", None, "", "execution scope is not admitted")
@@ -177,6 +184,7 @@ class ProcessSupervisor:
                 policy=policy,
                 resource_lease=resource_lease,
                 resource_budget=budget,
+                execution_evidence=execution_evidence,
             )
             if last.status == "succeeded":
                 return last
