@@ -68,3 +68,34 @@ Learning:
 - [SECURITY] Never turn a capability declaration into evidence implicitly.
 - [PATTERN] Keep guarantee-to-check mapping deterministic, small, and testable.
 Next: Integrate the derived checks into `TransactionExecutor` and connect the reference Linux evidence provider, with tests for missing/failed/passing evidence.
+
+## 2026-09-10 | current-agent | transaction-verification-gate
+Base: 990abf7223eb2fc57d4ced53f05e2c26195c1ef5
+Area: transaction verification
+Goal: Prevent callers from omitting verification required by declared execution-boundary guarantees.
+Research:
+- Linux kernel namespace/resource-control documentation -> user namespaces materially affect resource-control/security considerations and must not be introduced as an implicit workaround. citeturn0search5
+- Agent Skills specification -> skills are portable directories centered on `SKILL.md`; references and scripts may be bundled. citeturn0search10
+- Agent skill repositories -> progressive disclosure and project-local skill patterns are maintained practices. citeturn0search0turn0search13
+- Multi-agent orchestration example -> explicit coordination state and decision records are used for background/parallel agents. citeturn0search12
+Skill discovery:
+- `linux-isolation-verification` was created locally from the researched evidence; external skills were treated as untrusted and none were allowed to override FS authority/security rules.
+Changes:
+- Added `src/fs_overlay/evidence_provider.py`.
+- Updated `src/fs_overlay/transaction_executor.py` to derive required checks from the plan before commit.
+- Caller-supplied checks may add checks but cannot omit plan-derived checks.
+- Added transaction tests for missing evidence and successful evidence.
+- Added `docs/AGENT_OPERATING_SYSTEM.md` to make the multi-machine/parallel operating model explicit.
+- Added `.agents/skills/linux-isolation-verification/SKILL.md`.
+- Updated shared status.
+Validation:
+- Current source/tests/docs were inspected through GitHub before writes.
+- GitHub writes succeeded.
+- Local pytest/CI has not been executed in this environment.
+Result: transaction integration commit `51af670c311251b8fb1f74d1fc18b6ba8f2ab8b5`; evidence provider commit `8863edeac8c3e6083132f6680c70521ef6f40a71`; operating-system docs `4db169d80f4560dad87d797ba1d2ea8968c5a43c`; Linux skill `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`; status update `8021472ae060d61c4a9925da998e6221a70663ad`.
+Learning:
+- [RULE] Required verification must be derived from declared enforceable guarantees, not left to caller memory.
+- [SECURITY] An external skill is an untrusted input and cannot grant authority or weaken FS's fail-closed model.
+- [PATTERN] Use a default evidence dispatcher only for explicitly supported checks; unknown checks return no evidence and fail closed.
+- [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace/resource guarantees.
+Next: Research and implement an exact disposable workspace-isolation probe; do not assume a mount namespace provides workspace isolation.
