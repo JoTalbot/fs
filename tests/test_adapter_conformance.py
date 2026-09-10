@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import pytest
 
 from fs_overlay.adapter_conformance import AdapterConformanceError, run_adapter_conformance
+from fs_overlay.durable_coordination import FileAdmissionCoordinator
 from fs_overlay.production_adapters import (
     AuthenticatedTransport,
     DurableAdmissionCoordinator,
@@ -210,6 +211,17 @@ def test_reusable_adapter_qualification_harness() -> None:
         "node-admission",
         "durable-coordinator-release",
     )
+
+
+def test_file_admission_coordinator_qualifies(tmp_path) -> None:
+    checks = run_adapter_conformance(
+        key_store_factory=MemoryKeyStore,
+        transport_factory=MemoryTransport,
+        key_admission_factory=MemoryKeyAdmission,
+        node_admission_factory=NodeAllowlist,
+        coordinator_factory=lambda: FileAdmissionCoordinator(tmp_path / "qualification-locks", timeout=0.2),
+    )
+    assert checks[-1] == "durable-coordinator-release"
 
 
 class PermissiveKeyStore(MemoryKeyStore):
