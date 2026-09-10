@@ -45,6 +45,11 @@ def plan_execution_boundaries(
         reasons = list(mount_plan.reasons)
         if workspace_plan.reasons:
             reasons.extend(r for r in workspace_plan.reasons if r not in reasons)
+        # A mount namespace by itself does not establish a workspace-only
+        # filesystem. Until a backend performs and verifies the actual
+        # workspace binding, admission must fail closed.
+        if workspace_plan.admitted and "workspace_isolation_not_enforced" not in reasons:
+            reasons.append("workspace_isolation_not_enforced")
     elif spec.policy.filesystem == "host":
         mount_plan = MountNamespacePlan(True, True, guarantees=("filesystem-host",))
         reasons = []
