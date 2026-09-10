@@ -55,6 +55,38 @@ Snapshots contain object identities and a deterministic Merkle root rather than 
 
 See `docs/STORAGE_RESILIENCE.md` for the durability and recovery contract.
 
+## Federation and minimal initiator
+
+FS federation is a transport-neutral control-plane boundary. Nodes use explicit identity/trust admission, canonical signed envelopes, replay protection, durable acceptance state, deterministic reconciliation, verified replication and failure-domain-aware placement.
+
+```text
+local bootstrap
+      |
+      v
+ identity + capabilities
+      |
+      v
+ signed envelope
+      |
+      v
+ explicit transport
+      |
+      v
+ signature/freshness/replay/trust admission
+      |
+      v
+ durable state -> policy -> reconciliation
+      |
+      v
+ authorized execution -> verification -> audit
+```
+
+The reference `MinimalInitiator` requires explicit bootstrap configuration and injected key, signing and transport providers. It does **not** discover peers, open arbitrary sockets, select unauthorized carriers or modify the host. Capability negotiation fails closed on protocol-version mismatch. Key lifecycle state explicitly distinguishes active, retired and revoked keys. Versioned conformance vectors make canonical serialization independently testable.
+
+The same core contract is designed to be embedded in a server, desktop, mobile, ARM or IoT launcher. Platform-specific networking, secure key storage and cryptography belong behind explicit adapters.
+
+See `docs/FEDERATION_PROTOCOL.md` and `docs/FEDERATION_CONFORMANCE.md` for the protocol and production boundaries.
+
 ## One object model
 
 FS treats resources as typed objects:
@@ -117,52 +149,3 @@ The host OS remains fully functional in normal mode. Stronger isolation or contr
 The same object model is intended to work across multiple nodes. Storage and execution placement can become failure-domain aware while keeping logical object identity stable.
 
 This gives FS a path from local storage overlay to a portable **system substrate** capable of orchestrating storage, execution and recovery across heterogeneous machines.
-
-## CLI
-
-```text
-fs-overlay genesis ping
-fs-overlay genesis capabilities
-fs-overlay storage audit <root>
-fs-overlay storage recover <root>
-fs-overlay storage snapshot <root> --generation 1 --metadata purpose=checkpoint
-```
-
-Storage commands operate only on the explicitly supplied storage root.
-
-## Repository layout
-
-- `docs/ARCHITECTURE.md` — normative storage architecture and invariants
-- `docs/STORAGE_RESILIENCE.md` — durability, snapshots, recovery, placement and quarantine model
-- `docs/FORMAT.md` — FSOV carrier and manifest format
-- `docs/OBJECT_MODEL.md` — unified managed-object model
-- `docs/CONTROL_PLANE.md` — reconciliation, events and recovery authority
-- `docs/CAPABILITY_DISCOVERY.md` — platform-neutral capability discovery/HAL
-- `docs/EXECUTION_MODEL.md` — declarative environments and workload lifecycle
-- `docs/NAMESPACE.md` — unified logical namespace
-- `docs/DISTRIBUTED_FUTURE.md` — multi-node architecture direction
-- `docs/RUNTIME.md` — minimal resident runtime
-- `docs/SYSTEM_IN_SYSTEM.md` — host/guest/system-in-system model
-- `src/fs_overlay/storage_engine.py` — local manifest/chunk/object/journal/inventory/Merkle/transaction foundation
-- `src/fs_overlay/storage_resilience.py` — snapshots, recovery ordering, placement and quarantine
-- `src/fs_overlay/state_primitives.py` — object, provenance, dependency, lease, knowledge, decision and control-loop primitives
-- `src/fs_overlay/carrier.py` — explicit carrier adapter boundary
-- `src/fs_overlay/event_log.py` — structured append-only event records with causal metadata
-- `src/fs_overlay/` — Python reference implementation
-- `tests/` — existing reference tests
-- `config.example.toml` — explicit-root configuration example
-
-## Current implementation status
-
-The local storage and semantic foundation is now implemented through transactional journal visibility, immutable snapshots, deterministic recovery planning, carrier placement scoring, quarantine evidence and explicit state/provenance/dependency/lease/knowledge/decision primitives. Production AEAD, erasure coding, cross-platform adapters, isolation backends and distributed federation still require independently reviewed implementations and platform-specific validation.
-
-This repository deliberately does not claim production durability, cryptographic certification, distributed transaction guarantees or successful recovery when the available evidence is insufficient.
-
-## Non-goals
-
-- stealth persistence;
-- modification of arbitrary OS/system files;
-- bypassing host access controls;
-- unsafe mutation of unsupported file formats;
-- treating a single metadata database as a recovery dependency;
-- claiming kernel/hypervisor authority from ordinary user-space code.
