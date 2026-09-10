@@ -1,9 +1,8 @@
-"""Plan-only resource admission contracts for FS execution.
+"""Resource admission contracts for FS execution.
 
-This module deliberately does not write to the host cgroup hierarchy. A
-resource limit becomes enforceable only after an explicit lease identifies an
-FS-owned/delegated scope. This keeps resource governance separate from mere
-filesystem access and avoids assuming host-wide administrative control.
+This module does not mutate host resource-control state. A resource limit is
+admitted only when an explicit lease exists. Concrete backends independently
+verify that the leased scope can actually enforce the requested budget.
 """
 from __future__ import annotations
 
@@ -41,11 +40,11 @@ class ResourcePlan:
 
 
 def plan_resources(budget: ResourceBudget, lease: ResourceLease | None = None) -> ResourcePlan:
-    """Describe resource enforcement without mutating host state.
+    """Describe resource admission without mutating host state.
 
-    A non-empty budget without an active, valid lease is intentionally not
-    enforceable. This is the boundary future cgroup/Job Object adapters must
-    satisfy before claiming hard limits.
+    A non-empty budget requires an active, valid lease. The concrete runtime
+    backend is responsible for proving that the lease scope can enforce the
+    requested controller values.
     """
     requested = any(
         value is not None
@@ -62,9 +61,5 @@ def plan_resources(budget: ResourceBudget, lease: ResourceLease | None = None) -
     if not lease.active:
         return ResourcePlan(budget, lease.lease_id, False, ("resource_lease_inactive",))
 
-    return ResourcePlan(
-        budget,
-        lease.lease_id,
-        False,
-        ("native_resource_controller_not_attached",),
-    )
+    # Admission is intentionally separate from backend enforcement.
+    return ResourcePlan(budget, lease.lease_id, True)
