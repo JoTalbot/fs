@@ -28,6 +28,11 @@ def test_isolation_guarantees_require_namespace_checks():
     ]
 
 
+def test_workspace_boundary_requires_exact_execution_evidence():
+    checks = required_verification_checks(_plan(("workspace-filesystem-boundary",)))
+    assert [check.check_id for check in checks] == ["workspace:boundary"]
+
+
 def test_unmapped_guarantees_do_not_create_fake_evidence_requirements():
     checks = required_verification_checks(_plan(("workspace-binding-admitted",), ("host-network",)))
     assert checks == ()
