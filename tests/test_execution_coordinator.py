@@ -14,7 +14,7 @@ def test_default_policy_fails_closed_without_workspace(tmp_path):
 def test_workspace_only_requires_concrete_backend(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "fs_overlay.execution_coordinator.BubblewrapWorkspaceBackend.plan",
-        lambda self, workspace_path=None, *, network="deny": IsolationPlan(
+        lambda self, workspace_path=None, *, network="deny", read_only=True: IsolationPlan(
             "bubblewrap-workspace",
             ("/usr/bin/bwrap",),
             ("workspace-filesystem-boundary",),
@@ -30,6 +30,7 @@ def test_workspace_only_requires_concrete_backend(monkeypatch, tmp_path):
     assert plan.admitted
     assert plan.workspace.admitted
     assert "workspace-filesystem-boundary" in plan.mount.guarantees
+    assert "network-namespace" in plan.network.guarantees
     assert "workspace_isolation_not_enforced" not in plan.reasons
 
 
