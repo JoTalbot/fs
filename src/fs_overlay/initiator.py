@@ -16,7 +16,7 @@ class InitiatorCapabilities:
 
 
 class MinimalInitiator:
-    """Build signed protocol messages without discovering peers or hosts."""
+    """Build and send signed protocol messages without discovery or host mutation."""
 
     def __init__(self, config: BootstrapConfig, *, key_provider: KeyProvider, signer: FederationSigner,
                  transport: FederationTransport, capabilities: InitiatorCapabilities):
@@ -33,15 +33,15 @@ class MinimalInitiator:
         payload = {"platform": self.capabilities.platform,
                    "features": tuple(sorted(set(self.capabilities.features + capabilities))),
                    "protocol_version": self.config.protocol_version,
-                   "public_key_fingerprint": self.key_provider.public_key_fingerprint(key_id)}
+                   "public_key_fingerprint": self.key_provider.public_key_fingerprint(key_id),
+                   "key_id": key_id}
         unsigned = FederationEnvelope(self.config.node_id, message_id, "ADVERTISE", self._sequence, issued_ns, payload)
         signature = self.signer.sign(unsigned.unsigned_bytes(), key_id)
         return FederationEnvelope(unsigned.sender_node, unsigned.message_id, unsigned.message_type,
                                   unsigned.sequence, unsigned.issued_ns, unsigned.payload, signature)
 
     def send(self, envelope: FederationEnvelope, peer_node: str) -> None:
-        # Transport owns framing; this layer owns only protocol semantics.
-        self.transport.send(peer_node, envelope.unsigned_bytes())
+        self.transport.send(peer_node, envelope.to_bytes())
 
 
 def bootstrap(config_path: str | Path, root: str | Path, **kwargs) -> BootstrapConfig:
