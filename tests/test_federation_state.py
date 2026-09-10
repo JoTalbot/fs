@@ -1,4 +1,5 @@
 import concurrent.futures
+from contextlib import nullcontext
 
 from fs_overlay.federation_protocol import FederationEnvelope
 from fs_overlay.federation_state import DurableFederationState
@@ -43,3 +44,77 @@ def test_thread_serialization_accepts_only_one_duplicate_sequence(tmp_path) -> N
     assert results.count(True) == 1
     assert results.count(False) == 7
     assert state.snapshot().last_sequence == {"node-a": 1}
+
+
+def test_coordinator_wraps_admission_and_journal_write(tmp_path) -> None:
+    class RecordingCoordinator:
+        def __init__(self) -> None:
+            self.resources: list[str] = []
+            self.entered = 0
+            self.exited = 0
+
+        def acquire(self, resource_id: str):
+            self.resources.append(resource_id)
+            owner = self
+
+            class Guard:
+                def __enter__(self):
+                    owner.entered += 1
+                    return None
+
+                def __exit__(self, exc_type, exc, tb):
+                    owner.exited += 1
+                    return False
+
+            return Guard()
+
+    coordinator = RecordingCoordinator()
+    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
+    assert state.accept(message(1, "m1"))
+    assert coordinator.resources == ["federation-events"]
+    assert coordinator.entered == 1
+    assert coordinator.exited == 1
+
+
+def test_coordinator_context_is_released_when_admission_fails(tmp_path) -> None:
+    class RecordingCoordinator:
+        def __init__(self) -> None:
+            self.entered = 0
+            self.exited = 0
+
+        def acquire(self, resource_id: str):
+            assert resource_id == "federation-events"
+            owner = self
+
+            class Guard:
+                def __enter__(self):
+                    owner.entered += 1
+                    return None
+
+                def __exit__(self, exc_type, exc, tb):
+                    owner.exited += 1
+                    return False
+
+            return Guard()
+
+    coordinator = RecordingCoordinator()
+    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
+    assert not state.accept(message(-1, "invalid"))
+    assert coordinator.entered == 1
+    assert coordinator.exited == 1
+
+
+def test_default_state_does_not_require_coordinator(tmp_path) -> None:
+    state = DurableFederationState(tmp_path / "events.journal")
+    assert state.accept(message(1, "m1"))
+
+
+def test_coordinator_contract_shape() -> None:
+    class Coordinator:
+        def acquire(self, resource_id: str):
+            assert resource_id == "federation-events"
+            return nullcontext()
+
+    coordinator = Coordinator()
+    with coordinator.acquire("federation-events"):
+        pass
