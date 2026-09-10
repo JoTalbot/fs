@@ -1,9 +1,10 @@
 from fs_overlay.adapter import ProcessResult
 from fs_overlay.execution_coordinator import ExecutionBoundaryPlan
+from fs_overlay.mount_namespace import MountNamespacePlan
+from fs_overlay.network_namespace import NetworkNamespacePlan
 from fs_overlay.resource_control import ResourcePlan
 from fs_overlay.transaction_executor import TransactionExecutor
 from fs_overlay.workspace import WorkspaceBinding, WorkspacePlan
-from fs_overlay.network_namespace import NetworkNamespacePlan
 from fs_overlay.model import ResourceBudget
 
 
@@ -11,6 +12,7 @@ def admitted_plan() -> ExecutionBoundaryPlan:
     return ExecutionBoundaryPlan(
         True,
         WorkspacePlan(WorkspaceBinding("ws", "/tmp", True), True, None),
+        MountNamespacePlan(True, True),
         NetworkNamespacePlan(True, True),
         ResourcePlan(ResourceBudget(), None, True),
     )
@@ -27,6 +29,7 @@ def test_rejected_plan_never_calls_executor():
     plan = ExecutionBoundaryPlan(
         False,
         WorkspacePlan(WorkspaceBinding("", ""), False, None, ("blocked",)),
+        MountNamespacePlan(False, False, reasons=("blocked",)),
         NetworkNamespacePlan(False, False),
         ResourcePlan(ResourceBudget(), None, True),
         ("blocked",),
