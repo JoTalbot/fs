@@ -1,6 +1,6 @@
 # FS Federation Protocol Boundary
 
-FS federation is deliberately split into protocol semantics and transport implementation.
+FS federation is deliberately split between protocol semantics, durable admission, and transport implementation.
 
 ## Envelope
 
@@ -25,6 +25,7 @@ transport
    -> verify freshness
    -> reject replay/reordering
    -> policy/trust evaluation
+   -> durable admission
    -> protocol handler
 ```
 
@@ -48,11 +49,19 @@ Production deployments should maintain authoritative node/key admission separate
 
 `DurableFederationState` persists accepted message IDs and sender sequence high-water marks through the existing append-only `EventLog`. On restart it reconstructs the admission state before accepting new envelopes.
 
-The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction, concurrency coordination and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
+The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
 
-The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes can inject an `AdmissionCoordinator` through `DurableFederationState(..., coordinator=...)`. The coordinator's context is entered before admission checks and remains held through the journal write and in-memory state update, so the deployment can serialize the complete durable admission critical section. The production-facing `DurableAdmissionCoordinator` contract in `production_adapters.py` is the intended boundary for a real inter-process or transactional implementation. No portable cross-platform file-locking behavior is assumed by the reference layer.
+The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes can inject an `AdmissionCoordinator` through `DurableFederationState(..., coordinator=...)`. The coordinator's context is entered before admission checks and remains held through the journal write and in-memory state update, so the deployment can serialize the complete durable admission critical section. The production-facing `DurableAdmissionCoordinator` contract in `production_adapters.py` is the intended boundary for inter-process or transactional implementations.
 
-A coordinator failure is fail-closed: if `acquire()` cannot establish its context, `accept()` does not proceed. Implementations must define timeout, ownership, crash recovery and atomicity semantics appropriate to their storage backend. A timeout or stale-lock recovery policy must never silently assume that another process is dead merely because a lease is old.
+### Local file coordination adapter
+
+`FileAdmissionCoordinator` provides a concrete local-process-group implementation of that boundary. It hashes resource IDs into lock-file names and uses the platform's native advisory locking primitive: `fcntl.flock` on POSIX and `msvcrt.locking` on Windows. Its timeout is an acquisition deadline, not a lease-expiry mechanism.
+
+Lock files are retained rather than deleted on release. A process crash closes its descriptor and therefore releases the operating-system lock; the adapter never deletes or steals a lock merely because it appears old. This avoids a stale-lock race, but means the adapter is only appropriate where the underlying filesystem and OS locking semantics are trusted. It coordinates the critical section; it does **not** make the append-only journal write and external state transactional as one ACID operation.
+
+If the required failure model needs database transactions, distributed leases, network filesystem guarantees, or atomic journal-plus-state commits, deployments must provide a stronger `DurableAdmissionCoordinator` implementation. The reference file adapter does not claim those properties.
+
+A coordinator failure is fail-closed: if `acquire()` cannot establish its context, `accept()` does not proceed. Implementations must define timeout, ownership, crash recovery and atomicity semantics appropriate to their storage backend.
 
 ## Replication
 
@@ -97,7 +106,7 @@ Those responsibilities remain outside the execution boundary.
 - `KeyAdmission` for authoritative node/key binding and lifecycle decisions;
 - `DurableAdmissionCoordinator` for cross-process serialization or transactional coordination of durable admission.
 
-These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, file-locking mechanism, or admission database. Implementations must supply those policies and security properties explicitly.
+`durable_coordination.py` contains the concrete `FileAdmissionCoordinator` reference for local multi-process coordination. These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, filesystem type, or admission database. Implementations must supply those policies and security properties explicitly.
 
 ## Regression coverage
 
@@ -117,6 +126,8 @@ Focused tests cover:
 - adapter contract importability;
 - production security adapter contract importability;
 - durable admission coordination and context-release behavior;
+- same-resource and different-resource file-lock behavior;
+- cross-process lock exclusion, timeout, and crash-release behavior;
 - key rotation, retirement and revocation semantics;
 - rejection of duplicate key IDs and silent fingerprint changes.
 
@@ -126,4 +137,4 @@ A node may begin with only an explicitly selected FS root and local configuratio
 
 ## Production boundary
 
-The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, authenticated transport security, secure key lifecycle storage, authoritative admission, persistent protocol state, concurrency rules and independent interoperability/recovery testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
+The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, authenticated transport security, secure key lifecycle storage, authoritative admission, persistent/compacted replay state, concurrency rules, filesystem/database guarantees appropriate to the deployment, interoperability with an independent implementation, and operational recovery testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
