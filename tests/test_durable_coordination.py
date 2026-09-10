@@ -1,4 +1,5 @@
 import multiprocessing
+import os
 import time
 
 import pytest
@@ -49,7 +50,7 @@ def _crash_with_lock(path: str, ready: multiprocessing.Queue) -> None:
     coordinator = FileAdmissionCoordinator(path, timeout=1)
     with coordinator.acquire("federation-events"):
         ready.put(True)
-        raise SystemExit(17)
+        os._exit(17)
 
 
 def test_file_coordinator_serializes_across_processes(tmp_path) -> None:
