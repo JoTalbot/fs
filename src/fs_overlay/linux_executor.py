@@ -58,7 +58,11 @@ class LinuxNamespaceExecutor:
             if workspace_path is None:
                 return ProcessResult("rejected", None, "", "workspace_path_required")
             try:
-                wrapped = self.workspace_backend.wrap(argv, workspace_path=workspace_path)
+                wrapped = self.workspace_backend.wrap(
+                    argv,
+                    workspace_path=workspace_path,
+                    network=policy.network,
+                )
             except (RuntimeError, ValueError) as exc:
                 return ProcessResult("rejected", None, "", str(exc))
         elif policy.filesystem == "host" and policy.network == "host":
