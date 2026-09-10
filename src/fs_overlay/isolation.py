@@ -64,10 +64,11 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
     paths. The backend is deliberately opt-in because normal unprivileged bwrap
     operation uses a user namespace. FS never enables that mechanism silently.
 
-    The wrapped command performs a boundary observation before and after the
-    workload in the same sandbox. A reserved wrapper exit code means that the
-    observation failed, so the transaction layer can fail closed without
-    confusing a disposable capability probe with execution evidence.
+    The wrapped command performs filesystem and, when requested, network
+    namespace observations before and after the workload in the same sandbox.
+    Reserved wrapper exit codes mean that an observation failed, so the
+    transaction layer can fail closed without confusing a disposable
+    capability probe with execution evidence.
     """
 
     name = "bubblewrap-workspace"
@@ -75,10 +76,14 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
     boundary_check_exit_codes = (125, 126)
     _runtime_roots = ("/usr", "/bin", "/lib", "/lib64", "/etc")
     _boundary_script = (
-        'host_path="$1"; shift; '
+        'host_path="$1"; expected_net_ns="$2"; network_mode="$3"; shift 3; '
         'test -d /workspace && test ! -e "$host_path" || exit 125; '
+        'if [ "$network_mode" = "deny" ]; then '
+        'test "$(readlink /proc/self/ns/net)" != "$expected_net_ns" || exit 125; fi; '
         '"$@"; status=$?; '
         'test -d /workspace && test ! -e "$host_path" || exit 126; '
+        'if [ "$network_mode" = "deny" ]; then '
+        'test "$(readlink /proc/self/ns/net)" != "$expected_net_ns" || exit 126; fi; '
         'exit "$status"'
     )
 
@@ -114,7 +119,13 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             for root in self._runtime_roots
         )
 
-    def plan(self, workspace_path: str | None = None, *, network: str = "deny") -> IsolationPlan:
+    def plan(
+        self,
+        workspace_path: str | None = None,
+        *,
+        network: str = "deny",
+        read_only: bool = True,
+    ) -> IsolationPlan:
         binary = self._binary()
         if binary is None:
             return IsolationPlan(self.name, (), (), False, "bubblewrap utility is unavailable")
@@ -136,13 +147,20 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return IsolationPlan(self.name, (), (), False, "workspace_path_overlaps_runtime_root")
         return IsolationPlan(
             self.name,
-            self._prefix(binary, path, network=network),
+            self._prefix(binary, path, network=network, read_only=read_only),
             ("workspace-filesystem-boundary",),
             True,
             "explicit bubblewrap workspace backend",
         )
 
-    def _prefix(self, binary: str, workspace: Path, *, network: str) -> tuple[str, ...]:
+    def _prefix(
+        self,
+        binary: str,
+        workspace: Path,
+        *,
+        network: str,
+        read_only: bool,
+    ) -> tuple[str, ...]:
         prefix: list[str] = [
             binary,
             "--die-with-parent",
@@ -153,7 +171,7 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             prefix.append("--unshare-net")
         prefix.extend(
             (
-                "--ro-bind",
+                "--ro-bind" if read_only else "--bind",
                 str(workspace),
                 "/workspace",
                 "--proc",
@@ -174,12 +192,18 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
         *,
         workspace_path: str,
         network: str = "deny",
+        read_only: bool = True,
     ) -> tuple[str, ...]:
-        plan = self.plan(workspace_path, network=network)
+        plan = self.plan(
+            workspace_path,
+            network=network,
+            read_only=read_only,
+        )
         if not plan.available:
             raise RuntimeError(plan.reason)
         if not argv or not argv[0]:
             raise ValueError("argv must contain an executable")
+        parent_net_ns = os.readlink("/proc/self/ns/net") if network == "deny" else "host"
         return plan.argv_prefix + (
             "--",
             "/bin/sh",
@@ -187,6 +211,8 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             self._boundary_script,
             "fs-boundary",
             workspace_path,
+            parent_net_ns,
+            network,
             *argv,
         )
 
