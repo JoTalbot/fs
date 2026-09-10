@@ -12,9 +12,9 @@ def default_evidence_provider(
 ) -> VerificationEvidence | None:
     """Return execution-scoped or reference evidence without inventing proof.
 
-    Concrete Bubblewrap network evidence is accepted only from the exact
-    Bubblewrap execution result. Other namespace checks continue to use the
-    disposable Linux capability probes.
+    Concrete Bubblewrap and supervisor evidence is accepted only from the
+    exact execution result. Other namespace checks continue to use disposable
+    Linux capability probes.
     """
     backend = getattr(execution_result, "backend", None)
     evidence = getattr(execution_result, "execution_evidence", ())
@@ -39,5 +39,19 @@ def default_evidence_provider(
                 "execution_evidence": tuple(evidence),
             },
             "network_namespace_not_observed" if not passed else "network_namespace_observed",
+        )
+    if check.check_id == "resource:enforcement":
+        passed = (
+            backend == "process-supervisor"
+            and "resource-controller-enforced" in evidence
+        )
+        return VerificationEvidence(
+            check.check_id,
+            passed,
+            {
+                "backend": backend,
+                "execution_evidence": tuple(evidence),
+            },
+            "resource_enforcement_not_observed" if not passed else "resource_enforcement_observed",
         )
     return linux_namespace_evidence(check)
