@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Last known head: `e3c7d7677b9645f00ea1d5d1461a0476f247ff04`
+- Last known head: `25b02bbdfe0ebb7e93b6e2cf2fb2f764c2f7441c`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -53,6 +53,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 - Caller-supplied checks may add requirements but cannot omit plan-derived requirements.
 - Missing or failed required evidence prevents commit.
 - The reference evidence provider dispatches exact Linux namespace checks to the disposable namespace probe.
+- Core skill now records the durable verification and external-skill trust lessons.
 
 ## Research record for current phase
 
