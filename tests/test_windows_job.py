@@ -13,8 +13,10 @@ def lease():
     return ResourceLease("lease-1", "scope-1", "fs")
 
 
-def test_windows_backend_is_fail_closed_off_windows():
-    plan = WindowsJobObjectBackend().plan(lease(), ResourceBudget(memory_bytes=1024))
+def test_windows_backend_is_fail_closed_off_windows(monkeypatch):
+    backend = WindowsJobObjectBackend()
+    monkeypatch.setattr("fs_overlay.windows_job.os.name", "posix")
+    plan = backend.plan(lease(), ResourceBudget(memory_bytes=1024))
     assert not plan.enforceable
     assert "windows_required" in plan.reasons
 
