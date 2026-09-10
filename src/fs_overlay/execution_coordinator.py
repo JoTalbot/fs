@@ -3,7 +3,8 @@
 The coordinator is deliberately plan-only. It combines workspace, mount,
 network, and resource admission into one decision and never starts a process.
 A caller must obtain an admitted plan before handing it to a concrete
-executor.
+executor. Resource leases are admission authority; concrete controllers verify
+enforcement during execution.
 """
 from __future__ import annotations
 
