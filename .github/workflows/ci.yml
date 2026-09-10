@@ -35,5 +35,8 @@ jobs:
       - name: Run independent conformance consumer
         run: python tools/independent_conformance_consumer.py
 
+      - name: Run independent admission conformance
+        run: python tools/independent_admission_conformance.py
+
       - name: Run test suite
         run: python -m pytest
