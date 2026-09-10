@@ -6,70 +6,50 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `073299ec60eeb8d85ea0764e21dce4d088849707`
-- Latest documentation commit: `97cc3ca11756316539861ce2f2abb727febc6cc5`
+- Latest implementation head: `502d9994cc5e6fa96fa37d6f44ec7b7c40e9221d`
+- Latest documentation head: `4fa05cf31f2fc0da6cc2a35abc064c35f60308f5`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Release hardening / cross-platform execution boundaries**
+**Local storage + semantic control-plane foundation / resilience hardening**
 
-Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS has a signed/entitled helper admission boundary and CI coverage. FreeBSD has a native Capsicum capability-mode adapter, kernel read-back, an isolated child-process test, and a native C helper that opens the target before `cap_enter()`, limits its executable descriptor, verifies capability mode, proves global filesystem lookup is blocked, then uses `fexecve()`.
+The repository now has a concrete local content-addressed storage spine, journal-backed transactional visibility, immutable snapshots, deterministic recovery planning, failure-domain-aware carrier ranking, quarantine evidence, causal event metadata, and dependency-free semantic state primitives.
 
-## Active work registry
+## Completed in the current batch
 
-| Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
-|---|---|---|---|---|---|---|
-| current-agent | ChatGPT | Release hardening | none | `97cc3ca11756316539861ce2f2abb727febc6cc5` | HANDED_OFF / blocked only on external native FreeBSD observation and release publication | Observe Cirrus FreeBSD 14.3 native task when externally available; then publish/tag the release through a GitHub release-capable control surface |
-
-## Completed in this batch
-
-- Added `MacOSSignedHelperBackend`, which validates a signed App Sandbox host/helper packaging boundary using `codesign` and never claims the current Python process is sandboxed.
-- Required the macOS helper contract to expose App Sandbox + inheritance entitlements and hardened runtime evidence.
-- Added `FreeBSDCapsicumBackend` using native `cap_enter()` followed by `cap_getmode()` read-back in the workload process.
-- Added an isolated FreeBSD-native child-process round-trip test so `cap_enter()` cannot sandbox the pytest supervisor process itself.
-- Added versioned macOS and FreeBSD backend contracts and explicit evidence markers.
-- Added cross-platform tests for macOS and FreeBSD fail-closed behavior and macOS artifact admission.
-- Expanded GitHub CI from Ubuntu/Windows to Ubuntu/Windows/macOS across Python 3.11/3.12/3.13.
-- Added `.cirrus.yml` targeting a real FreeBSD 14.3 VM for native Capsicum testing.
-- Added `native/freebsd/capsicum_exec.c`: a minimal native helper that resolves the target before entering capability mode, restricts its descriptor to `CAP_READ` + `CAP_FEXECVE`, verifies kernel capability mode, proves absolute global filesystem lookup is rejected, and replaces itself with the target via `fexecve()`.
-- Extended `tests/test_freebsd_capsicum.py` to require the new `capsicum-global-namespace-blocked` evidence marker.
-- Documented the helper execution boundary and the distinction between native FreeBSD validation and the still-unobserved external Cirrus result.
-
-## Research / decision evidence
-
-- FreeBSD `cap_enter(2)`: capability mode applies to the calling process and descendants; `cap_getmode()` provides kernel state read-back; effective sandboxes require deliberate capability-right preparation.
-- FreeBSD `cap_rights_limit(2)`: capability rights can only be reduced, never expanded; the helper therefore pre-opens the target and limits its descriptor before entering capability mode.
-- FreeBSD `open(2)`: an absolute global path opened after entering capability mode is rejected with `ECAPMODE`/`ENOTCAPABLE`, giving a direct negative kernel-enforcement assertion.
-- Cirrus CI officially supports `freebsd_instance` with `freebsd-14-3`; the repository already has `.cirrus.yml`. Native execution depends on the externally connected Cirrus service.
-- Agent Skills specification was checked; no external skill materially fits this kernel-boundary implementation, so `no suitable external skill found`. Local `fs-agent-core` remains authoritative.
+- `StorageTransaction` stages immutable data and publishes inventory only after a durable transaction commit marker.
+- Recovery ignores incomplete transactions instead of guessing them into existence.
+- Hardened local carrier writes with unique temporary files and directory durability where supported.
+- Added immutable content-addressed `SnapshotStore` with Merkle-root verification.
+- Added deterministic `RecoveryGraph` with dependency and cycle validation.
+- Added `PlacementPlanner` with capacity, health, approval, locality and failure-domain inputs.
+- Added `QuarantineLedger` for unexpected carrier changes without overwriting evidence.
+- Added explicit `HEALTHY`, `DEGRADED`, `REPAIRING` and `UNRECOVERABLE` recovery-state calculation.
+- Added causal sequence, monotonic time, parent linkage and hash verification to structured event records.
+- Added `ObjectContract`, `ProvenanceRecord`, `DependencyGraph`, fenced/revocable `Lease`, `KnowledgeRecord`, `DecisionRecord`, `WorldStateSnapshot`, deterministic reconciliation and explicit safe-stop primitives.
+- Added storage snapshot CLI support.
+- Added `docs/STORAGE_RESILIENCE.md` and updated README architecture/status documentation.
 
 ## Validation
 
-- Previously observed CI #120 `34451098521`: PASS on Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13 and macOS 3.11/3.12/3.13.
-- GitHub combined status for the new implementation/documentation heads is empty. No new GitHub CI result is claimed.
-- Local execution was attempted but the environment cannot resolve `github.com`, so the repository could not be cloned for local pytest execution. No local test pass is claimed.
-- Static repository inspection confirms `.github/workflows/ci.yml` covers Ubuntu/Windows/macOS with Python 3.11/3.12/3.13 and `.cirrus.yml` covers FreeBSD 14.3.
-- No FreeBSD kernel execution result is claimed yet. The native task must be observed in Cirrus.
-- GitHub currently reports zero published releases for `JoTalbot/fs`.
+- GitHub Actions CI runs automatically after each push.
+- CI runs `#142` and `#143` for the transaction changes completed successfully on Python 3.11/3.12/3.13 across the configured matrix.
+- The resilience/state-primitives commits were pushed after those successful transaction runs; their new CI result must be observed before claiming the current head is green.
+- Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
+- No production cryptographic certification, erasure-coding audit, distributed transaction guarantee, or native-platform guarantee is claimed from these reference primitives.
 
-## Release posture
+## Important truthfulness boundaries
 
-The repository is suitable for a **reference-architecture / preview release**, not an assertion of full production readiness. README and execution-runtime documentation intentionally state that the storage engine, full production lifecycle/recovery/federation scheduler, and native FreeBSD execution evidence remain outside the current validated production scope. This is a deliberate truthfulness boundary, not a hidden failure.
+- `HMACIntegrityEnvelope` is integrity-only, not encryption.
+- `AuthenticatedEncryption` and `ErasureCoder` remain explicit provider contracts until audited implementations/dependencies are selected.
+- Inventory remains a journal-derived index, not a redundant database.
+- Snapshots catalog immutable object identities; they do not duplicate object bytes.
+- Placement is planning, not permission to mutate a carrier.
+- Recovery graph ordering is deterministic planning, not execution.
+- Semantic primitives do not grant authority; policy, admission, backend capability and verification remain mandatory.
+- FreeBSD native validation remains dependent on external Cirrus execution evidence.
 
-## Safety constraints
+## Next safe step
 
-- Never claim a native backend from an API wrapper alone.
-- Native resource limits require exact application/read-back evidence, matching the Linux cgroup contract.
-- Unsupported platforms and limits fail closed.
-- Job Object resource control must not be advertised as filesystem/network isolation.
-- macOS must use a signed/entitled runtime boundary; do not substitute undocumented generic sandbox commands.
-- macOS helper artifact validation is not execution evidence until a signed sandbox host launches the helper.
-- Capsicum evidence must be produced by the workload process; never enter capability mode in the supervisor parent as a substitute.
-- FreeBSD target resolution must occur before `cap_enter()`; use a pre-opened descriptor and `fexecve()` rather than resolving the target path after entering capability mode.
-- Never introduce privilege escalation or user namespaces as a portability workaround.
-- Do not emulate FreeBSD with a Linux/macOS platform override to manufacture native-kernel evidence.
-
-## Handoff rule
-
-Any agent taking work from this file must first update the active work registry with its own identity, claimed files, base commit, and intended step. On completion, replace the entry with the result, validation evidence, commit SHA, and next action.
+Observe CI for the current head, then integrate the semantic primitives into the existing control-plane/runtime path and add explicit state reconciliation, lease enforcement and snapshot/recovery coordination. Only after that should audited AEAD and erasure-coding providers be selected and integrated.
