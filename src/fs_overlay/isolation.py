@@ -63,10 +63,24 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
     Bubblewrap creates the mount namespace and exposes only explicitly bound
     paths. The backend is deliberately opt-in because normal unprivileged bwrap
     operation uses a user namespace. FS never enables that mechanism silently.
+
+    The wrapped command performs a boundary observation before and after the
+    workload in the same sandbox. A reserved wrapper exit code means that the
+    observation failed, so the transaction layer can fail closed without
+    confusing a disposable capability probe with execution evidence.
     """
 
     name = "bubblewrap-workspace"
     minimum_version = (0, 12, 0)
+    boundary_check_exit_codes = (125, 126)
+    _runtime_roots = ("/usr", "/bin", "/lib", "/lib64", "/etc")
+    _boundary_script = (
+        'host_path="$1"; shift; '
+        'test -d /workspace && test ! -e "$host_path" || exit 125; '
+        '"$@"; status=$?; '
+        'test -d /workspace && test ! -e "$host_path" || exit 126; '
+        'exit "$status"'
+    )
 
     def _binary(self) -> str | None:
         if platform.system().lower() != "linux":
@@ -93,6 +107,13 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return None
         return int(parts[0]), int(parts[1]), int(patch)
 
+    def _workspace_overlaps_runtime_root(self, workspace: Path) -> bool:
+        resolved = workspace.resolve()
+        return any(
+            resolved == Path(root) or Path(root) in resolved.parents
+            for root in self._runtime_roots
+        )
+
     def plan(self, workspace_path: str | None = None, *, network: str = "deny") -> IsolationPlan:
         binary = self._binary()
         if binary is None:
@@ -111,6 +132,8 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             return IsolationPlan(self.name, (), (), False, "workspace_path_must_be_absolute")
         if not path.is_dir():
             return IsolationPlan(self.name, (), (), False, "workspace_path_not_directory")
+        if self._workspace_overlaps_runtime_root(path):
+            return IsolationPlan(self.name, (), (), False, "workspace_path_overlaps_runtime_root")
         return IsolationPlan(
             self.name,
             self._prefix(binary, path, network=network),
@@ -139,7 +162,7 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
                 "/dev",
             )
         )
-        for root in ("/usr", "/bin", "/lib", "/lib64", "/etc"):
+        for root in self._runtime_roots:
             if os.path.exists(root):
                 prefix.extend(("--ro-bind", root, root))
         prefix.extend(("--chdir", "/workspace"))
@@ -157,7 +180,15 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
             raise RuntimeError(plan.reason)
         if not argv or not argv[0]:
             raise ValueError("argv must contain an executable")
-        return plan.argv_prefix + ("--",) + argv
+        return plan.argv_prefix + (
+            "--",
+            "/bin/sh",
+            "-c",
+            self._boundary_script,
+            "fs-boundary",
+            workspace_path,
+            *argv,
+        )
 
 
 class WindowsJobObjectBackend(IsolationBackend):
