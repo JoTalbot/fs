@@ -35,10 +35,10 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 
 ## Research / decision evidence
 
-- FreeBSD documents `cap_enter()` as entering capability mode in the calling process, `cap_getmode()` as kernel state read-back, and inheritance of capability mode by descendants. Effective sandboxes also require deliberate rights preparation. citeturn0search1turn0search2
-- Cirrus CI documents managed FreeBSD VMs through `freebsd_instance`, including FreeBSD 14.3 images, and explicitly supports FreeBSD virtual machines for open-source projects. citeturn2search0turn2search1
-- FreeBSD documents package installation through `pkg`, and the current Python 3.11 package is available as `lang/python311`; the task uses the corresponding `python311` package and an isolated virtual environment. citeturn3search0turn3search9
-- Agent Skills research found only generic Agent Skills authoring/testing skills; none materially fit FreeBSD kernel execution, so local `fs-agent-core` remains authoritative. citeturn0search3turn0search7
+- FreeBSD `cap_enter(2)` documentation: `cap_enter()` enters capability mode in the calling process, `cap_getmode()` provides kernel state read-back, and descendants inherit capability mode. Effective sandboxes also require deliberate rights preparation.
+- Cirrus CI FreeBSD VM documentation: `freebsd_instance` supports managed FreeBSD VMs, including FreeBSD 14.3 images, and FreeBSD is supported for open-source projects.
+- FreeBSD Handbook/package research: Python is available through the package system, including the `python311` package family used by the native task.
+- Agent Skills research found only generic Agent Skills authoring/testing skills; none materially fit FreeBSD kernel execution, so local `fs-agent-core` remains authoritative.
 
 ## Validation
 
