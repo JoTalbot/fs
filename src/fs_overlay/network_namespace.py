@@ -19,6 +19,7 @@ class NetworkNamespacePlan:
     argv_prefix: tuple[str, ...] = ()
     guarantees: tuple[str, ...] = ()
     reasons: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
 
 
 def plan_network_namespace(*, requested: str = "deny") -> NetworkNamespacePlan:
@@ -39,5 +40,5 @@ def plan_network_namespace(*, requested: str = "deny") -> NetworkNamespacePlan:
         True,
         argv_prefix=(unshare, "--net"),
         guarantees=("network-namespace", "network-deny-requested"),
-        reasons=("kernel_policy_may_reject_unprivileged_network_namespace",),
+        warnings=("kernel_policy_may_reject_unprivileged_network_namespace",),
     )
