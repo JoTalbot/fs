@@ -10,6 +10,7 @@ from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
 
+@runtime_checkable
 class SecureKeyStore(Protocol):
     """Opaque key-material storage boundary for a production signer."""
 
@@ -20,6 +21,7 @@ class SecureKeyStore(Protocol):
     def contains(self, key_id: str) -> bool: ...
 
 
+@runtime_checkable
 class AuthenticatedTransport(Protocol):
     """Authenticated/encrypted transport boundary for federation traffic."""
 
@@ -30,6 +32,7 @@ class AuthenticatedTransport(Protocol):
     def close(self) -> None: ...
 
 
+@runtime_checkable
 class NodeAdmission(Protocol):
     """Authoritative node-admission boundary, separate from discovery."""
 
@@ -40,6 +43,7 @@ class NodeAdmission(Protocol):
     def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool: ...
 
 
+@runtime_checkable
 class KeyAdmission(Protocol):
     """Authoritative node/key binding and lifecycle admission boundary."""
 
