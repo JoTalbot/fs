@@ -1,3 +1,9 @@
+import os
+import subprocess
+import sys
+
+import pytest
+
 from fs_overlay.model import ResourceBudget
 from fs_overlay.resource_control import ResourceLease
 from fs_overlay.windows_job import WindowsJobObjectBackend
@@ -44,3 +50,17 @@ def test_windows_supported_budget_is_planned_on_windows(monkeypatch):
     assert plan.available
     assert plan.enforceable
     assert plan.settings == {"cpu_millis": 500, "memory_bytes": 1024, "pids": 4}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native Windows Job Object kernel validation")
+def test_windows_job_object_native_kernel_round_trip():
+    backend = WindowsJobObjectBackend()
+    process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.2)"])
+    try:
+        result = backend.apply(process.pid, lease(), ResourceBudget(pids=1))
+        assert result.applied
+        assert result.verified
+        assert result.settings == {"pids": 1}
+    finally:
+        backend.release(process.pid)
+        process.wait(timeout=5)
