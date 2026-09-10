@@ -51,7 +51,11 @@ Production deployments should maintain authoritative node/key admission separate
 
 The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
 
-The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes can inject an `AdmissionCoordinator` through `DurableFederationState(..., coordinator=...)`. The coordinator's context is entered before admission checks and remains held through the journal write and in-memory state update, so the deployment can serialize the complete durable admission critical section. The production-facing `DurableAdmissionCoordinator` contract in `production_adapters.py` is the intended boundary for inter-process or transactional implementations.
+The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes can inject an `AdmissionCoordinator` through `DurableFederationState(..., coordinator=...)`. The coordinator's context is entered before admission checks and remains held through the journal write and in-memory state update, so the deployment can serialize the complete durable admission critical section.
+
+When a coordinator is supplied, the state and `EventLog` are refreshed **inside** that coordination boundary before admission. This is required because long-lived processes otherwise retain stale sender high-water marks, event sequence numbers and causal-parent hashes after another process has committed an event. Refreshing under the same lock lets the next writer make its decision from the current journal and emit the next event sequence consistently.
+
+The production-facing `DurableAdmissionCoordinator` contract in `production_adapters.py` is the intended boundary for inter-process or transactional implementations.
 
 ### Local file coordination adapter
 
@@ -126,8 +130,10 @@ Focused tests cover:
 - adapter contract importability;
 - production security adapter contract importability;
 - durable admission coordination and context-release behavior;
+- runtime structural conformance of the production coordinator contract;
 - same-resource and different-resource file-lock behavior;
 - cross-process lock exclusion, timeout, and crash-release behavior;
+- coordinated multi-process admission refresh against a shared journal;
 - key rotation, retirement and revocation semantics;
 - rejection of duplicate key IDs and silent fingerprint changes.
 
@@ -137,4 +143,4 @@ A node may begin with only an explicitly selected FS root and local configuratio
 
 ## Production boundary
 
-The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, authenticated transport security, secure key lifecycle storage, authoritative admission, persistent/compacted replay state, concurrency rules, filesystem/database guarantees appropriate to the deployment, interoperability with an independent implementation, and operational recovery testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
+The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited cryptographic algorithms/providers, authenticated transport security, secure key lifecycle storage, authoritative admission, persistent/compacted replay state, concurrency rules, filesystem/database guarantees appropriate to the deployment, interoperability with an independent implementation, and operational recovery testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
