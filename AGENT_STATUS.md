@@ -6,50 +6,46 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `502d9994cc5e6fa96fa37d6f44ec7b7c40e9221d`
-- Latest documentation head: `4fa05cf31f2fc0da6cc2a35abc064c35f60308f5`
+- Latest implementation head: `5b4adfab3e2489f6c7f58bb651ba821b0b0e9981`
+- Latest documentation head: `eac287cfd59209c16cf8450e56f9bdf7aa5b0045`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Local storage + semantic control-plane foundation / resilience hardening**
+**Federation admission + deterministic reconciliation + minimal bootstrap**
 
-The repository now has a concrete local content-addressed storage spine, journal-backed transactional visibility, immutable snapshots, deterministic recovery planning, failure-domain-aware carrier ranking, quarantine evidence, causal event metadata, and dependency-free semantic state primitives.
+The repository now has a concrete local content-addressed storage spine, transactional visibility, immutable snapshots, deterministic recovery planning, semantic state primitives, and an explicit federation boundary for trusted node observations and replica-repair planning.
 
 ## Completed in the current batch
 
-- `StorageTransaction` stages immutable data and publishes inventory only after a durable transaction commit marker.
-- Recovery ignores incomplete transactions instead of guessing them into existence.
-- Hardened local carrier writes with unique temporary files and directory durability where supported.
-- Added immutable content-addressed `SnapshotStore` with Merkle-root verification.
-- Added deterministic `RecoveryGraph` with dependency and cycle validation.
-- Added `PlacementPlanner` with capacity, health, approval, locality and failure-domain inputs.
-- Added `QuarantineLedger` for unexpected carrier changes without overwriting evidence.
-- Added explicit `HEALTHY`, `DEGRADED`, `REPAIRING` and `UNRECOVERABLE` recovery-state calculation.
-- Added causal sequence, monotonic time, parent linkage and hash verification to structured event records.
-- Added `ObjectContract`, `ProvenanceRecord`, `DependencyGraph`, fenced/revocable `Lease`, `KnowledgeRecord`, `DecisionRecord`, `WorldStateSnapshot`, deterministic reconciliation and explicit safe-stop primitives.
-- Added storage snapshot CLI support.
-- Added `docs/STORAGE_RESILIENCE.md` and updated README architecture/status documentation.
+- Added explicit `NodeIdentity` with provisioned public-key fingerprint.
+- Added `TrustStore` with explicit allowlist, expiry and revocation.
+- Added signed capability-advertisement verification boundary using an injected verifier.
+- Rejected unknown, unsigned, revoked, fingerprint-mismatched and stale advertisements.
+- Added trusted `FederationDirectory` with monotonic observation handling.
+- Added deterministic `FederationReconciler` for desired replica-count repair planning.
+- Kept reconciliation as planning only; no implicit sockets, remote copy or host mutation.
+- Added `MinimalBootstrap` that creates only an explicitly selected FS root and atomic node configuration.
+- Updated federation documentation to distinguish implemented protocol primitives from future transport/key-management/execution adapters.
 
 ## Validation
 
-- GitHub Actions CI runs automatically after each push.
-- CI runs `#142` and `#143` for the transaction changes completed successfully on Python 3.11/3.12/3.13 across the configured matrix.
-- The resilience/state-primitives commits were pushed after those successful transaction runs; their new CI result must be observed before claiming the current head is green.
+- GitHub Actions CI run `#152` completed successfully across Ubuntu, Windows and macOS for Python 3.11, 3.12 and 3.13.
+- The new federation-control commits have triggered a newer CI run; its final result must be observed before calling the latest head green.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
-- No production cryptographic certification, erasure-coding audit, distributed transaction guarantee, or native-platform guarantee is claimed from these reference primitives.
+- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from reference primitives.
 
 ## Important truthfulness boundaries
 
+- A fingerprint is an identity binding, not proof of possession; advertisement signatures require an external verifier and real key-management implementation.
+- Discovery does not grant authority.
+- Reconciliation produces decisions; an authorized executor must perform and verify them.
+- Placement does not grant permission to mutate a carrier.
+- Snapshots catalog immutable object identities; they do not duplicate object bytes.
 - `HMACIntegrityEnvelope` is integrity-only, not encryption.
 - `AuthenticatedEncryption` and `ErasureCoder` remain explicit provider contracts until audited implementations/dependencies are selected.
-- Inventory remains a journal-derived index, not a redundant database.
-- Snapshots catalog immutable object identities; they do not duplicate object bytes.
-- Placement is planning, not permission to mutate a carrier.
-- Recovery graph ordering is deterministic planning, not execution.
-- Semantic primitives do not grant authority; policy, admission, backend capability and verification remain mandatory.
 - FreeBSD native validation remains dependent on external Cirrus execution evidence.
 
 ## Next safe step
 
-Observe CI for the current head, then integrate the semantic primitives into the existing control-plane/runtime path and add explicit state reconciliation, lease enforcement and snapshot/recovery coordination. Only after that should audited AEAD and erasure-coding providers be selected and integrated.
+Observe the new CI result. Then implement transport-neutral federation message envelopes and replay protection, followed by an explicit authorized replication executor with post-copy content verification. Keep real network transport and key-management as separately auditable adapters.
