@@ -15,10 +15,18 @@ namespace + runtime
         ↓
  actual kernel result
         ↓
+ namespace identity observed
+        ↓
  NamespaceProbeResult
         ↓
  verification evidence
 ```
+
+The probe records the namespace identity visible to the child and compares it
+with the caller's `/proc/self/ns/<type>` identity. A zero exit code alone is
+not enough: the namespace must actually be observed as different. For PID
+namespaces the disposable child is created with `unshare --fork`, because the
+calling process itself is not moved into a new PID namespace by `unshare(2)`.
 
 A successful probe does not prove workspace bind-mount isolation, root
 filesystem replacement, cgroup enforcement, or any other guarantee that was
