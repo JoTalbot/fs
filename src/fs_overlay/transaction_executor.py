@@ -79,7 +79,10 @@ class TransactionExecutor:
             return ExecutionTransaction(transaction_id, "failed", result, None, ("execution_failed",))
 
         if effective_checks:
-            provider = evidence_provider or default_evidence_provider
+            if evidence_provider is None:
+                provider = lambda check: default_evidence_provider(check, execution_result=result)
+            else:
+                provider = evidence_provider
             verification = verify(effective_checks, provider)  # type: ignore[arg-type]
             if not verification.verified:
                 if prepared is not None and abort is not None:
