@@ -47,6 +47,8 @@
 - Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
 - Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
 - Added a reusable `run_adapter_conformance()` qualification harness with injected adapter factories, stable check IDs, and explicit separation between semantic contract checks and production security certification.
+- Added fail-open regression tests proving the reusable harness rejects permissive key storage and unauthenticated transport implementations.
+- The concrete `FileAdmissionCoordinator` is now exercised through the same reusable qualification harness, so the local durable-coordination adapter is checked against the shared contract rather than only bespoke tests.
 
 ## Safety boundaries
 
@@ -77,7 +79,8 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - The defect was fixed by marking `SecureKeyStore`, `AuthenticatedTransport`, `NodeAdmission`, and `KeyAdmission` as `@runtime_checkable`, matching the already-runtime-checkable coordinator contract.
 - CI run #274 completed successfully across all 9 OS/Python matrix jobs on the protocol fix commit.
 - CI run #275 completed successfully across all 9 OS/Python matrix jobs after the status update, confirming the adapter contract fix remains green on the current `main` history.
-- The reusable qualification harness and its memory-double integration were added after run #275; fresh CI validation is required for these new commits.
+- The reusable qualification harness and its memory-double integration were added after run #275; subsequent CI run #279 completed successfully across all 9 jobs before the latest concrete-coordinator qualification commit.
+- The latest concrete-coordinator qualification commit is `e7b43d46e83aff8b5c6e1cf3280e7a04faa4ebaf`; fresh CI validation is pending and is not claimed yet.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
