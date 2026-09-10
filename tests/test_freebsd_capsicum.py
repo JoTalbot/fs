@@ -51,6 +51,7 @@ def test_capsicum_exec_helper_compiles_and_replaces_itself(tmp_path: Path):
     assert completed.stdout == "capsicum-helper-ok\n"
     assert "capsicum-capability-mode-entered" in completed.stderr
     assert "capsicum-capability-mode-verified" in completed.stderr
+    assert "capsicum-global-namespace-blocked" in completed.stderr
 
 
 def test_capsicum_is_fail_closed_off_platform(monkeypatch):
