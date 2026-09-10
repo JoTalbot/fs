@@ -39,6 +39,13 @@
 - [x] cross-space Transaction Engine architecture
 - [x] universal State Machine Engine architecture
 - [x] FS World Engine architecture
+- [x] FS Semantic Kernel concept
+- [x] Universal Object Contract
+- [x] FS Execution Semantics
+- [x] FS Authority Model
+- [x] FS Provenance Engine concept
+- [x] FS Dependency Graph concept
+- [x] Intent-to-Reality Compiler concept
 
 ## Phase 1 - local reference engine
 
@@ -58,6 +65,9 @@
 - [ ] state/reconciliation engine implementation
 - [ ] resource ownership/lease primitives
 - [ ] causal event metadata
+- [ ] universal object contract implementation
+- [ ] provenance records
+- [ ] dependency graph primitives
 
 ## Phase 2 - cross-platform runtime
 
@@ -113,6 +123,8 @@
 - [ ] universal application manifest
 - [ ] universal execution API
 - [ ] application compatibility matrix
+- [ ] execution semantics adapter contract
+- [ ] authority enforcement
 
 ## Phase 5 - resilience
 
@@ -130,6 +142,8 @@
 - [ ] failure injection suite
 - [ ] reality snapshots
 - [ ] confidence-aware observations
+- [ ] provenance-aware recovery
+- [ ] dependency-aware recovery ordering
 
 ## Phase 6 - isolation platform
 
@@ -173,6 +187,9 @@
 - [ ] transaction coordinator
 - [ ] universal state machine engine
 - [ ] world engine coordinator
+- [ ] semantic kernel implementation
+- [ ] universal object contract runtime
+- [ ] intent-to-reality compiler
 
 ## Phase 8 - federation and resource mesh
 
@@ -199,6 +216,9 @@
 - [ ] distributed transaction semantics
 - [ ] distributed causal ordering
 - [ ] federated world model
+- [ ] distributed authority/delegation
+- [ ] federated provenance
+- [ ] dependency-aware federation planning
 
 ## Phase 9 - autonomous optimization
 
@@ -222,6 +242,9 @@
 - [ ] hierarchical scheduling optimization
 - [ ] autonomous lease optimization
 - [ ] capability-aware mobility optimization
+- [ ] semantic plan optimization
+- [ ] dependency-aware optimization
+- [ ] intent-to-reality feedback optimization
 
 ## Phase 10 - simulation and digital twin
 
@@ -239,6 +262,9 @@
 - [ ] time-fabric simulation
 - [ ] transaction simulation
 - [ ] world-level what-if execution
+- [ ] authority simulation
+- [ ] semantic execution simulation
+- [ ] intent-to-reality simulation
 
 ## Phase 11 - production
 
@@ -261,6 +287,9 @@
 - [ ] causal ordering tests
 - [ ] lease/fencing tests
 - [ ] world reconciliation tests
+- [ ] semantic contract compatibility tests
+- [ ] provenance integrity tests
+- [ ] dependency graph correctness tests
 
 ## Guiding rules
 
@@ -304,3 +333,11 @@
 38. Every managed object lifecycle is represented by explicit, validated state transitions.
 39. FS World is an explicit trust and resource boundary, not a synonym for every machine visible on a network.
 40. Recursive composition must preserve the same identity, capability, policy, state, time and recovery semantics at every level.
+41. Semantic meaning is independent from implementation backend.
+42. An FS object contract must remain stable enough to support migration, simulation and recursive composition.
+43. Authority is evaluated independently from capability and intent.
+44. Execution success requires observable verification of declared semantics.
+45. Provenance is part of the identity and history of critical state, not an optional logging feature.
+46. Dependencies are explicit graph relationships and must participate in planning and recovery.
+47. Intent-to-reality compilation must never weaken requirements silently.
+48. The FS World boundary is explicit, recursively composable and policy-governed.
