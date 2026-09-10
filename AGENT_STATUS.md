@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `ff35888c475287d288481144c3347aa14ca6af6f`
+- Latest implementation commit: `6ae5d21bb6dfc46e0cf376b1e186881659b31a9a`
 - Updated: 2026-09-10
 
 ## Current architectural phase
@@ -19,7 +19,7 @@ FS is moving from descriptive execution planning toward a verified execution loo
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | concrete workspace/network execution evidence + backend semantics | `src/fs_overlay/isolation.py`, `src/fs_overlay/linux_executor.py`, `src/fs_overlay/execution_coordinator.py`, `src/fs_overlay/evidence_provider.py`, `src/fs_overlay/verification_requirements.py`, tests/docs/status/log | `ff35888c475287d288481144c3347aa14ca6af6f` | active | Preserve read/write semantics, make Bubblewrap network evidence execution-scoped, then validate full CI and record the result |
+| current-agent | ChatGPT | execution-boundary completion | workspace/network backend, executor, evidence provider, coordinator, tests/docs | `ff35888c475287d288481144c3347aa14ca6af6f` | completed and CI green | Start the next roadmap implementation only after fresh repository/security research: concrete delegated resource-controller backend, then supervisor/lifecycle integration |
 
 ## Recently completed
 
@@ -35,28 +35,31 @@ FS is moving from descriptive execution planning toward a verified execution loo
 - The workspace path must be absolute, existing, a directory, and must not overlap the runtime paths exposed read-only by the backend.
 - The backend preserves explicit `network=host` versus `network=deny` semantics and never silently enables a fallback mechanism.
 - Workspace-only admission now requires the concrete backend instead of merely seeing `unshare`.
+- Workspace read/write policy is preserved: read-only uses `--ro-bind`, writable uses `--bind`.
 
-### Execution-scoped workspace evidence
+### Execution-scoped workspace/network evidence
 
 - `ProcessResult` carries backend identity and execution evidence.
-- Bubblewrap wraps the actual workload with boundary checks performed before and after that workload in the same sandbox.
-- The evidence provider accepts `workspace:boundary` only when the result came from `bubblewrap-workspace` and carries the exact observed marker.
+- Bubblewrap wraps the actual workload with filesystem boundary checks performed before and after that workload in the same sandbox.
+- For `network=deny`, the same wrapper compares the sandbox `/proc/self/ns/net` identity with the parent network namespace identity before and after the workload.
+- The evidence provider accepts workspace/network evidence only from the exact Bubblewrap execution result and exact markers.
 - Reserved boundary-observation failures fail the execution closed.
-- The generic disposable workspace probe remains separate and is not used as evidence for another execution.
+- The generic disposable probes remain separate and are not used as evidence for another execution.
 
 ### Guarantee-to-check mapping
 
 - `workspace-filesystem-boundary` maps to required `workspace:boundary` evidence.
+- `network-namespace` continues to map to `namespace:net`, but a Bubblewrap execution satisfies that check only through its exact execution-scoped network marker.
 - `workspace-binding-admitted` remains distinct from runtime observation. Ownership/delegation is an admission fact; it is not runtime evidence.
-- Namespace guarantees continue to use their existing namespace evidence provider until an exact backend-specific execution evidence path replaces them.
 
 ## Validation state
 
 - CI run `34438094451` (run #22): PASS, Python 3.11/3.12/3.13.
 - CI run #40 `34443788344`: PASS, workspace admission.
 - CI run #41 `34443796582`: PASS, execution-scoped workspace evidence.
-- CI run #42 `34443820903`: PASS, Python 3.11/3.12/3.13; all three matrix jobs completed successfully.
-- The next change must add no stronger guarantee without a matching execution-scoped evidence path.
+- CI run #42 `34443820903`: PASS, Python 3.11/3.12/3.13.
+- CI run #56 `34444479095`: PASS, Python 3.11/3.12/3.13, after fixing the first failing test batch.
+- Current latest commit `6ae5d21bb6dfc46e0cf376b1e186881659b31a9a` is the green validated head.
 
 ## Known non-goals for this phase
 
