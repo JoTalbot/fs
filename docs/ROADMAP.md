@@ -46,6 +46,12 @@
 - [x] FS Provenance Engine concept
 - [x] FS Dependency Graph concept
 - [x] Intent-to-Reality Compiler concept
+- [x] FS Knowledge Plane
+- [x] FS Decision Engine
+- [x] FS Learning & Adaptation Plane
+- [x] FS Policy Compiler
+- [x] FS Semantic ABI
+- [x] FS World State Model
 
 ## Phase 1 - local reference engine
 
@@ -68,6 +74,9 @@
 - [ ] universal object contract implementation
 - [ ] provenance records
 - [ ] dependency graph primitives
+- [ ] knowledge record primitives
+- [ ] decision record primitives
+- [ ] world-state snapshot primitives
 
 ## Phase 2 - cross-platform runtime
 
@@ -86,6 +95,7 @@
 - [ ] hardware capability fingerprint
 - [ ] platform time adapter
 - [ ] monotonic/logical time adapter
+- [ ] semantic ABI adapters
 
 ## Phase 3 - managed workspaces
 
@@ -103,6 +113,7 @@
 - [ ] environment branching
 - [ ] environment diff/merge
 - [ ] historical/time-travel views
+- [ ] provenance-aware workspace history
 
 ## Phase 4 - execution runtime
 
@@ -125,6 +136,8 @@
 - [ ] application compatibility matrix
 - [ ] execution semantics adapter contract
 - [ ] authority enforcement
+- [ ] policy-compiled execution constraints
+- [ ] decision-gated execution planning
 
 ## Phase 5 - resilience
 
@@ -144,6 +157,7 @@
 - [ ] confidence-aware observations
 - [ ] provenance-aware recovery
 - [ ] dependency-aware recovery ordering
+- [ ] world-state recovery checkpoints
 
 ## Phase 6 - isolation platform
 
@@ -158,6 +172,7 @@
 - [ ] live migration where supported
 - [ ] virtual hardware fabric
 - [ ] virtual device model
+- [ ] semantic ABI compatibility validation
 
 ## Phase 7 - FS control plane
 
@@ -190,6 +205,10 @@
 - [ ] semantic kernel implementation
 - [ ] universal object contract runtime
 - [ ] intent-to-reality compiler
+- [ ] knowledge plane
+- [ ] decision engine
+- [ ] learning/adaptation plane
+- [ ] world-state coordinator
 
 ## Phase 8 - federation and resource mesh
 
@@ -219,6 +238,8 @@
 - [ ] distributed authority/delegation
 - [ ] federated provenance
 - [ ] dependency-aware federation planning
+- [ ] federated knowledge exchange
+- [ ] federated decision provenance
 
 ## Phase 9 - autonomous optimization
 
@@ -245,6 +266,9 @@
 - [ ] semantic plan optimization
 - [ ] dependency-aware optimization
 - [ ] intent-to-reality feedback optimization
+- [ ] learned prediction models with provenance
+- [ ] adaptation evaluation gates
+- [ ] policy-compiled autonomy constraints
 
 ## Phase 10 - simulation and digital twin
 
@@ -265,6 +289,9 @@
 - [ ] authority simulation
 - [ ] semantic execution simulation
 - [ ] intent-to-reality simulation
+- [ ] decision simulation
+- [ ] policy compilation simulation
+- [ ] learned-plan shadow evaluation
 
 ## Phase 11 - production
 
@@ -290,6 +317,11 @@
 - [ ] semantic contract compatibility tests
 - [ ] provenance integrity tests
 - [ ] dependency graph correctness tests
+- [ ] knowledge provenance tests
+- [ ] decision reproducibility tests
+- [ ] policy compiler conformance tests
+- [ ] semantic ABI compatibility tests
+- [ ] world-state replay tests
 
 ## Guiding rules
 
@@ -341,3 +373,11 @@
 46. Dependencies are explicit graph relationships and must participate in planning and recovery.
 47. Intent-to-reality compilation must never weaken requirements silently.
 48. The FS World boundary is explicit, recursively composable and policy-governed.
+49. Knowledge is evidence with provenance and confidence, not reality itself.
+50. The Decision Engine recommends and explains; it does not execute or grant authority.
+51. Learning may change predictions and preferences but never permissions, trust or authority.
+52. Policies compile into explicit constraints; ambiguity and conflict do not silently broaden authority.
+53. Semantic ABI compatibility is based on declared observable semantics, not platform labels alone.
+54. World State is a bounded, versioned model and must remain distinguishable from live reality.
+55. Simulation branches cannot affect live state without normal policy, authority and transaction promotion.
+56. Learned behavior must remain attributable, versioned and reproducible.
