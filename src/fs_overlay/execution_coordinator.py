@@ -67,7 +67,7 @@ def plan_execution_boundaries(
                 available=backend_plan.available,
                 admitted=backend_plan.available and workspace_plan.admitted,
                 backend=backend_plan.backend,
-                guarantees=("network-namespace-execution", "network-deny-requested")
+                guarantees=("network-namespace", "network-deny-requested")
                 if backend_plan.available
                 else (),
                 reasons=tuple(() if backend_plan.available else (backend_plan.reason,)),
