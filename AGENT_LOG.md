@@ -151,3 +151,33 @@ Learning:
 - [SECURITY] Bubblewrap's user-namespace behavior must remain explicit; FS must never silently enable user namespaces as a fallback.
 - [PATTERN] Keep evidence probes disposable and non-mutating, and make their tested property narrower than any unproven security guarantee.
 Next: Integrate the concrete workspace backend into the Linux executor, pass the workspace path explicitly, then wire the probe into verification and only afterward map `workspace-binding-admitted`.
+
+## 2026-09-10 | current-agent | concrete-workspace-network-evidence
+Base: ff35888c475287d288481144c3347aa14ca6af6f
+Area: execution-scoped workspace/network semantics
+Goal: Finish the concrete Linux workspace backend milestone without overstating evidence.
+Research:
+- Bubblewrap README/source -> it creates a new mount namespace, supports explicit `--bind`/`--ro-bind`, and `--unshare-net` creates a separate network namespace with loopback-only networking.
+- Bubblewrap security advisory GHSA-pxhw-h44j-8pfx -> versions before 0.12.0 are affected by sandbox-setup symlink traversal; 0.12.0 is the patched minimum.
+- Bubblewrap status interface documentation -> JSON status can expose child PID and namespace IDs, confirming that namespace identity is an observable backend concept.
+- Linux kernel cgroup v2 documentation -> resource control requires an explicitly delegated scope; FS must not mutate host-wide cgroups without authority.
+Skill discovery:
+- No external skill materially fit this Linux backend/security step; local `fs-agent-core` plus the Linux isolation verification workflow remained authoritative.
+Changes:
+- Preserved workspace read-only versus read-write semantics with `--ro-bind` versus `--bind`.
+- Added same-execution network namespace identity observation for `network=deny`.
+- Made the Bubblewrap backend authoritative for network admission when used by `workspace-only`, rather than requiring the unrelated generic `unshare --net` backend.
+- Updated evidence dispatch so a Bubblewrap execution can satisfy `namespace:net` only from its exact execution marker.
+- Updated workspace/network executor, coordinator, isolation, transaction, probe, and coordinator tests plus Linux capability documentation.
+- Corrected stale tests discovered by CI rather than weakening the implementation.
+Validation:
+- First CI run after the change failed 3 tests, all due to stale expectations/marker names. No runtime implementation failure was observed.
+- CI run `34444479095` (run #56) then passed Python 3.11, 3.12, and 3.13 with 96 tests.
+- GitHub Actions therefore provides the authoritative validation for the latest implementation head.
+Result: latest implementation `6ae5d21bb6dfc46e0cf376b1e186881659b31a9a`; shared status update `3eed74fb0c6183677e5797f55a4a2cb650d1784a`.
+Learning:
+- [SECURITY] A concrete backend must emit evidence tied to the exact execution that created the boundary; a disposable capability probe cannot substitute for it.
+- [RULE] Read/write workspace semantics must remain explicit and visible in the backend command, not be silently normalized to read-only.
+- [PATTERN] When a backend provides a stronger exact observation than a generic probe, route the existing verification check through that execution evidence while retaining the generic probe for other backends.
+- [FAILURE] Tests that assert positional command tails are brittle when boundary instrumentation gains a new observation argument; assert stable structure and semantic positions instead.
+Next: Begin the next roadmap implementation only after fresh repository/security research: concrete delegated Linux resource-controller backend, then supervisor/lifecycle integration.
