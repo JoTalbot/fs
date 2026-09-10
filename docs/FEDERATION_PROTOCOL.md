@@ -50,6 +50,8 @@ Production deployments should maintain authoritative node/key admission separate
 
 The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction, concurrency coordination and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
 
+The reference implementation serializes admissions only among threads sharing one `DurableFederationState` instance. A deployment with multiple processes must inject a `DurableAdmissionCoordinator` or equivalent transactional mechanism and must hold that coordination boundary across the durable admission decision and its journal write. No portable cross-platform file-locking behavior is assumed by the reference layer.
+
 ## Replication
 
 `ReplicaAction` is an already-authorized action. `ReplicaExecutor` uses an injected adapter, hashes the source bytes before writing, performs the write, then reads the target back and verifies the same hash.
@@ -90,9 +92,10 @@ Those responsibilities remain outside the execution boundary.
 - `SecureKeyStore` for protected key-material storage;
 - `AuthenticatedTransport` for authenticated/encrypted federation channels and peer identity;
 - `NodeAdmission` for authoritative node admission and revocation;
-- `KeyAdmission` for authoritative node/key binding and lifecycle decisions.
+- `KeyAdmission` for authoritative node/key binding and lifecycle decisions;
+- `DurableAdmissionCoordinator` for cross-process serialization or transactional coordination of durable admission.
 
-These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, or admission database. Implementations must supply those policies and security properties explicitly.
+These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, file-locking mechanism, or admission database. Implementations must supply those policies and security properties explicitly.
 
 ## Regression coverage
 
@@ -111,6 +114,7 @@ Focused tests cover:
 - audit decision/result causal linkage;
 - adapter contract importability;
 - production security adapter contract importability;
+- durable admission coordination contract shape;
 - key rotation, retirement and revocation semantics;
 - rejection of duplicate key IDs and silent fingerprint changes.
 
