@@ -26,7 +26,7 @@ Next: <exact next safe step>
 ## 2026-09-10 | bootstrap | multi-agent-contract
 Base: 7c6ff25ed34c92213c249a2944667ee85f19fe66
 Area: agent coordination
-Goal: Establish a repository-level operating contract for concurrent agents on different machines.
+Goal: Establish a repository-level operating contract for concurrent AI agents on different machines.
 Research:
 - Agent Skills specification -> skills are filesystem-based reusable workflows with `SKILL.md` as the core contract.
 - Microsoft VS Code agent customization -> root `AGENTS.md` is intended as shared guidance for multiple AI coding agents.
@@ -225,3 +225,26 @@ Learning:
 - [SECURITY] The current cgroup attach happens immediately after process creation, so the runtime must not claim enforcement before the child exists.
 - [RULE] Stronger cross-platform mechanisms must be added as explicit adapters, never as Linux-specific fallbacks.
 Next: After CI #84 is green, implement the Windows Job Object adapter, then a macOS service/runtime adapter and POSIX/BSD baseline before capability negotiation and versioned backend contracts.
+
+## 2026-09-10 | current-agent | freebsd-helper-boundary
+Base: e52232a9aaf340475f13295cdb29f19f2404e970
+Area: FreeBSD execution boundary
+Goal: Replace the conceptual Capsicum child-process path with a native helper that can safely enter capability mode before executing the workload.
+Research:
+- FreeBSD `cap_enter(2)` -> capability mode is process-scoped, inherited by descendants, and should be combined with rights restriction.
+- FreeBSD `cap_rights_limit(2)` / `rights(4)` -> rights are reduced-only; `CAP_FEXECVE` permits `fexecve()` and requires `CAP_READ`.
+- FreeBSD `fexecve(2)` -> an already-open executable descriptor can be executed without resolving its path after sandbox entry; FreeBSD recommends this pattern when constructing carefully controlled runtime environments.
+Skill discovery:
+- No suitable external skill found for this kernel-specific boundary; local `fs-agent-core` remained authoritative.
+Changes:
+- Added `native/freebsd/capsicum_exec.c`.
+- Helper opens target before `cap_enter()`, limits target descriptor to `CAP_READ` + `CAP_FEXECVE`, enters and verifies capability mode, emits explicit evidence markers, then calls `fexecve()`.
+- Extended `tests/test_freebsd_capsicum.py` to compile the helper with strict warnings and execute `/bin/echo` through the helper, checking both output and evidence markers.
+Validation:
+- GitHub commits succeeded: helper `ed7f92392df17d6162747e58e48b77e375b9fbf2`, test `b186b3b6b48f79e7def64e7b0902f846b8b9641f`.
+- No FreeBSD kernel execution was available in this environment; native compilation/execution is therefore not claimed.
+Result: implementation `b186b3b6b48f79e7def64e7b0902f846b8b9641f`.
+Learning:
+- [SECURITY] A FreeBSD sandbox helper must resolve/open required executable resources before `cap_enter()` and use descriptor-based execution afterward; path lookup after capability entry is the wrong boundary.
+- [RULE] Native helper source can be tested by a real FreeBSD CI task, but source compilation is not itself native-kernel evidence.
+Next: Observe the real FreeBSD CI task, then integrate the helper into a platform-specific supervisor adapter only after native evidence is green.
