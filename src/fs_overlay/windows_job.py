@@ -34,39 +34,15 @@ class WindowsJobResult:
 
 
 class _JOBOBJECT_BASIC_LIMIT_INFORMATION(ctypes.Structure):
-    _fields_ = [
-        ("PerProcessUserTimeLimit", ctypes.c_longlong),
-        ("PerJobUserTimeLimit", ctypes.c_longlong),
-        ("LimitFlags", ctypes.c_uint32),
-        ("MinimumWorkingSetSize", ctypes.c_size_t),
-        ("MaximumWorkingSetSize", ctypes.c_size_t),
-        ("ActiveProcessLimit", ctypes.c_uint32),
-        ("Affinity", ctypes.c_size_t),
-        ("PriorityClass", ctypes.c_uint32),
-        ("SchedulingClass", ctypes.c_uint32),
-    ]
+    _fields_ = [("PerProcessUserTimeLimit", ctypes.c_longlong), ("PerJobUserTimeLimit", ctypes.c_longlong), ("LimitFlags", ctypes.c_uint32), ("MinimumWorkingSetSize", ctypes.c_size_t), ("MaximumWorkingSetSize", ctypes.c_size_t), ("ActiveProcessLimit", ctypes.c_uint32), ("Affinity", ctypes.c_size_t), ("PriorityClass", ctypes.c_uint32), ("SchedulingClass", ctypes.c_uint32)]
 
 
 class _IO_COUNTERS(ctypes.Structure):
-    _fields_ = [
-        ("ReadOperationCount", ctypes.c_uint64),
-        ("WriteOperationCount", ctypes.c_uint64),
-        ("OtherOperationCount", ctypes.c_uint64),
-        ("ReadTransferCount", ctypes.c_uint64),
-        ("WriteTransferCount", ctypes.c_uint64),
-        ("OtherTransferCount", ctypes.c_uint64),
-    ]
+    _fields_ = [("ReadOperationCount", ctypes.c_uint64), ("WriteOperationCount", ctypes.c_uint64), ("OtherOperationCount", ctypes.c_uint64), ("ReadTransferCount", ctypes.c_uint64), ("WriteTransferCount", ctypes.c_uint64), ("OtherTransferCount", ctypes.c_uint64)]
 
 
 class _JOBOBJECT_EXTENDED_LIMIT_INFORMATION(ctypes.Structure):
-    _fields_ = [
-        ("BasicLimitInformation", _JOBOBJECT_BASIC_LIMIT_INFORMATION),
-        ("IoInfo", _IO_COUNTERS),
-        ("ProcessMemoryLimit", ctypes.c_size_t),
-        ("JobMemoryLimit", ctypes.c_size_t),
-        ("PeakProcessMemoryUsed", ctypes.c_size_t),
-        ("PeakJobMemoryUsed", ctypes.c_size_t),
-    ]
+    _fields_ = [("BasicLimitInformation", _JOBOBJECT_BASIC_LIMIT_INFORMATION), ("IoInfo", _IO_COUNTERS), ("ProcessMemoryLimit", ctypes.c_size_t), ("JobMemoryLimit", ctypes.c_size_t), ("PeakProcessMemoryUsed", ctypes.c_size_t), ("PeakJobMemoryUsed", ctypes.c_size_t)]
 
 
 class _JOBOBJECT_CPU_RATE_CONTROL_INFORMATION(ctypes.Structure):
@@ -106,12 +82,7 @@ class WindowsJobObjectBackend:
         k.CloseHandle.restype = ctypes.c_int
 
     def plan(self, lease: ResourceLease | None, budget: ResourceBudget) -> WindowsJobPlan:
-        settings = {key: value for key, value in {
-            "memory_bytes": budget.memory_bytes,
-            "cpu_millis": budget.cpu_millis,
-            "pids": budget.pids,
-            "disk_bytes": budget.disk_bytes,
-        }.items() if value is not None}
+        settings = {key: value for key, value in {"memory_bytes": budget.memory_bytes, "cpu_millis": budget.cpu_millis, "pids": budget.pids, "disk_bytes": budget.disk_bytes}.items() if value is not None}
         if not settings:
             return WindowsJobPlan(os.name == "nt", True, {})
         if os.name != "nt":
@@ -143,15 +114,10 @@ class WindowsJobObjectBackend:
         if budget.pids is not None:
             info.BasicLimitInformation.LimitFlags |= self.JOB_OBJECT_LIMIT_ACTIVE_PROCESS
             info.BasicLimitInformation.ActiveProcessLimit = budget.pids
-        if info.BasicLimitInformation.LimitFlags and not k.SetInformationJobObject(
-            handle, self.JobObjectExtendedLimitInformation, ctypes.byref(info), ctypes.sizeof(info)
-        ):
+        if info.BasicLimitInformation.LimitFlags and not k.SetInformationJobObject(handle, self.JobObjectExtendedLimitInformation, ctypes.byref(info), ctypes.sizeof(info)):
             return (f"set_extended_limits_failed:{ctypes.get_last_error()}",)
         if budget.cpu_millis is not None:
-            cpu = _JOBOBJECT_CPU_RATE_CONTROL_INFORMATION(
-                self.JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | self.JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP,
-                budget.cpu_millis * 100,
-            )
+            cpu = _JOBOBJECT_CPU_RATE_CONTROL_INFORMATION(self.JOB_OBJECT_CPU_RATE_CONTROL_ENABLE | self.JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP, budget.cpu_millis * 100)
             if not k.SetInformationJobObject(handle, self.JobObjectCpuRateControlInformation, ctypes.byref(cpu), ctypes.sizeof(cpu)):
                 return (f"set_cpu_limit_failed:{ctypes.get_last_error()}",)
         return ()
@@ -191,7 +157,8 @@ class WindowsJobObjectBackend:
         if reasons:
             self._kernel32.CloseHandle(handle)
             return WindowsJobResult(False, False, pid, {}, reasons)
-        process_handle = self._kernel32.OpenProcess(0x0200 | 0x0400, False, pid)
+        # AssignProcessToJobObject requires a process handle with PROCESS_SET_QUOTA and PROCESS_TERMINATE.
+        process_handle = self._kernel32.OpenProcess(0x0100 | 0x0001, False, pid)
         if not process_handle:
             self._kernel32.CloseHandle(handle)
             return WindowsJobResult(False, False, pid, {}, (f"open_process_failed:{ctypes.get_last_error()}",))
