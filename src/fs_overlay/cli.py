@@ -11,6 +11,7 @@ from .genesis_runtime import build_local_service
 from .genesis_server import GenesisServer
 from .identity import NodeIdentity
 from .storage_engine import LocalStorageEngine
+from .storage_resilience import SnapshotStore
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,9 +24,11 @@ def build_parser() -> argparse.ArgumentParser:
     genesis.add_argument("--admit", action="store_true")
     genesis.add_argument("--port", type=int, default=0, help="loopback TCP port; 0 selects an ephemeral port")
 
-    storage = sub.add_parser("storage", help="audit or recover a local FS storage root")
-    storage.add_argument("operation", choices=("audit", "recover"))
+    storage = sub.add_parser("storage", help="audit, recover, or snapshot a local FS storage root")
+    storage.add_argument("operation", choices=("audit", "recover", "snapshot"))
     storage.add_argument("root", type=Path)
+    storage.add_argument("--generation", type=int, default=0)
+    storage.add_argument("--metadata", action="append", default=[], metavar="KEY=VALUE")
     return parser
 
 
@@ -36,9 +39,22 @@ def _make_service(node_id: str):
 
 def _print_response(response) -> int:
     payload = {"ok": response.ok, "operation": response.operation, **response.data}
-    if response.error: payload["error"] = response.error
+    if response.error:
+        payload["error"] = response.error
     print(json.dumps(payload, sort_keys=True))
     return 0 if response.ok else 1
+
+
+def _metadata(values: list[str]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for value in values:
+        if "=" not in value:
+            raise ValueError("metadata must use KEY=VALUE")
+        key, item = value.split("=", 1)
+        if not key:
+            raise ValueError("metadata key must not be empty")
+        result[key] = item
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -46,6 +62,18 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "storage":
         engine = LocalStorageEngine(args.root)
+        if args.operation == "snapshot":
+            metadata = _metadata(args.metadata)
+            snapshot = SnapshotStore(args.root / "snapshots").create(
+                engine.inventory.records.keys(), generation=args.generation,
+                metadata=metadata or None,
+            )
+            print(json.dumps({"operation": "snapshot", "ok": True,
+                              "snapshot_id": snapshot.snapshot_id,
+                              "generation": snapshot.generation,
+                              "objects": len(snapshot.objects),
+                              "merkle_root": snapshot.merkle_root}, sort_keys=True))
+            return 0
         result = getattr(engine, args.operation)()
         print(json.dumps({"operation": args.operation, **result}, sort_keys=True))
         return 0 if result.get("ok") else 1
