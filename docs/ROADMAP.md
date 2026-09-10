@@ -52,6 +52,8 @@
 - [x] FS Policy Compiler
 - [x] FS Semantic ABI
 - [x] FS World State Model
+- [x] FS Unified Control Loop
+- [x] FS Executable World Model
 
 ## Phase 1 - local reference engine
 
@@ -77,6 +79,7 @@
 - [ ] knowledge record primitives
 - [ ] decision record primitives
 - [ ] world-state snapshot primitives
+- [ ] unified control-loop primitives
 
 ## Phase 2 - cross-platform runtime
 
@@ -96,6 +99,7 @@
 - [ ] platform time adapter
 - [ ] monotonic/logical time adapter
 - [ ] semantic ABI adapters
+- [ ] semantic verification adapters
 
 ## Phase 3 - managed workspaces
 
@@ -209,6 +213,8 @@
 - [ ] decision engine
 - [ ] learning/adaptation plane
 - [ ] world-state coordinator
+- [ ] unified control-loop coordinator
+- [ ] executable world coordinator
 
 ## Phase 8 - federation and resource mesh
 
@@ -292,6 +298,7 @@
 - [ ] decision simulation
 - [ ] policy compilation simulation
 - [ ] learned-plan shadow evaluation
+- [ ] complete control-loop simulation
 
 ## Phase 11 - production
 
@@ -322,6 +329,8 @@
 - [ ] policy compiler conformance tests
 - [ ] semantic ABI compatibility tests
 - [ ] world-state replay tests
+- [ ] control-loop invariant tests
+- [ ] executable-world conformance tests
 
 ## Guiding rules
 
@@ -381,3 +390,6 @@
 54. World State is a bounded, versioned model and must remain distinguishable from live reality.
 55. Simulation branches cannot affect live state without normal policy, authority and transaction promotion.
 56. Learned behavior must remain attributable, versioned and reproducible.
+57. The unified control loop is closed by observation and verification, not by assumption.
+58. A World is executable only when intent, planning, execution, observation, verification and recovery are connected by explicit semantics.
+59. Recursive control loops inherit constraints and cannot expand authority.
