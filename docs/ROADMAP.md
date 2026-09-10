@@ -12,6 +12,14 @@
 - [x] capability-aware runtime planner
 - [x] control-plane architecture
 - [x] bounded autonomy model
+- [x] FS Constitution
+- [x] four-space architecture: Data / Compute / Control / Resource
+- [x] unified object state: desired / actual / health / identity / location
+- [x] hierarchical reconciliation model
+- [x] resource intelligence and capability graph concepts
+- [x] immutable state and content lineage model
+- [x] simulation / what-if / failure-injection architecture
+- [x] security and supply-chain principles
 
 ## Phase 1 - local reference engine
 
@@ -22,8 +30,13 @@
 - [ ] carrier adapter interface
 - [ ] atomic append protocol
 - [ ] inventory database with redundant recovery records
+- [ ] content-addressed object store
+- [ ] Merkle DAG implementation
+- [ ] event log
 - [ ] audit command
 - [ ] recovery command
+- [ ] transaction engine
+- [ ] state/reconciliation engine
 
 ## Phase 2 - cross-platform runtime
 
@@ -36,6 +49,8 @@
 - [ ] local IPC control API
 - [ ] structured JSON logs
 - [ ] capability discovery
+- [ ] capability negotiation
+- [ ] versioned backend contracts
 
 ## Phase 3 - managed workspaces
 
@@ -50,6 +65,9 @@
 - [ ] workspace snapshots
 - [ ] transactional rollback
 - [ ] copy-on-write snapshots
+- [ ] environment branching
+- [ ] environment diff/merge
+- [ ] historical/time-travel views
 
 ## Phase 4 - execution runtime
 
@@ -63,6 +81,10 @@
 - [ ] macOS process/service backend
 - [ ] capability-based filesystem access
 - [ ] workload lifecycle API
+- [ ] resource reservations
+- [ ] resource leases
+- [ ] workload priorities
+- [ ] data-locality-aware placement
 
 ## Phase 5 - resilience
 
@@ -75,6 +97,9 @@
 - [ ] corruption/fuzz tests
 - [ ] workspace disaster recovery
 - [ ] transactional recovery journal
+- [ ] deterministic recovery planner
+- [ ] recovery graph
+- [ ] failure injection suite
 
 ## Phase 6 - isolation platform
 
@@ -85,6 +110,8 @@
 - [ ] virtual disk stored in FS container
 - [ ] guest lifecycle manager
 - [ ] host-independent workspace import/export
+- [ ] migration protocol
+- [ ] live migration where supported
 
 ## Phase 7 - FS control plane
 
@@ -100,7 +127,12 @@
 - [ ] event bus
 - [ ] state graph
 - [ ] desired/actual state reconciler
+- [ ] hierarchical reconciler
 - [ ] unified observability
+- [ ] policy compiler
+- [ ] safety governor
+- [ ] explainable decision records
+- [ ] autonomy budgets
 
 ## Phase 8 - federation and resource mesh
 
@@ -109,6 +141,7 @@
 - [ ] permitted peer discovery
 - [ ] explicit trust establishment/revocation
 - [ ] resource graph
+- [ ] capability graph
 - [ ] storage federation
 - [ ] trusted compute federation
 - [ ] failure-domain aware distributed placement
@@ -117,6 +150,10 @@
 - [ ] federation-wide snapshots
 - [ ] automatic resource rebalancing
 - [ ] offline-first reconciliation
+- [ ] resource reservations across nodes
+- [ ] capability leases across nodes
+- [ ] network-aware placement
+- [ ] energy/thermal-aware placement
 
 ## Phase 9 - autonomous optimization
 
@@ -127,10 +164,29 @@
 - [ ] capacity forecasting
 - [ ] predictive maintenance signals
 - [ ] automatic recovery planning
+- [ ] predictive risk engine
+- [ ] data gravity optimization
+- [ ] resource market / internal resource matching
+- [ ] AI-assisted planning under policy control
 - [ ] audit trail for every autonomous action
 - [ ] safe-stop on uncertain decisions
+- [ ] shadow planning
+- [ ] what-if simulation
+- [ ] confidence scoring
 
-## Phase 10 - production
+## Phase 10 - simulation and digital twin
+
+- [ ] FS simulation backend
+- [ ] node digital twins
+- [ ] FS World digital twin
+- [ ] deterministic event replay
+- [ ] scenario runner
+- [ ] failure injection
+- [ ] state time travel
+- [ ] branch/compare/promote workflow
+- [ ] predictive impact analysis
+
+## Phase 11 - production
 
 - [ ] security review
 - [ ] threat model
@@ -141,6 +197,9 @@
 - [ ] disaster-recovery documentation
 - [ ] compatibility test suite
 - [ ] federation interoperability tests
+- [ ] supply-chain verification
+- [ ] canary update mechanism
+- [ ] formal/property-based invariant tests
 
 ## Guiding rules
 
@@ -152,5 +211,15 @@
 6. FS must never claim a recovery or isolation guarantee that it cannot verify.
 7. Discovery can identify permitted capabilities, but discovery never grants trust or authority.
 8. A newly discovered node is untrusted until explicitly authorized by policy.
-9. Autonomous optimization may change placement and resource allocation only within declared limits.
+9. Autonomous optimization may change placement and resource allocation only within declared limits and autonomy budgets.
 10. Uncertain or unverifiable operations fail closed and preserve recoverable state.
+11. Logical identity is independent from physical location.
+12. Desired state is distinct from actual state; reconciliation is explicit.
+13. Critical state is not committed without verification.
+14. Immutable history is never silently rewritten.
+15. Secrets are referenced, not embedded in ordinary manifests or state.
+16. AI/learning may improve predictions and plans but cannot grant itself authority.
+17. High-impact changes should support simulation or shadow evaluation before execution.
+18. The carrier-file fragment mechanism is a storage backend, not the definition of the FS itself.
+19. Explicit federation boundaries are required for cross-node discovery, trust, storage and execution.
+20. Safe-stop preserves the last verified state when confidence, integrity, compatibility or policy is insufficient.
