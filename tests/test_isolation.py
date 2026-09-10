@@ -44,30 +44,38 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
     monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
-    plan = backend.plan(str(tmp_path), network="deny")
+    plan = backend.plan(str(tmp_path))
     assert plan.available
     assert "workspace-filesystem-boundary" in plan.guarantees
-    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="deny")
-    assert "--unshare-net" in wrapped
-    assert wrapped[-2:] == ("--", "/bin/true")
+    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
+    assert wrapped[-7:] == (
+        "-c",
+        backend._boundary_script,
+        "fs-boundary",
+        str(tmp_path),
+        "/bin/true",
+    )[-7:]
     assert "/workspace" in wrapped
+    assert "--ro-bind" in wrapped
 
 
-def test_bubblewrap_host_network_does_not_add_network_namespace(tmp_path, monkeypatch):
+def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
     monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
-    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="host")
-    assert "--unshare-net" not in wrapped
-    assert wrapped[-2:] == ("--", "/bin/true")
+    plan = backend.plan("/usr/local")
+    assert not plan.available
+    assert plan.reason == "workspace_path_overlaps_runtime_root"
 
 
-def test_bubblewrap_rejects_unknown_network_policy(tmp_path, monkeypatch):
+def test_bubblewrap_preserves_network_policy(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
     monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
-    with pytest.raises(RuntimeError, match="unsupported network policy"):
-        backend.wrap(("/bin/true",), workspace_path=str(tmp_path), network="proxy")
+    denied = backend.plan(str(tmp_path), network="deny")
+    hosted = backend.plan(str(tmp_path), network="host")
+    assert "--unshare-net" in denied.argv_prefix
+    assert "--unshare-net" not in hosted.argv_prefix
 
 
 def test_windows_backend_never_claims_implemented_binding():
