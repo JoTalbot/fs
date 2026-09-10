@@ -16,23 +16,22 @@ A conformance run is strongest when the vectors are consumed by an implementatio
 
 An independent harness should treat the vector files as data, not import FS implementation internals to derive expected values. For each vector it should report `pass`, `fail`, or `unsupported`, with the protocol version and vector identifier recorded in the result.
 
-## Negative cases
+## Negative admission vectors
 
-The interoperability suite should include at minimum:
+Protocol-v1 publishes a machine-readable negative set at `conformance/v1/admission-negative-v1.json`. It contains ten required fail-closed cases covering:
 
-- changed payload with an unchanged signature;
-- changed sender identity;
-- changed sequence number;
-- duplicate message ID;
-- sender sequence rollback;
-- stale timestamp;
-- future timestamp outside the accepted clock skew;
-- missing signature;
-- unknown/revoked key;
-- unexpected node/key fingerprint;
-- unsupported protocol version;
-- malformed canonical envelope;
-- ambiguous durable commit result.
+1. changed payload with unchanged signature;
+2. changed sender identity;
+3. changed sequence number;
+4. duplicate message ID;
+5. sender sequence rollback;
+6. stale timestamp;
+7. future timestamp outside accepted clock skew;
+8. missing signature;
+9. unknown or revoked key;
+10. node/key fingerprint mismatch.
+
+Each case declares its admission gate, expected `reject` result, stable reason code, and mutation. The dependency-free independent validator checks that this contract is complete and internally consistent without importing `fs_overlay`. Cryptographic verification remains provider-specific and is therefore tested by implementation-level conformance tests rather than represented as a fake universal signature algorithm.
 
 A conforming implementation must fail closed for cases where the protocol requires rejection. It must not turn an unsupported security property into an implicit fallback.
 
