@@ -29,17 +29,18 @@
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 - Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
+- Explicit `DurableAdmissionCoordinator` production boundary for cross-process serialization or transactional durable admission.
 
 ## Safety boundaries
 
 The reference implementation does not silently scan or modify the host, discover arbitrary peers, grant trust from discovery, select unauthorized carriers, or claim distributed consensus. Network transport, production cryptography, secure key storage, concurrency coordination, and deployment-specific policy remain explicit adapters/operational boundaries.
 
-The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply explicit file locking or transactional storage.
+The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply an explicit `DurableAdmissionCoordinator` or equivalent file-locking/transactional backend.
 
 ## Validation
 
-- GitHub Actions CI run #207 (`d903ee01`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- Commits `bf1022d1` and `c0baa6d1` contain the durable replay serialization/test batch and require fresh CI validation; this batch is not declared green until the latest run completes.
+- GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
+- The durable admission coordination contract/test/documentation batch (`dacb0a52`, `ed9cd1da`, `932d74bd`) now requires fresh CI validation and is not declared green yet.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -49,4 +50,4 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-Implement concrete adapters only behind the new boundaries: audited crypto/keystore integration, mutually authenticated transport, authoritative node admission, platform launchers, carrier adapters, distributed coordination where actually required, packaging, and deployment/recovery validation. Do not turn the reference contracts into implicit discovery, trust, or host-wide mutation.
+Implement a concrete cross-platform durable coordination adapter behind `DurableAdmissionCoordinator`, with explicit lock ownership, timeout/recovery semantics, crash behavior and atomicity evidence. Do not implement platform-specific locking directly inside the federation reference state.
