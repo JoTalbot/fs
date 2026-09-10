@@ -1,15 +1,18 @@
 """Explicit isolation backend contracts for FS execution.
 
 Backends are opt-in. Capability observation never enables isolation implicitly,
-and no backend may elevate privileges or mutate host policy. The Linux
-namespace backend uses the platform's ``unshare`` utility when requested and
-available; it does not attempt to acquire privileges.
+and no backend may elevate privileges or mutate host policy. Linux namespace
+execution uses the platform's ``unshare`` utility for the reference namespace
+backend; workspace isolation is a separate, explicit bubblewrap backend.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+from pathlib import Path
 import platform
 import shutil
+import subprocess
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +55,96 @@ class LinuxNamespaceBackend(IsolationBackend):
         if not argv or not argv[0]:
             raise ValueError("argv must contain an executable")
         return plan.argv_prefix + argv
+
+
+class BubblewrapWorkspaceBackend(IsolationBackend):
+    """Explicit workspace filesystem backend using bubblewrap.
+
+    Bubblewrap creates the mount namespace and exposes only explicitly bound
+    paths. The backend is deliberately opt-in because normal unprivileged bwrap
+    operation uses a user namespace. FS never enables that mechanism silently.
+    """
+
+    name = "bubblewrap-workspace"
+    minimum_version = (0, 12, 0)
+
+    def _binary(self) -> str | None:
+        if platform.system().lower() != "linux":
+            return None
+        return shutil.which("bwrap")
+
+    def _version(self, binary: str) -> tuple[int, int, int] | None:
+        try:
+            completed = subprocess.run(
+                [binary, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        token = completed.stdout.strip().split()[-1] if completed.stdout.strip() else ""
+        parts = token.split(".")
+        if len(parts) < 2 or not all(part.isdigit() for part in parts[:2]):
+            return None
+        patch = parts[2] if len(parts) > 2 else "0"
+        if not patch.isdigit():
+            return None
+        return int(parts[0]), int(parts[1]), int(patch)
+
+    def plan(self, workspace_path: str | None = None) -> IsolationPlan:
+        binary = self._binary()
+        if binary is None:
+            return IsolationPlan(self.name, (), (), False, "bubblewrap utility is unavailable")
+        version = self._version(binary)
+        if version is None:
+            return IsolationPlan(self.name, (), (), False, "bubblewrap version is unknown")
+        if version < self.minimum_version:
+            return IsolationPlan(self.name, (), (), False, "bubblewrap version is below 0.12.0")
+        if not workspace_path:
+            return IsolationPlan(self.name, (), (), False, "workspace_path_required")
+        path = Path(workspace_path)
+        if not path.is_absolute():
+            return IsolationPlan(self.name, (), (), False, "workspace_path_must_be_absolute")
+        if not path.is_dir():
+            return IsolationPlan(self.name, (), (), False, "workspace_path_not_directory")
+        return IsolationPlan(
+            self.name,
+            self._prefix(binary, path),
+            ("workspace-filesystem-boundary",),
+            True,
+            "explicit bubblewrap workspace backend",
+        )
+
+    def _prefix(self, binary: str, workspace: Path) -> tuple[str, ...]:
+        prefix: list[str] = [
+            binary,
+            "--die-with-parent",
+            "--new-session",
+            "--unshare-pid",
+            "--unshare-net",
+            "--ro-bind",
+            str(workspace),
+            "/workspace",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+        ]
+        for root in ("/usr", "/bin", "/lib", "/lib64", "/etc"):
+            if os.path.exists(root):
+                prefix.extend(("--ro-bind", root, root))
+        prefix.extend(("--chdir", "/workspace"))
+        return tuple(prefix)
+
+    def wrap(self, argv: tuple[str, ...], *, workspace_path: str) -> tuple[str, ...]:
+        plan = self.plan(workspace_path)
+        if not plan.available:
+            raise RuntimeError(plan.reason)
+        if not argv or not argv[0]:
+            raise ValueError("argv must contain an executable")
+        return plan.argv_prefix + ("--",) + argv
 
 
 class WindowsJobObjectBackend(IsolationBackend):
