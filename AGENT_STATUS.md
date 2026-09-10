@@ -6,52 +6,38 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `620078fd9e740832df773221270947a4bb39fe36`
+- Latest implementation commit: `bda2ced5d208194f90ec01208866ff699627f31d`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**End-to-end evidence-backed execution runtime**
+**Cross-platform execution backend contracts**
 
-The execution path now connects declarative admission, concrete Linux execution, bounded supervision, delegated resource enforcement, execution-scoped evidence, and transaction verification. The repository remains below the full production/federation roadmap; unchecked cross-platform and federation items are not claimed complete.
+Linux now has the evidence-backed reference runtime. This batch begins Windows/macOS/POSIX adapter work without claiming native enforcement until it has executable implementation and CI evidence.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | execution runtime batch | runtime coordinator, Linux executor/supervisor integration, resource evidence, tests/docs/status/log | `3eed74fb0c6183677e5797f55a4a2cb650d1784a` | implementation complete; CI run #84 pending | Cross-platform adapters: Windows Job Objects, macOS service/runtime, POSIX/BSD baseline, then capability negotiation/versioned backend contract |
+| current-agent | ChatGPT | cross-platform adapters | Windows Job Object contract, capability negotiation, backend contract docs/tests | `620078fd9e740832df773221270947a4bb39fe36` | Windows contract added; native attachment not yet claimed | Add capability negotiation and implement only verifiable native backends |
 
 ## Completed in this batch
 
-- Bubblewrap workspace backend requires >= 0.12.0 and preserves explicit read-only/read-write semantics.
-- Workspace-only admission uses the concrete Bubblewrap backend and emits exact workspace-boundary evidence.
-- `network=deny` emits exact network namespace evidence from the same execution.
-- `ProcessResult` carries backend identity, execution evidence, and resource lease identity when resource enforcement succeeds.
-- Resource admission declares `resource-controller` only after a valid active lease; transaction verification requires exact `resource:enforcement` evidence from the supervisor.
-- `ProcessSupervisor` carries concrete backend evidence through its lifecycle result and fails closed when requested resource enforcement cannot be attached.
-- `LinuxNamespaceExecutor` can compose namespace/workspace execution with supervision, resource lease/budget enforcement, and exact backend evidence.
-- Added `ExecutionRuntime`, connecting plan/admission -> Linux executor -> supervisor -> transaction verification -> commit.
-- Added end-to-end runtime tests for admitted resource execution and missing-lease rejection.
-- Updated runtime documentation with the resource verification contract and cgroup attachment boundary.
+- Added a Windows Job Object backend contract that is Windows-only and fail-closed.
+- Resource admission still requires an explicit active lease.
+- Unsupported disk enforcement remains explicit rather than approximated.
 
 ## Validation
 
-- CI #56 `34444479095`: PASS, Python 3.11/3.12/3.13, 96 tests.
-- CI #62 `34444595490`: PASS, Python 3.11/3.12/3.13, cgroup backend and 103 tests.
-- CI #64 `34444660622`: PASS, Python 3.11/3.12/3.13, supervisor batch.
-- CI #65 `34444707813`: PASS, Python 3.11/3.12/3.13, previous documented head.
-- CI #77 `34446199320`: PASS, Python 3.11/3.12/3.13, resource evidence and lease identity.
-- CI #83 `34446330031`: PASS, Python 3.11/3.12/3.13, end-to-end runtime coordinator tests.
-- CI #84 `34446352799`: in progress for final runtime coordinator cleanup.
+- CI #83 `34446330031`: PASS, Python 3.11/3.12/3.13 for the end-to-end runtime before this cross-platform batch.
+- New Windows contract has not yet been claimed as native enforcement. Cross-platform CI is required before marking it complete.
 
 ## Safety constraints
 
-- Never create or modify host-wide cgroups.
-- Resource limits require an explicitly valid active FS-owned/delegated lease scope.
-- Unsupported resource types fail closed rather than being approximated.
-- Do not introduce privilege escalation or user namespaces as a workaround.
-- Read back applied controller values before reporting enforcement evidence.
-- Do not claim unchecked roadmap items merely because their architecture is documented.
+- Never claim a native backend from an API wrapper alone.
+- Native resource limits require exact application/read-back evidence, matching the Linux cgroup contract.
+- Unsupported platforms and limits fail closed.
+- Never introduce privilege escalation or user namespaces as a portability workaround.
 
 ## Handoff rule
 
