@@ -17,8 +17,9 @@ def lease_for(path):
     return ResourceLease("lease-1", str(path), "fs")
 
 
-def test_cgroup_plan_requires_explicit_lease(tmp_path):
+def test_cgroup_plan_requires_explicit_lease(monkeypatch, tmp_path):
     backend = LinuxCgroupV2Backend()
+    monkeypatch.setattr("fs_overlay.cgroup_v2.platform.system", lambda: "Linux")
     plan = backend.plan(None, ResourceBudget(memory_bytes=1024))
     assert not plan.enforceable
     assert "resource_lease_required" in plan.reasons
