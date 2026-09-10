@@ -76,19 +76,34 @@ limits.
 ### macOS
 
 There is deliberately no generic Python `sandbox-exec` fallback. Apple's App
-Sandbox is kernel-enforced and entitlement/signing based, so a production FS
-adapter must launch a signed helper/runtime carrying the required entitlements.
-The current capability negotiation therefore reports macOS as requiring a
-signed sandbox runtime rather than pretending that a normal child process has
-been sandboxed.
+Sandbox is kernel-enforced and entitlement/signing based. A production FS
+boundary therefore requires a signed sandbox host application plus a bundled
+helper configured with `com.apple.security.app-sandbox` and
+`com.apple.security.inherit`; the helper must also use the hardened runtime.
 
-### POSIX/BSD
+`MacOSSignedHelperBackend` validates that packaging boundary with Apple's
+`codesign` tooling. It reports only artifact-admission evidence, not workload
+isolation. The current Python process is never described as sandboxed merely
+because a helper artifact exists. The signed host must actually launch the
+helper for macOS to enforce the sandbox boundary.
 
-Generic POSIX process execution is not advertised as an isolation backend. BSD
-platforms require their own native capability adapters, such as Capsicum where
-supported. Until the exact mechanism is configured and observed, capability
-negotiation fails closed rather than mapping generic POSIX semantics to a
-stronger security guarantee.
+### FreeBSD / BSD
+
+`FreeBSDCapsicumBackend` is the first native BSD adapter. Capsicum places a
+process into capability mode and restricts global namespace access; capability
+rights on inherited/open file descriptors can be reduced separately. FS
+therefore does not equate Capsicum with a Linux network namespace.
+
+The adapter exposes `cap_enter()` plus `cap_getmode()` read-back in the workload
+process and emits explicit capability-mode evidence only after the kernel
+confirms the process entered capability mode. It is intentionally not wired
+into the generic `ProcessSupervisor` yet: entering Capsicum in the supervisor
+parent would sandbox the wrong process. A dedicated helper must open all
+required descriptors first and then enter capability mode inside the workload
+boundary.
+
+Other BSD systems remain fail-closed until an equivalent native mechanism is
+implemented and verified.
 
 ## Capability and backend contracts
 
@@ -98,8 +113,10 @@ advertises a resource or isolation feature without a concrete backend contract.
 evidence markers and supported resource types. Contract compatibility is
 explicit and can be rejected when the runtime and backend versions differ.
 
-These components are intentionally composable. The Linux and Windows resource
-paths now have concrete native implementations and tests. macOS signed-runtime
-and BSD native isolation remain explicit follow-on adapters, not hidden claims.
+The Linux and Windows resource paths have concrete native implementations and
+real platform CI. macOS now has a signed-helper admission contract and macOS CI
+coverage, while FreeBSD has a native Capsicum entry/read-back adapter whose
+kernel path still requires a real FreeBSD host for native validation. These
+components are deliberately explicit follow-on boundaries, not hidden claims.
 The repository also remains below the full production lifecycle, recovery and
 federation scheduler roadmap.
