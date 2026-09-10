@@ -15,6 +15,9 @@ _GUARANTEE_CHECKS = {
     "network-namespace": VerificationCheck(
         "namespace:net", "Verify the network namespace can be created by the runtime probe."
     ),
+    "workspace-filesystem-boundary": VerificationCheck(
+        "workspace:boundary", "Verify the exact execution observed the admitted workspace boundary."
+    ),
 }
 
 
