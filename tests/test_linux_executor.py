@@ -7,8 +7,16 @@ class FakeBackend:
 
 
 class FakeWorkspaceBackend:
-    def wrap(self, argv, *, workspace_path):
-        return ("/usr/bin/bwrap", "--ro-bind", workspace_path, "/workspace", "--", *argv)
+    def wrap(self, argv, *, workspace_path, network):
+        return (
+            "/usr/bin/bwrap",
+            "--network=" + network,
+            "--ro-bind",
+            workspace_path,
+            "/workspace",
+            "--",
+            *argv,
+        )
 
 
 def test_executor_requires_admission():
@@ -47,7 +55,7 @@ def test_executor_uses_backend_without_shell(monkeypatch):
     assert calls["kwargs"]["shell"] is False
 
 
-def test_executor_passes_explicit_workspace_to_workspace_backend(monkeypatch, tmp_path):
+def test_executor_passes_explicit_workspace_and_network_to_workspace_backend(monkeypatch, tmp_path):
     calls = {}
 
     class Completed:
@@ -68,6 +76,32 @@ def test_executor_passes_explicit_workspace_to_workspace_backend(monkeypatch, tm
         workspace_path=str(tmp_path),
     )
     assert result.status == "succeeded"
-    assert calls["argv"] == ["/usr/bin/bwrap", "--ro-bind", str(tmp_path), "/workspace", "--", "/bin/echo", "ok"]
+    assert calls["argv"] == [
+        "/usr/bin/bwrap", "--network=deny", "--ro-bind", str(tmp_path),
+        "/workspace", "--", "/bin/echo", "ok",
+    ]
     assert calls["kwargs"]["cwd"] is None
     assert calls["kwargs"]["shell"] is False
+
+
+def test_executor_preserves_host_network_policy_for_workspace_backend(monkeypatch, tmp_path):
+    calls = {}
+
+    class Completed:
+        returncode = 0
+        stdout = "ok"
+        stderr = ""
+
+    def fake_run(argv, **kwargs):
+        calls["argv"] = argv
+        return Completed()
+
+    monkeypatch.setattr("fs_overlay.linux_executor.subprocess.run", fake_run)
+    result = LinuxNamespaceExecutor(FakeBackend(), FakeWorkspaceBackend()).execute(
+        ("/bin/true",),
+        admitted=True,
+        policy=LinuxExecutionPolicy(filesystem="workspace-only", network="host"),
+        workspace_path=str(tmp_path),
+    )
+    assert result.status == "succeeded"
+    assert "--network=host" in calls["argv"]
