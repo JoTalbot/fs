@@ -49,12 +49,14 @@ def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
     assert "workspace-filesystem-boundary" in plan.guarantees
     wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
     assert wrapped[-7:] == (
+        "--",
+        "/bin/sh",
         "-c",
         backend._boundary_script,
         "fs-boundary",
         str(tmp_path),
         "/bin/true",
-    )[-7:]
+    )
     assert "/workspace" in wrapped
     assert "--ro-bind" in wrapped
 
