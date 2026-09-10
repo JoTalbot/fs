@@ -215,13 +215,33 @@ class Inventory:
 
     def load(self) -> None:
         self.records.clear()
+        pending: dict[str, list[dict[str, object]]] = {}
         for record in AppendJournal(self.path).replay():
             payload = record["payload"]
-            oid = str(payload["object_id"])
-            if record["operation"] == "commit":
-                self.records[oid] = ObjectRecord(oid, int(payload["size"]), str(payload["manifest_path"]))
-            elif record["operation"] == "delete":
-                self.records.pop(oid, None)
+            operation = record["operation"]
+            if operation == "transaction_begin":
+                pending[str(payload["transaction_id"])] = []
+                continue
+            if operation == "transaction_commit":
+                transaction_id = str(payload["transaction_id"])
+                for staged in pending.pop(transaction_id, []):
+                    self._apply_commit(staged)
+                continue
+            if operation == "transaction_abort":
+                pending.pop(str(payload["transaction_id"]), None)
+                continue
+            if operation == "commit":
+                transaction_id = payload.get("transaction_id")
+                if transaction_id is not None:
+                    pending.setdefault(str(transaction_id), []).append(payload)
+                else:
+                    self._apply_commit(payload)
+            elif operation == "delete":
+                self.records.pop(str(payload["object_id"]), None)
+
+    def _apply_commit(self, payload: dict[str, object]) -> None:
+        oid = str(payload["object_id"])
+        self.records[oid] = ObjectRecord(oid, int(payload["size"]), str(payload["manifest_path"]))
 
 
 class MerkleDAG:
@@ -260,9 +280,10 @@ class LocalStorageEngine:
         return Manifest(unsigned.identity(), unsigned.size, unsigned.chunks, unsigned.chunk_size,
                         unsigned.format_version, unsigned.metadata)
 
-    def _commit_manifest(self, manifest: Manifest, *, transaction_id: str | None = None) -> Manifest:
+    def _commit_manifest(self, manifest: Manifest, *, transaction_id: str | None = None,
+                         publish_inventory: bool = True) -> Manifest:
         self.store.put_manifest(manifest)
-        if manifest.object_id not in self.inventory.records:
+        if manifest.object_id not in self.inventory.records and publish_inventory:
             payload = {"object_id": manifest.object_id, "size": manifest.size,
                        "manifest_path": manifest.object_id}
             if transaction_id:
@@ -271,6 +292,10 @@ class LocalStorageEngine:
             self.inventory.records[manifest.object_id] = ObjectRecord(
                 manifest.object_id, manifest.size, manifest.object_id
             )
+        elif transaction_id:
+            payload = {"object_id": manifest.object_id, "size": manifest.size,
+                       "manifest_path": manifest.object_id, "transaction_id": transaction_id}
+            self.journal.append("commit", payload)
         return manifest
 
     def put(self, data: bytes, *, metadata: dict[str, str] | None = None) -> Manifest:
@@ -300,7 +325,7 @@ class LocalStorageEngine:
 
 
 class StorageTransaction:
-    """Stage immutable data first; publish inventory visibility only on commit."""
+    """Stage immutable data and publish inventory atomically through journal commit markers."""
     def __init__(self, engine: LocalStorageEngine):
         self.engine = engine
         self.transaction_id = uuid.uuid4().hex
@@ -318,16 +343,22 @@ class StorageTransaction:
     def commit(self) -> tuple[Manifest, ...]:
         if self._closed:
             raise RuntimeError("transaction is closed")
+        result = tuple(self._prepared)
+        if not result:
+            self._closed = True
+            return result
+        self.engine.journal.append("transaction_begin", {"transaction_id": self.transaction_id})
         try:
-            result = tuple(self._prepared)
-            if result:
-                self.engine.journal.append("transaction_begin", {"transaction_id": self.transaction_id})
-                for manifest in result:
-                    self.engine._commit_manifest(manifest, transaction_id=self.transaction_id)
-                self.engine.journal.append("transaction_commit", {
-                    "transaction_id": self.transaction_id,
-                    "object_ids": [manifest.object_id for manifest in result],
-                })
+            for manifest in result:
+                self.engine._commit_manifest(manifest, transaction_id=self.transaction_id, publish_inventory=False)
+            self.engine.journal.append("transaction_commit", {
+                "transaction_id": self.transaction_id,
+                "object_ids": [manifest.object_id for manifest in result],
+            })
+            for manifest in result:
+                self.engine.inventory.records[manifest.object_id] = ObjectRecord(
+                    manifest.object_id, manifest.size, manifest.object_id
+                )
             self._prepared.clear()
             self._closed = True
             return result
@@ -338,6 +369,6 @@ class StorageTransaction:
     def rollback(self) -> None:
         if self._closed:
             return
-        self._prepared.clear()
         self.engine.journal.append("transaction_abort", {"transaction_id": self.transaction_id})
+        self._prepared.clear()
         self._closed = True
