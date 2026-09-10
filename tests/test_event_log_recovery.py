@@ -1,8 +1,14 @@
+import hashlib
 import json
 
 import pytest
 
 from fs_overlay.event_log import EventLog
+
+
+def _encode(record: dict[str, object]) -> bytes:
+    body = json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    return f"{len(body):016x}".encode() + body + b"\n"
 
 
 def test_event_log_reload_continues_sequence_and_causal_chain(tmp_path) -> None:
@@ -25,11 +31,9 @@ def test_event_log_rejects_tampered_event_payload(tmp_path) -> None:
     log = EventLog(path)
     log.emit("admission.accepted", object_id="obj-1")
 
-    raw = path.read_bytes().splitlines()
-    record = json.loads(raw[0][16:])
+    record = next(iter(EventLog(path)._journal.replay()))
     record["payload"]["object_id"] = "tampered"
-    encoded = json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-    path.write_bytes(f"{len(encoded):016x}".encode() + encoded + b"\n")
+    path.write_bytes(_encode(record))
 
     with pytest.raises(ValueError, match="event hash verification failed"):
         list(EventLog(path).replay())
@@ -41,23 +45,13 @@ def test_event_log_rejects_sequence_gap(tmp_path) -> None:
     log.emit("first")
     log.emit("second")
 
-    raw = path.read_bytes().splitlines()
-    records = [json.loads(line[16:]) for line in raw]
+    records = list(EventLog(path)._journal.replay())
     records[1]["payload"]["sequence"] = 3
-    body = records[1]["payload"]
+    body = dict(records[1]["payload"])
     body.pop("event_hash", None)
-    import hashlib
     canonical = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
     records[1]["payload"]["event_hash"] = hashlib.sha256(canonical).hexdigest()
-    encoded = json.dumps(records[1], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-    path.write_bytes(
-        f"{len(json.dumps(records[0], sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False).encode()):016x}".encode()
-        + json.dumps(records[0], sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-        + b"\n"
-        + f"{len(encoded):016x}".encode()
-        + encoded
-        + b"\n"
-    )
+    path.write_bytes(b"".join(_encode(record) for record in records))
 
     with pytest.raises(ValueError, match="event sequence verification failed"):
         list(EventLog(path).replay())
