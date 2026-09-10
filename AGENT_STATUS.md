@@ -42,7 +42,7 @@
 - Published protocol-v1 admission-negative vector set now defines ten required fail-closed cases: malformed envelope; unsupported protocol; negative sequence; empty ID; duplicate ID; sequence rollback; stale/future timestamps; missing signature; and key-admission failure covering unknown/revoked/fingerprint mismatch.
 - Added dependency-free independent admission validator that checks the ten-case negative contract without importing `fs_overlay`.
 - CI executes both independent conformance validators before the internal pytest suite on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix.
-- CI run #268 completed successfully across all 9 OS/Python matrix jobs, validating the corrected ten-case admission contract.
+- CI run #268 completed successfully across all 9 matrix jobs, validating the corrected ten-case admission contract.
 - Added `docs/ADMISSION_CONFORMANCE.md` to make the independent admission boundary, required negative cases, adapter obligations, and fail-closed rule explicit.
 - Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
 - Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
@@ -50,6 +50,7 @@
 - Added fail-open regression tests proving the reusable harness rejects permissive key storage and unauthenticated transport implementations.
 - The concrete `FileAdmissionCoordinator` is exercised through the same reusable qualification harness, so the local durable-coordination adapter is checked against the shared contract rather than only bespoke tests.
 - Added ambiguous durable-admission recovery coverage: a simulated post-append acknowledgement failure leaves the in-memory state uncommitted, while a fresh state reconstructs the persisted acceptance from the journal and rejects a sequence-equivalent retry.
+- Isolated the permissive key-store regression so it reaches the intended empty-key-material contract check instead of failing earlier on empty key ID validation.
 
 ## Safety boundaries
 
@@ -86,6 +87,9 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - Commit `e7b43d46e83aff8b5c6e1cf3280e7a04faa4ebaf` added concrete `FileAdmissionCoordinator` qualification; fresh CI validation is pending.
 - Commit `cb5727f49d00bc573818faf698ac7c87ce5307b9` added ambiguous journal-write recovery coverage; fresh CI validation is pending.
 - Commit `5fce6a3c9d1ed29424535c9af510f192a3ee9a85` documented the ambiguous-outcome recovery rule; fresh CI validation is pending.
+- Commit `10d12a24b2a08a98c210748acca4669b1799b97d` strengthened reusable adapter fail-closed qualification checks, but CI run #286 failed across the 9 matrix jobs because the permissive key-store regression fixture itself violated the earlier empty-key-ID check before reaching the intended empty-key-material assertion.
+- Commit `93f5c45e058498abdeb711f8c9d4200e3b1179ff` corrected that regression fixture so empty key ID is still rejected while empty key material is accepted by the deliberately permissive double; fresh CI validation is pending.
+- Run #286 still passed both independent conformance validators before the single pytest failure, and the failure was identical across the matrix: 204 passed / 3 skipped on Ubuntu, with the targeted assertion message mismatch only.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -95,6 +99,7 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
+- Verify the fresh full CI matrix for commit `93f5c45e058498abdeb711f8c9d4200e3b1179ff`.
 - Run the reusable qualification harness against each real production adapter as those adapters are introduced.
 - Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
 - Keep `FileAdmissionCoordinator` explicitly local multi-process; stronger backends must define their own transaction, ordering, durability, and crash semantics.
