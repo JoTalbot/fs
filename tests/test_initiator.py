@@ -44,3 +44,14 @@ def test_initiator_sends_round_trippable_signed_envelope() -> None:
     initiator.send(envelope, "node-b")
     assert FederationEnvelope.from_bytes(transport.sent[0][1]) == envelope
     assert envelope.payload["key_id"] == "k1"
+    assert isinstance(envelope.payload["features"], list)
+
+
+def test_initiator_sorts_and_deduplicates_features() -> None:
+    initiator = MinimalInitiator(
+        BootstrapConfig("node-a", "/tmp/fs", 1, 1),
+        key_provider=Keys(), signer=Signer(), transport=Transport(),
+        capabilities=InitiatorCapabilities("linux", ("storage", "compute")),
+    )
+    envelope = initiator.build_advertisement("m2", 100, capabilities=("storage", "network"))
+    assert envelope.payload["features"] == ["compute", "network", "storage"]
