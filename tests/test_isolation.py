@@ -2,7 +2,12 @@ import platform
 
 import pytest
 
-from fs_overlay.isolation import LinuxNamespaceBackend, WindowsJobObjectBackend, current_isolation_backend
+from fs_overlay.isolation import (
+    BubblewrapWorkspaceBackend,
+    LinuxNamespaceBackend,
+    WindowsJobObjectBackend,
+    current_isolation_backend,
+)
 
 
 def test_linux_namespace_backend_is_explicit_and_bounded():
@@ -22,6 +27,29 @@ def test_linux_wrap_rejects_empty_argv():
         pytest.skip("Linux unshare backend unavailable on this host")
     with pytest.raises(ValueError):
         backend.wrap(())
+
+
+def test_bubblewrap_requires_explicit_workspace():
+    backend = BubblewrapWorkspaceBackend()
+    plan = backend.plan()
+    assert not plan.available
+    assert plan.reason in {
+        "bubblewrap utility is unavailable",
+        "bubblewrap version is unknown",
+        "workspace_path_required",
+    }
+
+
+def test_bubblewrap_wrap_requires_workspace(tmp_path, monkeypatch):
+    backend = BubblewrapWorkspaceBackend()
+    monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
+    monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
+    plan = backend.plan(str(tmp_path))
+    assert plan.available
+    assert "workspace-filesystem-boundary" in plan.guarantees
+    wrapped = backend.wrap(("/bin/true",), workspace_path=str(tmp_path))
+    assert wrapped[-2:] == ("--", "/bin/true")
+    assert "/workspace" in wrapped
 
 
 def test_windows_backend_never_claims_implemented_binding():
