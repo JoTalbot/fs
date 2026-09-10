@@ -37,4 +37,5 @@ def test_admitted_service_can_execute_bounded_argv():
     result = service.handle({"operation": "execute", "argv": ["python", "-c", "print('genesis-ok')"]})
     assert result.ok
     assert result.data["status"] == "succeeded"
+    assert result.data["timed_out"] is False
     assert "genesis-ok" in result.data["stdout"]
