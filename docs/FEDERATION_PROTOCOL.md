@@ -30,11 +30,25 @@ transport
 
 No handler is invoked before these checks succeed.
 
+## Identity, node admission and key lifecycle
+
+Discovery or advertisement is an observation, never an authority grant. A production deployment must independently bind a node identity to an admitted key fingerprint and must reject an unexpected fingerprint change.
+
+Key lifecycle is explicit:
+
+- **ACTIVE** keys may sign new messages;
+- **RETIRED** keys may remain valid for verification according to deployment retention policy, but must not sign new messages;
+- **REVOKED** keys must not sign or verify admitted federation messages.
+
+Rotation must be an explicit admission/policy operation. Reusing a key ID with a different fingerprint is a security-sensitive change and must not happen silently. `KeyLifecycle` is only a deterministic state contract; it does not store secrets or perform cryptography.
+
+Production deployments should maintain authoritative node/key admission separately from peer discovery and should define retention, revocation propagation, clock policy and audit requirements.
+
 ## Durable replay state
 
 `DurableFederationState` persists accepted message IDs and sender sequence high-water marks through the existing append-only `EventLog`. On restart it reconstructs the admission state before accepting new envelopes.
 
-The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction, concurrency coordination and a durable storage policy appropriate to their failure model.
+The durable state object is intentionally **not** an authentication layer. Callers must first establish signature, trust and freshness. Production deployments additionally need journal compaction, concurrency coordination and a durable storage policy appropriate to their failure model. Replay-state persistence must be atomic with admission recording under the deployment's failure model; concurrent receivers require an explicit serialization or transactional strategy.
 
 ## Replication
 
@@ -75,7 +89,8 @@ Those responsibilities remain outside the execution boundary.
 
 - `SecureKeyStore` for protected key-material storage;
 - `AuthenticatedTransport` for authenticated/encrypted federation channels and peer identity;
-- `NodeAdmission` for authoritative node admission and revocation.
+- `NodeAdmission` for authoritative node admission and revocation;
+- `KeyAdmission` for authoritative node/key binding and lifecycle decisions.
 
 These contracts deliberately do not select a network protocol, certificate authority, cryptographic library, HSM, operating-system keystore, or admission database. Implementations must supply those policies and security properties explicitly.
 
@@ -95,7 +110,9 @@ Focused tests cover:
 - exclusion of unhealthy/untrusted repair participants;
 - audit decision/result causal linkage;
 - adapter contract importability;
-- production security adapter contract importability.
+- production security adapter contract importability;
+- key rotation, retirement and revocation semantics;
+- rejection of duplicate key IDs and silent fingerprint changes.
 
 ## Minimal initiator
 
@@ -103,4 +120,4 @@ A node may begin with only an explicitly selected FS root and local configuratio
 
 ## Production boundary
 
-The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, transport security, persistent protocol state, and interoperability testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
+The reference implementation intentionally does not claim production cryptography, network security, durable distributed consensus, or distributed atomicity. Those require audited providers, authenticated transport security, secure key lifecycle storage, authoritative admission, persistent protocol state, concurrency rules and independent interoperability/recovery testing. The production adapter contracts are interfaces for that work, not security guarantees by themselves.
