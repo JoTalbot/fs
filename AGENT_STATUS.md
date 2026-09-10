@@ -18,6 +18,8 @@
 - Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
 - Durable replay reconstruction now fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
 - `DurableFederationState` now accepts an injected admission coordinator and holds it across validation, journal emission, and state mutation, preserving the complete durable admission critical section for deployment-specific multi-process/transactional implementations.
+- `FileAdmissionCoordinator` provides an explicit local cross-process coordination adapter using OS file locks, with deterministic resource paths, bounded acquisition timeout, retained lock files, and no stale-lock stealing.
+- Crash semantics are covered: the adapter relies on the operating system to release an held lock when the owning process exits; it never deletes or steals a supposedly stale lock.
 - `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
 - Verified `ReplicaExecutor` with source and post-copy target integrity checks.
 - Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
@@ -38,12 +40,12 @@ The reference implementation does not silently scan or modify the host, discover
 
 The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply an explicit `DurableAdmissionCoordinator` or equivalent file-locking/transactional backend.
 
-The coordinator integration is intentionally dependency-injected. The reference state does not guess at OS locking, stale-lock ownership, process liveness, or crash recovery, because pretending those are portable would be a particularly efficient way to manufacture corruption.
+`FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and must be validated by the CI matrix.
 
 ## Validation
 
 - GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- The coordination batch (`bb5ae5af`, `291a47ca`, `b109a877`) requires fresh CI validation and is not declared green yet.
+- The latest coordination commits (`53929575`, `cf59aef4`) require fresh CI validation and are not declared green yet.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -53,4 +55,4 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
-Implement a concrete cross-platform durable coordination adapter behind `DurableAdmissionCoordinator`, with explicit lock ownership, timeout/recovery semantics, crash behavior and atomicity evidence. Do not implement platform-specific locking directly inside the federation reference state.
+Validate the concrete coordinator across the full OS/Python CI matrix, then add explicit transactional-durability guidance and integration coverage for coordinated federation admission. Do not claim cross-store atomicity unless a single transactional backend actually provides it.
