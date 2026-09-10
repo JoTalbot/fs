@@ -91,11 +91,14 @@
 - [x] computation/transition primitives
 - [x] Plan DAG representation
 - [x] universal state transition primitives
-- [ ] FS-IR schema and validation
+- [x] FS-IR schema and validation
 - [x] Genesis node primitives
-- [ ] capability matching engine
-- [ ] application session primitives
-- [ ] presentation endpoint primitives
+- [x] capability matching engine
+- [x] application session primitives
+- [x] presentation endpoint primitives
+- [x] localhost semantic transport
+- [x] node identity primitive
+- [x] bounded native process adapter
 
 ## Phase 2 - cross-platform runtime
 
@@ -279,11 +282,11 @@
 - [ ] dependency-aware federation planning
 - [ ] federated knowledge exchange
 - [ ] federated decision provenance
-- [ ] distributed Plan DAG execution
+- [x] distributed Plan DAG execution
 - [ ] cross-node semantic verification
-- [ ] reciprocal resource participation
-- [ ] execution/presentation separation
-- [ ] cross-node application session placement
+- [x] reciprocal resource participation
+- [x] execution/presentation separation
+- [x] cross-node application session placement
 - [ ] federation privacy boundaries
 
 ## Phase 9 - autonomous optimization
