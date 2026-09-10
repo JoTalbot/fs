@@ -2,11 +2,16 @@ from fs_overlay.linux_executor import LinuxExecutionPolicy, LinuxNamespaceExecut
 
 
 class FakeBackend:
+    name = "fake-linux-backend"
+
     def wrap(self, argv):
         return ("/usr/bin/unshare", "--mount", *argv)
 
 
 class FakeWorkspaceBackend:
+    name = "bubblewrap-workspace"
+    boundary_check_exit_codes = (125, 126)
+
     def wrap(self, argv, *, workspace_path, network):
         return (
             "/usr/bin/bwrap",
@@ -51,6 +56,8 @@ def test_executor_uses_backend_without_shell(monkeypatch):
         ("/bin/echo", "ok"), admitted=True,
     )
     assert result.status == "succeeded"
+    assert result.backend == "fake-linux-backend"
+    assert result.execution_evidence == ()
     assert calls["argv"] == ["/usr/bin/unshare", "--mount", "/bin/echo", "ok"]
     assert calls["kwargs"]["shell"] is False
 
@@ -76,6 +83,8 @@ def test_executor_passes_explicit_workspace_and_network_to_workspace_backend(mon
         workspace_path=str(tmp_path),
     )
     assert result.status == "succeeded"
+    assert result.backend == "bubblewrap-workspace"
+    assert result.execution_evidence == ("workspace:boundary-observed",)
     assert calls["argv"] == [
         "/usr/bin/bwrap", "--network=deny", "--ro-bind", str(tmp_path),
         "/workspace", "--", "/bin/echo", "ok",
@@ -104,4 +113,22 @@ def test_executor_preserves_host_network_policy_for_workspace_backend(monkeypatc
         workspace_path=str(tmp_path),
     )
     assert result.status == "succeeded"
+    assert result.execution_evidence == ("workspace:boundary-observed",)
     assert "--network=host" in calls["argv"]
+
+
+def test_executor_fails_closed_on_reserved_boundary_failure(monkeypatch, tmp_path):
+    class Completed:
+        returncode = 125
+        stdout = ""
+        stderr = "boundary failed"
+
+    monkeypatch.setattr("fs_overlay.linux_executor.subprocess.run", lambda *a, **k: Completed())
+    result = LinuxNamespaceExecutor(FakeBackend(), FakeWorkspaceBackend()).execute(
+        ("/bin/true",),
+        admitted=True,
+        policy=LinuxExecutionPolicy(filesystem="workspace-only", network="deny"),
+        workspace_path=str(tmp_path),
+    )
+    assert result.status == "failed"
+    assert result.execution_evidence == ()
