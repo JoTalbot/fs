@@ -11,6 +11,7 @@
 - [x] unified FS object model
 - [x] capability-aware runtime planner
 - [x] control-plane architecture
+- [x] bounded autonomy model
 
 ## Phase 1 - local reference engine
 
@@ -48,6 +49,7 @@
 - [ ] content-addressed workspace state
 - [ ] workspace snapshots
 - [ ] transactional rollback
+- [ ] copy-on-write snapshots
 
 ## Phase 4 - execution runtime
 
@@ -72,6 +74,7 @@
 - [ ] power-loss recovery tests
 - [ ] corruption/fuzz tests
 - [ ] workspace disaster recovery
+- [ ] transactional recovery journal
 
 ## Phase 6 - isolation platform
 
@@ -94,8 +97,40 @@
 - [ ] multi-environment orchestration
 - [ ] host OS as managed guest option
 - [ ] boot/runtime integration research
+- [ ] event bus
+- [ ] state graph
+- [ ] desired/actual state reconciler
+- [ ] unified observability
 
-## Phase 8 - production
+## Phase 8 - federation and resource mesh
+
+- [ ] FS node identity
+- [ ] signed capability advertisements
+- [ ] permitted peer discovery
+- [ ] explicit trust establishment/revocation
+- [ ] resource graph
+- [ ] storage federation
+- [ ] trusted compute federation
+- [ ] failure-domain aware distributed placement
+- [ ] remote environment placement
+- [ ] environment migration
+- [ ] federation-wide snapshots
+- [ ] automatic resource rebalancing
+- [ ] offline-first reconciliation
+
+## Phase 9 - autonomous optimization
+
+- [ ] autonomy levels L0-L4
+- [ ] policy-bounded decision engine
+- [ ] placement scoring engine
+- [ ] health-driven remediation
+- [ ] capacity forecasting
+- [ ] predictive maintenance signals
+- [ ] automatic recovery planning
+- [ ] audit trail for every autonomous action
+- [ ] safe-stop on uncertain decisions
+
+## Phase 10 - production
 
 - [ ] security review
 - [ ] threat model
@@ -105,6 +140,7 @@
 - [ ] upgrade/rollback mechanism
 - [ ] disaster-recovery documentation
 - [ ] compatibility test suite
+- [ ] federation interoperability tests
 
 ## Guiding rules
 
@@ -114,3 +150,7 @@
 4. The resident daemon remains minimal. Heavy capabilities are workers/modules.
 5. Stronger-than-host isolation requires explicit platform mechanisms such as containers, sandboxes, microVMs or VMs.
 6. FS must never claim a recovery or isolation guarantee that it cannot verify.
+7. Discovery can identify permitted capabilities, but discovery never grants trust or authority.
+8. A newly discovered node is untrusted until explicitly authorized by policy.
+9. Autonomous optimization may change placement and resource allocation only within declared limits.
+10. Uncertain or unverifiable operations fail closed and preserve recoverable state.
