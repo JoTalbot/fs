@@ -271,7 +271,9 @@ class LocalStorageEngine:
         self.root = Path(root)
         self.store = ContentAddressedStore(self.root)
         self.journal = AppendJournal(self.root / "journal.log")
-        self.inventory = Inventory(self.root / "inventory.log")
+        # The journal is the durable source of truth for inventory state. Keeping
+        # inventory in a separate, non-replayed log loses committed objects after restart.
+        self.inventory = Inventory(self.journal.path)
         self.chunker = DeterministicChunker(chunk_size)
 
     def _build_manifest(self, data: bytes, metadata: dict[str, str] | None = None) -> Manifest:
