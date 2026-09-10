@@ -33,6 +33,12 @@
 - [x] Intent Layer concept
 - [x] recursive Computer composition model
 - [x] cross-cutting Security / Identity / Policy / Knowledge / Simulation / Observability / Recovery planes
+- [x] Resource Ownership & Lease Layer concept
+- [x] Causality & Time Fabric architecture
+- [x] Capability Graph architecture
+- [x] cross-space Transaction Engine architecture
+- [x] universal State Machine Engine architecture
+- [x] FS World Engine architecture
 
 ## Phase 1 - local reference engine
 
@@ -48,8 +54,10 @@
 - [ ] event log
 - [ ] audit command
 - [ ] recovery command
-- [ ] transaction engine
-- [ ] state/reconciliation engine
+- [ ] transaction engine implementation
+- [ ] state/reconciliation engine implementation
+- [ ] resource ownership/lease primitives
+- [ ] causal event metadata
 
 ## Phase 2 - cross-platform runtime
 
@@ -67,6 +75,7 @@
 - [ ] hardware abstraction adapter
 - [ ] hardware capability fingerprint
 - [ ] platform time adapter
+- [ ] monotonic/logical time adapter
 
 ## Phase 3 - managed workspaces
 
@@ -160,6 +169,10 @@
 - [ ] object graph engine
 - [ ] reality engine
 - [ ] meta-scheduler
+- [ ] capability graph engine
+- [ ] transaction coordinator
+- [ ] universal state machine engine
+- [ ] world engine coordinator
 
 ## Phase 8 - federation and resource mesh
 
@@ -183,6 +196,9 @@
 - [ ] energy/thermal-aware placement
 - [ ] recursive Computer federation
 - [ ] cross-Computer scheduling
+- [ ] distributed transaction semantics
+- [ ] distributed causal ordering
+- [ ] federated world model
 
 ## Phase 9 - autonomous optimization
 
@@ -204,6 +220,8 @@
 - [ ] confidence scoring
 - [ ] intent-driven autonomous planning
 - [ ] hierarchical scheduling optimization
+- [ ] autonomous lease optimization
+- [ ] capability-aware mobility optimization
 
 ## Phase 10 - simulation and digital twin
 
@@ -219,6 +237,8 @@
 - [ ] full Object Graph simulation
 - [ ] hardware/resource simulation
 - [ ] time-fabric simulation
+- [ ] transaction simulation
+- [ ] world-level what-if execution
 
 ## Phase 11 - production
 
@@ -237,6 +257,10 @@
 - [ ] hardware compatibility certification
 - [ ] runtime compatibility certification
 - [ ] end-to-end intent-to-execution tests
+- [ ] distributed transaction tests
+- [ ] causal ordering tests
+- [ ] lease/fencing tests
+- [ ] world reconciliation tests
 
 ## Guiding rules
 
@@ -272,3 +296,11 @@
 30. Higher schedulers constrain lower schedulers; lower schedulers cannot expand authority.
 31. Recursive Computer composition preserves explicit identity, capability and trust boundaries.
 32. The same logical object model must remain valid across deployment levels.
+33. Resource ownership is explicit, bounded, auditable and revocable.
+34. A lease is authority to allocate, not proof that the underlying resource remains healthy.
+35. Causality must not be inferred solely from wall-clock timestamps.
+36. Capability is evidence of possibility, not permission.
+37. Cross-space state changes require explicit transaction and verification semantics.
+38. Every managed object lifecycle is represented by explicit, validated state transitions.
+39. FS World is an explicit trust and resource boundary, not a synonym for every machine visible on a network.
+40. Recursive composition must preserve the same identity, capability, policy, state, time and recovery semantics at every level.
