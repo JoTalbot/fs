@@ -83,7 +83,7 @@ Skill discovery:
 Changes:
 - Added `src/fs_overlay/evidence_provider.py`.
 - Updated `src/fs_overlay/transaction_executor.py` to derive required checks from the plan before commit.
-- Caller-supplied checks may add checks but cannot omit plan-derived checks.
+- Caller-supplied checks may add requirements but cannot omit plan-derived checks.
 - Added transaction tests for missing evidence and successful evidence.
 - Added `docs/AGENT_OPERATING_SYSTEM.md` to make the multi-machine/parallel operating model explicit.
 - Added `.agents/skills/linux-isolation-verification/SKILL.md`.
@@ -117,12 +117,32 @@ Changes:
 - Added tests proving an unchanged namespace identity fails closed and a changed identity is accepted.
 - Updated `docs/LINUX_CAPABILITY_PROBES.md` with the observed-identity contract.
 Validation:
-- GitHub source inspection completed before implementation.
-- GitHub writes succeeded.
-- CI execution is the authoritative runtime validation and is pending for this new commit chain.
+- CI run `34437693909` passed Python 3.11, 3.12, and 3.13.
 Result: implementation commits `ea364db621722616fc9c866d84141679892feb23`, `109f17981453ce00aae4aa9e1e84042be0a1a1b8`, and `ada1cf9d453179fd705fc13464882e40fcfaeba6`.
 Learning:
 - [RULE] A namespace probe is evidence only when the requested namespace identity is observed to differ from the parent.
 - [SECURITY] Never convert a successful subprocess exit into stronger isolation claims than the observed probe property supports.
 - [PATTERN] For PID namespaces, use a forked disposable child when observing `/proc/self/ns/pid`.
 Next: Run the full CI matrix and, after green validation, design the concrete workspace-boundary probe separately from generic namespace capability evidence.
+
+## 2026-09-10 | current-agent | workspace-admission-gate
+Base: ada1cf9d453179fd705fc13464882e40fcfaeba6
+Area: workspace isolation
+Goal: Prevent `workspace-only` admission from being inferred from mount namespace availability alone.
+Research:
+- Current `execution_coordinator.py`, `mount_namespace.py`, `workspace.py`, `transaction_executor.py`, and verification mapping were re-read before the change.
+- Existing Linux isolation skill explicitly forbids inferring workspace binding, root filesystem replacement, or resource enforcement from a generic namespace probe. fileciteturn40file0
+Changes:
+- Updated `plan_execution_boundaries()` so an admitted workspace binding is still rejected for `workspace-only` unless an executor can enforce the actual workspace boundary.
+- Added `workspace_isolation_not_enforced` as the explicit fail-closed reason.
+- Replaced the previous conditional test with a deterministic assertion that `workspace-only` is not currently admitted.
+- Updated shared status with the new safety gate and next implementation step.
+Validation:
+- Previous namespace identity CI `34437693909` is green on Python 3.11/3.12/3.13.
+- New commits trigger CI; current run must be checked before claiming PASS.
+Result: `37b85c8eb880e7d896e9a7b6b57faf77fa946e7e` implementation; `db762d76d8634d6c08ecdf7df07cfe317591918f` test; `e0762f6784f4e406126625f2a1c12813faa2eb0c` status.
+Learning:
+- [SECURITY] Workspace ownership/delegation is an admission fact, not evidence that the runtime has isolated the workspace.
+- [RULE] A namespace mechanism must not be treated as a workspace-binding implementation until the exact binding is configured and observed.
+- [PATTERN] When enforcement is absent, fail closed at admission rather than allowing a later executor rejection to carry the safety burden.
+Next: Design and implement an explicit workspace-boundary backend/probe, with exact evidence and no privilege-escalation fallback.
