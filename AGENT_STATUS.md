@@ -6,42 +6,44 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `03525189eeb617f28c85b6c2dcaddfe28ffe3f1e`
+- Latest implementation commit: `1871cdb389ce02383065d516bccd3a227ceb88a9`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
 **Cross-platform execution backend contracts**
 
-Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. CI now exercises both Ubuntu and Windows across Python 3.11/3.12/3.13. Capability negotiation and versioned backend contracts are present. macOS and BSD remain explicitly fail-closed until their native runtime mechanisms can provide equivalent execution evidence.
+Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS now has a signed/entitled helper admission boundary and CI coverage. FreeBSD now has a native Capsicum capability-mode adapter with kernel read-back, while generic supervisor integration remains deliberately deferred until a dedicated helper boundary exists.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | cross-platform execution | isolation/cgroup/runtime test portability and Windows resource/isolation boundary | `79851885b86e6929530e4ae74d9b42455054af5d` | fixed cross-platform test assumptions; latest CI pending | Validate latest six-platform jobs, then proceed to signed macOS helper/runtime and BSD/Capsicum adapter design without false generic fallbacks |
+| current-agent | ChatGPT | cross-platform execution | macOS signed helper contract, FreeBSD Capsicum adapter, platform CI | `03525189eeb617f28c85b6c2dcaddfe28ffe3f1e` | implementation batch complete; CI pending | Validate macOS/Windows/Linux matrix, then add real FreeBSD native validation path without sandboxing the supervisor parent |
 
 ## Completed in this batch
 
-- Added Windows CI coverage and native Job Object round-trip testing.
-- Diagnosed the first Windows CI run: six failures were cross-platform test assumptions, not native Job Object API failures.
-- Made the cgroup lease-admission test explicitly model Linux before asserting Linux behavior.
-- Scoped bubblewrap and Linux namespace tests to Linux; Windows runners no longer attempt `/proc` namespace operations.
-- Scoped the end-to-end `ExecutionRuntime` commit test to Linux because the current runtime is explicitly a Linux runtime.
-- Corrected the legacy Windows isolation facade: Job Objects are resource/process control, not filesystem/network isolation. The isolation facade now fails closed until a genuine Windows filesystem/network boundary exists, while the native resource backend remains available separately.
-- Corrected the Windows fail-closed resource test so it tests the non-Windows contract without depending on the host OS.
+- Added `MacOSSignedHelperBackend`, which validates a signed App Sandbox host/helper packaging boundary using `codesign` and never claims the current Python process is sandboxed.
+- Required the macOS helper contract to expose App Sandbox + inheritance entitlements and hardened runtime evidence.
+- Added `FreeBSDCapsicumBackend` using native `cap_enter()` followed by `cap_getmode()` read-back in the workload process.
+- Added versioned macOS and FreeBSD backend contracts and explicit evidence markers.
+- Added cross-platform tests for macOS and FreeBSD fail-closed behavior and macOS artifact admission.
+- Expanded CI from Ubuntu/Windows to Ubuntu/Windows/macOS across Python 3.11/3.12/3.13.
+- Updated execution runtime documentation to distinguish macOS artifact admission from actual sandboxed execution and to keep Capsicum separate from Linux network namespaces.
 
 ## Research / decision evidence
 
-- Microsoft Job Object documentation confirms native `SetInformationJobObject`, `QueryInformationJobObject`, and `AssignProcessToJobObject` are the relevant resource/process-control primitives. citeturn0search4turn0search10turn0search13
-- Apple App Sandbox documentation confirms sandbox boundaries are entitlement/signing based and supports embedded sandboxed helper tools; generic POSIX commands are not an equivalent macOS sandbox boundary. citeturn0search0turn0search1turn0search2
-- Agent Skills specification and testing guidance confirm skills are reusable `SKILL.md` workflows and that platform-specific tests should be explicit rather than relying on incidental host behavior. citeturn1search0turn1search2turn1search7
+- Apple documents App Sandbox as entitlement/signing based and documents embedding a sandboxed command-line helper with `com.apple.security.app-sandbox` and `com.apple.security.inherit`; hardened runtime is the supported runtime integrity boundary. citeturn0search0turn0search3turn0search8
+- Apple documents `codesign`/Code Signing Services as the supported way to validate signed code and requirements rather than encoding undocumented signature internals. citeturn2search3turn2search4
+- FreeBSD documents Capsicum as a capability/sandbox framework; `cap_enter()` enters capability mode and `cap_rights_limit()` can reduce descriptor rights. citeturn1search0turn1search4turn1search13
+- GitHub currently provides macOS-hosted runners including `macos-latest` on arm64, making native macOS contract tests practical in CI. citeturn0search2
 
 ## Validation
 
-- CI #102 `34448825327`: Ubuntu 3.13 failed on stale `os.name` monkeypatch tests; Windows jobs were executing.
-- CI #103 `34448840104`: Ubuntu 3.11/3.12/3.13 passed; Windows 3.11/3.12/3.13 exposed six cross-platform test assumptions. Native Windows runner was confirmed as Windows Server 2025 and reached the full pytest suite.
-- Latest fixes are on `03525189eeb617f28c85b6c2dcaddfe28ffe3f1e`; CI validation is pending and no green result is claimed yet.
+- CI #109 `34449606391`: PASS, Ubuntu 3.11/3.12/3.13 and Windows 3.11/3.12/3.13.
+- CI #110 `34449620377`: PASS, Ubuntu 3.11/3.12/3.13 and Windows 3.11/3.12/3.13.
+- New macOS CI validation is pending after this batch.
+- No FreeBSD native kernel result is claimed yet; the adapter is intentionally gated by the real FreeBSD host check.
 
 ## Safety constraints
 
@@ -50,8 +52,9 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 - Unsupported platforms and limits fail closed.
 - Job Object resource control must not be advertised as filesystem/network isolation.
 - macOS must use a signed/entitled runtime boundary; do not substitute undocumented generic sandbox commands.
+- macOS helper artifact validation is not execution evidence until a signed sandbox host launches the helper.
+- Capsicum evidence must be produced by the workload process; never enter capability mode in the supervisor parent as a substitute.
 - Never introduce privilege escalation or user namespaces as a portability workaround.
-- Windows native kernel validation must come from a real Windows runner/host, not Linux platform monkeypatching.
 
 ## Handoff rule
 
