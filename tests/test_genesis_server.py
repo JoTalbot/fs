@@ -57,4 +57,13 @@ def test_genesis_server_round_trip_and_admission_gate():
         )
         assert result["ok"]
         assert result["data"]["status"] == "succeeded"
+        assert result["data"]["timed_out"] is False
         assert "server-ok" in result["data"]["stdout"]
+
+
+def test_genesis_server_stop_is_idempotent():
+    server = GenesisServer(make_service())
+    server.start()
+    server.stop()
+    server.stop()
+    assert server.address is None
