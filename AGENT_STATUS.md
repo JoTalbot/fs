@@ -44,6 +44,8 @@
 - CI executes both independent conformance validators before the internal pytest suite on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix.
 - CI run #268 completed successfully across all 9 OS/Python matrix jobs, validating the corrected ten-case admission contract.
 - Added `docs/ADMISSION_CONFORMANCE.md` to make the independent admission boundary, required negative cases, adapter obligations, and fail-closed rule explicit.
+- Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
+- Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
 
 ## Safety boundaries
 
@@ -70,6 +72,7 @@ Coordinated writers refresh durable admission indexes and journal sequence/hash 
 - CI run #262 exposed a contract-integration defect: the newly added admission vector was discovered by the canonical consumer, which expected `vector_id` and canonical envelope fields. The vector was made self-describing and the canonical consumer now delegates `vector_type=admission` to the dedicated semantic validator.
 - The admission vector/validator were then aligned to the intended ten-case contract, and interoperability documentation was corrected accordingly.
 - CI run #268 completed successfully across all 9 jobs after those corrections.
+- New adapter-specific conformance tests and documentation are committed; their validation is pending the next GitHub Actions run.
 - Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
 
@@ -79,8 +82,8 @@ The codebase now has the reference architecture needed to implement platform-spe
 
 ## Next phase
 
+- Validate the new adapter-specific conformance tests across the full CI matrix.
 - Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
-- Build adapter-specific conformance tests for authoritative production backends without faking security guarantees in the reference layer.
-- Define explicit test doubles for secure key stores, authenticated transports, node admission and transactional admission so adapter contracts can be exercised without implying production security.
+- Add authoritative backend conformance harnesses without faking security guarantees in the reference layer.
 - The reference file coordinator remains the local multi-process implementation; it must not be promoted to a distributed/ACID guarantee.
 - Platform-specific locking differences must be fixed in the adapter rather than weakening the regression gate.
