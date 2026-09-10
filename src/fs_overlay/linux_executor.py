@@ -51,6 +51,8 @@ class LinuxNamespaceExecutor:
         if timeout <= 0:
             raise ValueError("timeout must be positive")
         policy = policy or LinuxExecutionPolicy()
+        backend_name = ""
+        workspace_execution = False
 
         if policy.filesystem == "workspace-only":
             if policy.network not in {"host", "deny"}:
@@ -65,11 +67,14 @@ class LinuxNamespaceExecutor:
                 )
             except (RuntimeError, ValueError) as exc:
                 return ProcessResult("rejected", None, "", str(exc))
+            backend_name = getattr(self.workspace_backend, "name", "bubblewrap-workspace")
+            workspace_execution = backend_name == "bubblewrap-workspace"
         elif policy.filesystem == "host" and policy.network == "host":
             try:
                 wrapped = self.backend.wrap(argv)
             except (RuntimeError, ValueError) as exc:
                 return ProcessResult("rejected", None, "", str(exc))
+            backend_name = getattr(self.backend, "name", "linux-namespaces")
         else:
             return ProcessResult(
                 "rejected", None, "", "requested filesystem/network policy is not enforced by this backend"
@@ -92,10 +97,25 @@ class LinuxNamespaceExecutor:
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            return ProcessResult("timed_out", None, exc.stdout or "", exc.stderr or "", True)
+            return ProcessResult(
+                "timed_out", None, exc.stdout or "", exc.stderr or "", True,
+                backend=backend_name,
+            )
+
+        evidence: tuple[str, ...] = ()
+        status = "succeeded" if completed.returncode == 0 else "failed"
+        if workspace_execution and completed.returncode not in self.workspace_backend.boundary_check_exit_codes:
+            if completed.returncode == 0:
+                evidence = ("workspace:boundary-observed",)
+        elif workspace_execution and completed.returncode in self.workspace_backend.boundary_check_exit_codes:
+            status = "failed"
+            evidence = ()
+
         return ProcessResult(
-            "succeeded" if completed.returncode == 0 else "failed",
+            status,
             completed.returncode,
             completed.stdout,
             completed.stderr,
+            backend=backend_name,
+            execution_evidence=evidence,
         )
