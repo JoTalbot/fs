@@ -6,20 +6,20 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `e52232a9aaf340475f13295cdb29f19f2404e970`
+- Latest implementation commit: `b186b3b6b48f79e7def64e7b0902f846b8b9641f`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
-**Cross-platform execution backend contracts**
+**Cross-platform execution backend contracts / FreeBSD helper boundary**
 
-Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS now has a signed/entitled helper admission boundary and CI coverage. FreeBSD now has a native Capsicum capability-mode adapter with kernel read-back and an isolated native child-process test path, while generic supervisor integration remains deliberately deferred until a dedicated helper boundary exists.
+Linux has the evidence-backed reference runtime. Windows has a native Job Object resource backend with per-execution handles, native limits and read-back verification, plus a real Windows-only kernel round-trip test. macOS has a signed/entitled helper admission boundary and CI coverage. FreeBSD now has a native Capsicum capability-mode adapter, kernel read-back, an isolated child-process test, and a native C helper design that opens the target before `cap_enter()`, limits its executable descriptor, verifies capability mode, then uses `fexecve()`.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | FreeBSD native validation | `.cirrus.yml`, FreeBSD Capsicum test path | `03cbccd0ac93c56ee9c9fddc49b3d0d802e89385` | native CI configuration added; execution not yet observed | Enable/observe the Cirrus CI FreeBSD task on a real FreeBSD VM; do not claim native validation until the task is green |
+| current-agent | ChatGPT | FreeBSD execution boundary | `native/freebsd/capsicum_exec.c`, `tests/test_freebsd_capsicum.py`, `.cirrus.yml` | `e52232a9aaf340475f13295cdb29f19f2404e970` | helper implemented; native execution still unobserved | Run/observe the real FreeBSD task, then integrate the helper into a platform-specific supervisor adapter only after native evidence is green |
 
 ## Completed in this batch
 
@@ -30,21 +30,24 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 - Added versioned macOS and FreeBSD backend contracts and explicit evidence markers.
 - Added cross-platform tests for macOS and FreeBSD fail-closed behavior and macOS artifact admission.
 - Expanded CI from Ubuntu/Windows to Ubuntu/Windows/macOS across Python 3.11/3.12/3.13.
-- Added `.cirrus.yml` targeting a real FreeBSD 14.3 VM for the native Capsicum child-process test.
-- Updated execution runtime documentation to distinguish macOS artifact admission from actual sandboxed execution and to keep Capsicum separate from Linux network namespaces.
+- Added `.cirrus.yml` targeting a real FreeBSD 14.3 VM for native Capsicum testing.
+- Added `native/freebsd/capsicum_exec.c`: a minimal native helper that resolves the target before entering capability mode, restricts the target descriptor to `CAP_READ` + `CAP_FEXECVE`, verifies kernel capability mode, and replaces itself with the target via `fexecve()`.
+- Extended the FreeBSD native test to compile the helper with `-Wall -Wextra -Werror` and execute `/bin/echo` through the helper, checking both workload output and helper evidence markers.
 
 ## Research / decision evidence
 
-- FreeBSD `cap_enter(2)` documentation: `cap_enter()` enters capability mode in the calling process, `cap_getmode()` provides kernel state read-back, and descendants inherit capability mode. Effective sandboxes also require deliberate rights preparation.
-- Cirrus CI FreeBSD VM documentation: `freebsd_instance` supports managed FreeBSD VMs, including FreeBSD 14.3 images, and FreeBSD is supported for open-source projects.
-- FreeBSD Handbook/package research: Python is available through the package system, including the `python311` package family used by the native task.
-- Agent Skills research found only generic Agent Skills authoring/testing skills; none materially fit FreeBSD kernel execution, so local `fs-agent-core` remains authoritative.
+- FreeBSD `cap_enter(2)`: capability mode applies to the calling process and descendants; `cap_getmode()` provides kernel state read-back; effective sandboxes require deliberate capability-right preparation. citeturn0search1
+- FreeBSD `cap_rights_limit(2)` and rights documentation: capability rights can only be reduced; `CAP_FEXECVE` permits `fexecve()` and requires `CAP_READ`. citeturn0search3turn2search1
+- FreeBSD `fexecve(2)`: execution can be driven from an already-open executable descriptor rather than resolving a path after entering the sandbox. citeturn1search10
+- FreeBSD documentation explicitly recommends `fexecve()` when constructing a carefully controlled runtime environment because inherited rights must be considered. citeturn0search1
+- Skill discovery found no external skill materially applicable to this FreeBSD kernel-boundary implementation; local `fs-agent-core` remains authoritative.
 
 ## Validation
 
 - CI #120 `34451098521`: PASS on Ubuntu 3.11/3.12/3.13, Windows 3.11/3.12/3.13 and macOS 3.11/3.12/3.13.
 - `.cirrus.yml` was committed successfully as `e52232a9aaf340475f13295cdb29f19f2404e970`.
-- The Cirrus FreeBSD task has **not** been observed running yet, so no FreeBSD native kernel result is claimed.
+- Native helper source and test commits succeeded: `ed7f92392df17d6162747e58e48b77e375b9fbf2` and `b186b3b6b48f79e7def64e7b0902f846b8b9641f`.
+- No FreeBSD kernel execution result is claimed yet. GitHub workflow lookup for `b186b3b6b48f79e7def64e7b0902f846b8b9641f` returned no GitHub Actions workflow runs; the native task is hosted by Cirrus and must be observed there.
 
 ## Safety constraints
 
@@ -55,6 +58,7 @@ Linux has the evidence-backed reference runtime. Windows has a native Job Object
 - macOS must use a signed/entitled runtime boundary; do not substitute undocumented generic sandbox commands.
 - macOS helper artifact validation is not execution evidence until a signed sandbox host launches the helper.
 - Capsicum evidence must be produced by the workload process; never enter capability mode in the supervisor parent as a substitute.
+- FreeBSD target resolution must occur before `cap_enter()`; use a pre-opened descriptor and `fexecve()` rather than resolving the target path after entering capability mode.
 - Never introduce privilege escalation or user namespaces as a portability workaround.
 - Do not emulate FreeBSD with a Linux/macOS platform override to manufacture native-kernel evidence.
 
