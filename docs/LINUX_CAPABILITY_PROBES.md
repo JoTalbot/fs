@@ -31,23 +31,38 @@ calling process itself is not moved into a new PID namespace by `unshare(2)`.
 ## Workspace boundary evidence
 
 `fs_overlay.workspace_boundary.probe_workspace_boundary()` is a separate,
-stronger disposable probe. When the explicitly installed `bubblewrap` backend
-is available, it creates a temporary workspace containing a sentinel, exposes
-that workspace at `/workspace`, and verifies from inside the sandbox that the
-workspace sentinel is visible while an unbound host-root path is absent.
+disposable capability probe. When the explicitly installed `bubblewrap`
+backend is available, it creates a temporary workspace containing a sentinel,
+exposes that workspace at `/workspace`, and verifies from inside the sandbox
+that the workspace sentinel is visible while an unbound host-root path is
+absent.
+
+The concrete `BubblewrapWorkspaceBackend` is the execution path used for an
+admitted `workspace-only` workload. The actual workload is wrapped with the
+same boundary checks before and after execution, so the transaction verifier
+can distinguish execution-scoped evidence from a separate disposable probe.
+The result records the backend identity and exact observation markers.
+
+For `network=deny`, the concrete Bubblewrap execution additionally compares
+the sandbox `/proc/self/ns/net` identity with the parent's network namespace
+identity before and after the workload. A successful exit without this
+observation is not accepted as network-isolation evidence. `network=host`
+does not emit a network-isolation marker.
+
+Workspace write semantics are explicit: a read-only workspace uses
+`--ro-bind`, while a writable admitted workspace uses `--bind`. The evidence
+still proves only the declared workspace visibility boundary, not arbitrary
+content integrity or resource isolation.
 
 Bubblewrap is used as an explicit backend, not as an implicit privilege
-escalation or user-namespace fallback. If the backend is unavailable or the
-kernel rejects its setup, the probe fails closed. Bubblewrap's documented
-model creates a new filesystem namespace and can bind selected host paths
-into it.
+escalation or fallback. The backend requires Bubblewrap >= 0.12.0 because
+versions before 0.12.0 have a published sandbox-setup symlink traversal
+vulnerability. If the backend is unavailable or setup fails, admission fails
+closed.
 
-This probe is evidence for the exact property it tests. It does not by itself
-prove device isolation, cgroup enforcement, resource limits, or a stronger
-security boundary than the tested filesystem visibility. It is also not yet
-wired to the `workspace-binding-admitted` guarantee; that mapping must wait
-until the concrete execution backend actually uses the same boundary and
-passes this evidence through the transaction gate.
+These probes and execution checks do not prove device isolation, cgroup
+enforcement, resource limits, or a stronger security boundary than the tested
+property. `workspace-binding-admitted` remains an admission fact rather than
+runtime evidence. Unknown or unavailable guarantees remain fail-closed.
 
-All probes avoid persistent host changes. Unknown or unavailable guarantees
-remain fail-closed.
+All disposable probes avoid persistent host changes.
