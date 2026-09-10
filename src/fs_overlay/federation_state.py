@@ -34,7 +34,9 @@ class DurableFederationState:
     instance. Multi-process writers require a deployment-specific
     ``AdmissionCoordinator`` or transactional storage implementation. The
     coordinator, when supplied, covers both the admission decision and the
-    journal write.
+    journal write. Before making a coordinated admission decision, the local
+    state and event-log sequence are refreshed from the durable journal so a
+    long-lived process cannot decide from a stale high-water mark.
     """
 
     RESOURCE_ID = "federation-events"
@@ -45,7 +47,7 @@ class DurableFederationState:
         self.seen_message_ids: set[str] = set()
         self._lock = threading.RLock()
         self._coordinator = coordinator
-        self._replay()
+        self._reload_state()
 
     def _replay(self) -> None:
         for event in self.events.replay():
@@ -67,6 +69,12 @@ class DurableFederationState:
             self.last_sequence[sender] = sequence
             self.seen_message_ids.add(message_id)
 
+    def _reload_state(self) -> None:
+        """Rebuild admission indexes from the current durable journal contents."""
+        self.last_sequence.clear()
+        self.seen_message_ids.clear()
+        self._replay()
+
     def accept(self, envelope: FederationEnvelope) -> bool:
         """Durably admit an envelope after external authentication/admission."""
         with self._lock:
@@ -76,6 +84,9 @@ class DurableFederationState:
                 else nullcontext()
             )
             with coordination:
+                if self._coordinator is not None:
+                    self.events.reload()
+                    self._reload_state()
                 if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
                     return False
                 if envelope.message_id in self.seen_message_ids:
