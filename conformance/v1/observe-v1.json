@@ -1,0 +1,22 @@
+{
+  "protocol_version": 1,
+  "vector_id": "observe-v1",
+  "envelope": {
+    "sender_node": "node-a",
+    "message_id": "msg-1",
+    "message_type": "OBSERVE",
+    "sequence": 1,
+    "issued_ns": 1000000000,
+    "payload": {
+      "object": "x"
+    }
+  },
+  "canonicalization": {
+    "format": "json",
+    "sort_keys": true,
+    "separators": [",", ":"],
+    "ensure_ascii": false,
+    "signature_included": false
+  },
+  "expected_sha256": "28658d631d54184b12983de242bc1ab37f5d2002756b382f995b3a0606799404"
+}
