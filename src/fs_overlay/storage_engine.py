@@ -19,6 +19,20 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
+def _fsync_directory(directory: str | Path) -> None:
+    """Persist directory-entry changes where the platform exposes that contract."""
+    if os.name == "nt":
+        # Windows does not expose the POSIX directory-fsync contract through the
+        # same file-descriptor API. File contents are still fsynced before replace.
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(Path(directory), flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 @dataclass(frozen=True)
 class Manifest:
     object_id: str
@@ -142,6 +156,7 @@ class ContentAddressedStore:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, target)
+            _fsync_directory(target.parent)
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
@@ -165,6 +180,7 @@ class ContentAddressedStore:
                     handle.flush()
                     os.fsync(handle.fileno())
                 os.replace(temporary, target)
+                _fsync_directory(self.manifests)
             finally:
                 if os.path.exists(temporary):
                     os.unlink(temporary)
@@ -174,8 +190,12 @@ class ContentAddressedStore:
         return Manifest.from_bytes((self.manifests / object_id).read_bytes())
 
 
+class JournalCorruption(ValueError):
+    """A journal frame is complete enough to prove corruption, not truncation."""
+
+
 class AppendJournal:
-    """Length-prefixed JSON journal; malformed/truncated tail records are ignored on replay."""
+    """Length-prefixed JSON journal; only an incomplete EOF tail is ignored on replay."""
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,18 +213,30 @@ class AppendJournal:
         if not self.path.exists():
             return
         with self.path.open("rb") as handle:
-            for line in handle:
+            while True:
+                line = handle.readline()
+                if not line:
+                    return
                 if len(line) < 17:
-                    continue
+                    if handle.peek(1):
+                        raise JournalCorruption("journal contains a malformed non-tail frame")
+                    return
                 try:
-                    size, body = int(line[:16], 16), line[16:-1]
-                    if len(body) != size:
-                        continue
+                    size = int(line[:16], 16)
+                except ValueError as exc:
+                    raise JournalCorruption("journal frame length is malformed") from exc
+                body = line[16:-1]
+                if len(body) != size:
+                    if handle.peek(1):
+                        raise JournalCorruption("journal frame is truncated before later records")
+                    return
+                try:
                     record = json.loads(body)
-                    if record.get("version") == FORMAT_VERSION:
-                        yield record
-                except (ValueError, json.JSONDecodeError):
-                    continue
+                except json.JSONDecodeError as exc:
+                    raise JournalCorruption("journal contains malformed JSON") from exc
+                if not isinstance(record, dict) or record.get("version") != FORMAT_VERSION:
+                    raise JournalCorruption("journal record is invalid")
+                yield record
 
 
 class Inventory:
