@@ -54,6 +54,10 @@
 - [x] FS World State Model
 - [x] FS Unified Control Loop
 - [x] FS Executable World Model
+- [x] FS Computation Model
+- [x] FS Plan DAG
+- [x] FS Universal State Transition Machine
+- [x] FS Intermediate Representation
 
 ## Phase 1 - local reference engine
 
@@ -80,6 +84,10 @@
 - [ ] decision record primitives
 - [ ] world-state snapshot primitives
 - [ ] unified control-loop primitives
+- [ ] computation/transition primitives
+- [ ] Plan DAG representation
+- [ ] universal state transition primitives
+- [ ] FS-IR schema and validation
 
 ## Phase 2 - cross-platform runtime
 
@@ -100,6 +108,7 @@
 - [ ] monotonic/logical time adapter
 - [ ] semantic ABI adapters
 - [ ] semantic verification adapters
+- [ ] FS-IR backend lowering
 
 ## Phase 3 - managed workspaces
 
@@ -142,6 +151,9 @@
 - [ ] authority enforcement
 - [ ] policy-compiled execution constraints
 - [ ] decision-gated execution planning
+- [ ] transition precondition/postcondition enforcement
+- [ ] idempotent operation semantics
+- [ ] plan execution coordinator
 
 ## Phase 5 - resilience
 
@@ -162,6 +174,8 @@
 - [ ] provenance-aware recovery
 - [ ] dependency-aware recovery ordering
 - [ ] world-state recovery checkpoints
+- [ ] transition-level compensation
+- [ ] plan-level recovery
 
 ## Phase 6 - isolation platform
 
@@ -215,6 +229,9 @@
 - [ ] world-state coordinator
 - [ ] unified control-loop coordinator
 - [ ] executable world coordinator
+- [ ] computation planner
+- [ ] Plan DAG compiler
+- [ ] FS-IR compiler/lowering pipeline
 
 ## Phase 8 - federation and resource mesh
 
@@ -246,6 +263,8 @@
 - [ ] dependency-aware federation planning
 - [ ] federated knowledge exchange
 - [ ] federated decision provenance
+- [ ] distributed Plan DAG execution
+- [ ] cross-node semantic verification
 
 ## Phase 9 - autonomous optimization
 
@@ -299,6 +318,9 @@
 - [ ] policy compilation simulation
 - [ ] learned-plan shadow evaluation
 - [ ] complete control-loop simulation
+- [ ] Plan DAG simulation
+- [ ] state-transition replay
+- [ ] FS-IR simulation
 
 ## Phase 11 - production
 
@@ -331,6 +353,10 @@
 - [ ] world-state replay tests
 - [ ] control-loop invariant tests
 - [ ] executable-world conformance tests
+- [ ] computation model conformance tests
+- [ ] Plan DAG correctness tests
+- [ ] transition-machine invariant tests
+- [ ] FS-IR compatibility tests
 
 ## Guiding rules
 
@@ -393,3 +419,8 @@
 57. The unified control loop is closed by observation and verification, not by assumption.
 58. A World is executable only when intent, planning, execution, observation, verification and recovery are connected by explicit semantics.
 59. Recursive control loops inherit constraints and cannot expand authority.
+60. Every executable transition has explicit preconditions, effects and postconditions.
+61. A plan is an intermediate artifact, not reality or authority.
+62. Backend lowering must preserve declared observable semantics or fail explicitly.
+63. Retried operations must declare idempotency semantics.
+64. State-changing events require the applicable verification boundary before becoming authoritative state.
