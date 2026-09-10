@@ -6,37 +6,46 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation commit: `bda2ced5d208194f90ec01208866ff699627f31d`
+- Latest implementation commit: `1d2065f1a9ffa0905c184fed2162c282bb51a8cc`
 - Updated: 2026-09-10
 
 ## Current architectural phase
 
 **Cross-platform execution backend contracts**
 
-Linux now has the evidence-backed reference runtime. This batch begins Windows/macOS/POSIX adapter work without claiming native enforcement until it has executable implementation and CI evidence.
+Linux has the evidence-backed reference runtime. Windows now has a native Job Object resource backend with per-execution handles, native limits and read-back verification. Capability negotiation and versioned backend contracts are present. macOS and BSD remain explicitly fail-closed until their native runtime mechanisms can provide equivalent execution evidence.
 
 ## Active work registry
 
 | Agent | Machine | Area | Claimed files | Base commit | Status | Next step |
 |---|---|---|---|---|---|---|
-| current-agent | ChatGPT | cross-platform adapters | Windows Job Object contract, capability negotiation, backend contract docs/tests | `620078fd9e740832df773221270947a4bb39fe36` | Windows contract added; native attachment not yet claimed | Add capability negotiation and implement only verifiable native backends |
+| current-agent | ChatGPT | cross-platform execution | Windows Job Object, capability negotiation, backend contract, runtime docs/status/log | `620078fd9e740832df773221270947a4bb39fe36` | implementation complete; CI #99 running | Validate final head, then proceed to signed macOS helper/runtime and BSD/Capsicum adapter design without false generic fallbacks |
 
 ## Completed in this batch
 
-- Added a Windows Job Object backend contract that is Windows-only and fail-closed.
-- Resource admission still requires an explicit active lease.
-- Unsupported disk enforcement remains explicit rather than approximated.
+- Implemented native Windows Job Object enforcement for CPU hard-cap, job memory and active-process limits.
+- Windows backend creates a per-execution Job Object, assigns the child process, queries limits back, retains the Job handle through execution, and releases it after completion.
+- Corrected Windows process handle rights to the rights required for Job Object assignment.
+- Unsupported disk limits and invalid budgets fail closed.
+- ProcessSupervisor now selects the native resource backend by platform and releases backend-owned resources after execution.
+- Added conservative platform capability negotiation.
+- Added versioned backend contracts for Bubblewrap, Linux cgroup v2 and Windows Job Objects.
+- Documented the macOS signed-runtime boundary and BSD native-adapter boundary without claiming generic POSIX isolation.
 
 ## Validation
 
-- CI #83 `34446330031`: PASS, Python 3.11/3.12/3.13 for the end-to-end runtime before this cross-platform batch.
-- New Windows contract has not yet been claimed as native enforcement. Cross-platform CI is required before marking it complete.
+- CI #92 `34446735409`: PASS, Python 3.11/3.12/3.13, Windows backend and supervisor changes.
+- CI #94 `34446749651`: FAILED because capability tests temporarily coupled Windows detection to a monkeypatched `os.name` on Linux; this was diagnosed and corrected in `e0bde8db01e4faeffa603a5bd46bbf837837617a`.
+- CI #97 `34446816202`: queued for versioned backend contract tests.
+- CI #98 `34446828655`: queued for cross-platform documentation/capability head.
+- CI #99 `34446853590`: in progress for final Windows handle-rights correction and current implementation head.
 
 ## Safety constraints
 
 - Never claim a native backend from an API wrapper alone.
 - Native resource limits require exact application/read-back evidence, matching the Linux cgroup contract.
 - Unsupported platforms and limits fail closed.
+- macOS must use a signed/entitled runtime boundary; do not substitute undocumented generic sandbox commands.
 - Never introduce privilege escalation or user namespaces as a portability workaround.
 
 ## Handoff rule
