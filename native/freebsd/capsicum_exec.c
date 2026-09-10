@@ -3,8 +3,9 @@
  *
  * The launcher opens the target before entering capability mode, reduces the
  * executable descriptor to the minimum rights needed for fexecve(), enters
- * capability mode, verifies kernel state with cap_getmode(), and finally
- * replaces itself with the target through fexecve().
+ * capability mode, verifies kernel state with cap_getmode(), proves that
+ * global filesystem lookup is blocked, and finally replaces itself with the
+ * target through fexecve().
  *
  * It intentionally accepts no shell command string and never expands
  * privileges. The target path is resolved before cap_enter(), after which
@@ -56,6 +57,18 @@ int main(int argc, char **argv, char **envp) {
 
     fprintf(stderr, "capsicum-capability-mode-entered\n");
     fprintf(stderr, "capsicum-capability-mode-verified\n");
+
+    errno = 0;
+    int blocked_fd = open("/etc/passwd", O_RDONLY);
+    if (blocked_fd >= 0) {
+        close(blocked_fd);
+        errno = 0;
+        return fail("global-namespace-not-blocked");
+    }
+    if (errno != ECAPMODE && errno != ENOTCAPABLE) {
+        return fail("unexpected-global-namespace-error");
+    }
+    fprintf(stderr, "capsicum-global-namespace-blocked\n");
 
     fexecve(fd, &argv[1], envp);
     return fail("fexecve");
