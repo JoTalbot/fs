@@ -27,7 +27,7 @@ def test_workspace_provider_rejects_generic_or_wrong_backend_evidence():
     evidence = default_evidence_provider(
         check,
         execution_result=type(
-            "Result", (), {"backend": "native-process", "execution_evidence": ("workspace:boundary-observed",)}
+            "Result", (), {"backend": "native-process", "execution_evidence": ("workspace-filesystem-boundary-observed",)}
         )(),
     )
     assert evidence is not None
@@ -39,10 +39,23 @@ def test_workspace_provider_accepts_exact_execution_evidence():
     result = type(
         "Result", (), {
             "backend": "bubblewrap-workspace",
-            "execution_evidence": ("workspace:boundary-observed",),
+            "execution_evidence": ("workspace-filesystem-boundary-observed",),
         }
     )()
     evidence = default_evidence_provider(check, execution_result=result)
     assert evidence is not None
     assert evidence.passed
     assert evidence.observed["backend"] == "bubblewrap-workspace"
+
+
+def test_network_provider_accepts_exact_bubblewrap_execution_evidence():
+    check = VerificationCheck("namespace:net", "network namespace")
+    result = type(
+        "Result", (), {
+            "backend": "bubblewrap-workspace",
+            "execution_evidence": ("network-namespace-observed",),
+        }
+    )()
+    evidence = default_evidence_provider(check, execution_result=result)
+    assert evidence is not None
+    assert evidence.passed
