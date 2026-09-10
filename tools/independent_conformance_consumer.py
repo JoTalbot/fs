@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Dependency-free consumer for published FS federation conformance vectors.
 
-This intentionally does not import fs_overlay. It verifies published data using
-only the declared protocol canonicalization rules and SHA-256.
+This intentionally does not import fs_overlay. It verifies published canonical
+vectors using only the declared serialization rules and SHA-256. Admission
+vectors have a dedicated semantic consumer and are skipped here.
 """
 from __future__ import annotations
 
@@ -47,6 +48,8 @@ def validate(path: Path) -> bool:
         raise ValueError(f"unsupported protocol version in {path.name}")
     if not isinstance(vector.get("vector_id"), str) or not vector["vector_id"]:
         raise ValueError(f"missing vector_id in {path.name}")
+    if vector.get("vector_type") == "admission":
+        return True
 
     actual = hashlib.sha256(canonical_envelope(vector)).hexdigest()
     expected = vector.get("expected_sha256")
@@ -61,8 +64,15 @@ def main() -> int:
         print("no conformance vectors found")
         return 2
     failed = []
+    canonical_count = 0
+    admission_count = 0
     for path in paths:
         try:
+            vector = json.loads(path.read_text(encoding="utf-8"))
+            if vector.get("vector_type") == "admission":
+                admission_count += 1
+            else:
+                canonical_count += 1
             if not validate(path):
                 failed.append(path.name)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -71,7 +81,7 @@ def main() -> int:
     if failed:
         print(f"FAIL: {', '.join(failed)}")
         return 1
-    print(f"PASS: {len(paths)} vector(s)")
+    print(f"PASS: {canonical_count} canonical vector(s), {admission_count} admission vector(s) delegated")
     return 0
 
 
