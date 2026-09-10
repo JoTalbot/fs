@@ -23,6 +23,7 @@ class ProcessResult:
     timed_out: bool = False
     backend: str = "native-process"
     execution_evidence: tuple[str, ...] = ()
+    resource_lease_id: str | None = None
 
 
 class NativeProcessAdapter:
