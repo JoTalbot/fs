@@ -1,6 +1,7 @@
 import concurrent.futures
 import multiprocessing
 from contextlib import nullcontext
+import os
 
 from fs_overlay.durable_coordination import FileAdmissionCoordinator
 from fs_overlay.federation_protocol import FederationEnvelope
@@ -174,3 +175,39 @@ def test_ambiguous_journal_write_is_resolved_from_durable_state(tmp_path) -> Non
     assert restored.snapshot().seen_message_ids == frozenset({"ambiguous"})
     assert not restored.accept(message(1, "retry"))
     assert restored.accept(message(2, "retry"))
+
+
+def _crash_after_coordinated_append(path: str, locks: str, ready: multiprocessing.Event) -> None:
+    state = DurableFederationState(path, coordinator=FileAdmissionCoordinator(locks, timeout=5))
+    with state._coordinator.acquire(state.RESOURCE_ID):
+        state.events.emit(
+            "federation.accepted",
+            details={
+                "sender_node": "node-a",
+                "message_id": "crash-ambiguous",
+                "message_type": "OBSERVE",
+                "sequence": 1,
+                "digest": message(1, "crash-ambiguous").digest(),
+            },
+        )
+        ready.set()
+        os._exit(23)
+
+
+def test_coordinated_admission_recovers_after_process_crash(tmp_path) -> None:
+    """A crash after durable append leaves the journal authoritative and releases the lock."""
+    state_path = str(tmp_path / "events.journal")
+    locks_path = str(tmp_path / "locks")
+    ctx = multiprocessing.get_context("spawn")
+    ready = ctx.Event()
+    process = ctx.Process(target=_crash_after_coordinated_append, args=(state_path, locks_path, ready))
+    process.start()
+    assert ready.wait(5)
+    process.join(timeout=5)
+    assert process.exitcode == 23
+
+    restored = DurableFederationState(state_path, coordinator=FileAdmissionCoordinator(locks_path, timeout=1))
+    assert restored.snapshot().last_sequence == {"node-a": 1}
+    assert restored.snapshot().seen_message_ids == frozenset({"crash-ambiguous"})
+    assert not restored.accept(message(1, "retry-after-crash"))
+    assert restored.accept(message(2, "next-after-crash"))
