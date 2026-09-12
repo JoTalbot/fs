@@ -7,7 +7,20 @@
 - Repository: `JoTalbot/fs`
 - Branch: `main`
 - Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
-- Updated: 2026-09-10
+- Updated: 2026-09-12
+
+## Current V1 position
+
+The reference V1 qualification program is substantially complete. The latest release-gate evidence has all semantic/protocol checklist items green. V1 is **not** declared production-ready because deployment-specific security providers still require concrete qualification evidence, including a real audited AEAD implementation, secure key storage, and authenticated/encrypted transport.
+
+Latest validation commits/runs:
+
+- `b39b19ea562e9eb5ffd5332424c8e6ce2408df09`: fixed the signed two-node recovery fixture.
+- CI run #311: 9/9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs green.
+- `6b73c998749996f6230daa3d9f55e3d523f88c95`: added semantic qualification for the `AuthenticatedEncryption` provider boundary.
+- `ed1d6d4844db5aaa49e39208144f13c20ca451ac`: defined the production cryptography qualification gate; CI run #313 green.
+- `58794593c76017117a29ce8d5b8729cfd71d0d2e`: updated V1 release-gate evidence; CI run #314 green.
+- `d1624ec8dd97af19abf0c48abcf21fdfc0e27e15`: added `docs/PRODUCTION_SECURITY_QUALIFICATION.md` defining the concrete production-provider evidence record.
 
 ## Completed federation/control-plane foundation
 
@@ -16,41 +29,38 @@
 - Monotonic `FederationDirectory` observations and deterministic reconciliation planning.
 - Canonical `FederationEnvelope` with SHA-256 digest, signature boundary, replay protection, and deterministic byte serialization.
 - Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
-- Durable replay reconstruction now fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
+- Durable replay reconstruction fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
 - `DurableFederationState` accepts an injected admission coordinator and holds it across validation, journal emission, and state mutation.
-- Coordinated admissions refresh both the durable state indexes and `EventLog` sequence/hash state while holding the coordinator, preventing long-lived multi-process writers from making decisions from stale high-water marks or emitting duplicate event sequences.
+- Coordinated admissions refresh durable state indexes and `EventLog` sequence/hash state while holding the coordinator.
 - `EventLog.reload()` provides an explicit refresh boundary for processes that coordinate externally before emitting new journal records.
-- `FileAdmissionCoordinator` provides an explicit local cross-process coordination adapter using OS file locks, with deterministic resource paths, bounded acquisition timeout, retained lock files, and no stale-lock stealing.
-- Crash semantics are covered: the adapter relies on the operating system to release a held lock when the owning process exits; it never deletes or steals a supposedly stale lock.
-- All production adapter protocols are runtime-checkable for structural conformance.
-- `FederationAuditTrail` linking reconciliation decisions to replica execution results through causal event chains.
-- Verified `ReplicaExecutor` with source and post-copy target integrity checks.
-- Deterministic `SelfHealingPlanner` from explicit trusted/healthy observations.
-- Failure-domain-aware `ReplicaPolicy` with deterministic candidate ordering.
+- `FileAdmissionCoordinator` provides local cross-process coordination using OS file locks, bounded acquisition timeout, retained lock files, and no stale-lock stealing.
+- Crash semantics rely on OS lock release; the adapter never deletes or steals a supposedly stale lock.
+- Production adapter protocols are runtime-checkable for structural conformance.
+- `FederationAuditTrail` links reconciliation decisions to replica execution results through causal event chains.
+- Verified `ReplicaExecutor` performs source and post-copy target integrity checks.
+- Deterministic `SelfHealingPlanner` uses explicit trusted/healthy observations.
+- Failure-domain-aware `ReplicaPolicy` has deterministic candidate ordering.
 - Transport, signing, and key-provider dependency-injection contracts.
 - Deterministic capability negotiation with protocol-version fail-closed behavior.
 - Explicit key lifecycle model for active, retired, and revoked keys, including fail-closed duplicate-ID and silent-fingerprint-change checks.
 - Versioned federation conformance vectors and envelope round-trip tests.
-- `MinimalInitiator` that requires explicit bootstrap configuration and injected key/signing/transport capabilities, and sends the complete signed envelope without peer discovery.
+- `MinimalInitiator` requires explicit bootstrap configuration and injected key/signing/transport capabilities and sends the complete signed envelope without peer discovery.
 - Cross-platform capability discovery remains conservative and host-local.
 - Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
 - Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
-- Versioned interoperability boundary documentation and fail-closed strict conformance validation for published vectors.
-- Published protocol-v1 conformance vectors are consumable as standalone JSON data under `conformance/v1/`, including a UTF-8/non-ASCII payload vector.
-- Added dependency-free independent conformance consumer under `tools/`, deliberately avoiding `fs_overlay` imports.
-- Independent consumer validates the declared protocol version and canonicalization contract instead of silently hard-coding assumptions from vector metadata.
-- Published protocol-v1 admission-negative vector set now defines ten required fail-closed cases: malformed envelope; unsupported protocol; negative sequence; empty ID; duplicate ID; sequence rollback; stale/future timestamps; missing signature; and key-admission failure covering unknown/revoked/fingerprint mismatch.
-- Added dependency-free independent admission validator that checks the ten-case negative contract without importing `fs_overlay`.
-- CI executes both independent conformance validators before the internal pytest suite on the full Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 matrix.
-- CI run #268 completed successfully across all 9 matrix jobs, validating the corrected ten-case admission contract.
-- Added `docs/ADMISSION_CONFORMANCE.md` to make the independent admission boundary, required negative cases, adapter obligations, and fail-closed rule explicit.
-- Added adapter-specific contract conformance tests covering secure key storage, authenticated transport, node admission, key lifecycle admission, and durable coordinator context release.
-- Added `docs/ADAPTER_CONFORMANCE.md` defining the production-adapter qualification boundary and required fail-closed semantics without claiming test doubles provide production security.
-- Added a reusable `run_adapter_conformance()` qualification harness with injected adapter factories, stable check IDs, and explicit separation between semantic contract checks and production security certification.
-- Added fail-open regression tests proving the reusable harness rejects permissive key storage and unauthenticated transport implementations.
-- The concrete `FileAdmissionCoordinator` is exercised through the same reusable qualification harness, so the local durable-coordination adapter is checked against the shared contract rather than only bespoke tests.
-- Added ambiguous durable-admission recovery coverage: a simulated post-append acknowledgement failure leaves the in-memory state uncommitted, while a fresh state reconstructs the persisted acceptance from the journal and rejects a sequence-equivalent retry.
-- Isolated the permissive key-store regression so it reaches the intended empty-key-material contract check instead of failing earlier on empty key ID validation.
+- Versioned interoperability boundary documentation and strict conformance validation for published vectors.
+- Published protocol-v1 conformance vectors are consumable as standalone JSON data under `conformance/v1/`.
+- Dependency-free independent conformance and admission validators deliberately avoid `fs_overlay` imports.
+- CI executes both independent validators before the internal pytest suite on the full supported matrix.
+- Adapter-specific qualification tests cover positive and negative capability cases.
+- Ambiguous durable-admission recovery is executable across process crash/restart.
+- Canonical serialization/replay properties are qualified.
+- Recovery graph rejects cycles and produces deterministic plans.
+- Carrier changes enter quarantine rather than silent overwrite.
+- Compatibility/version policy is documented and tested fail-closed.
+- Minimal federation E2E lifecycle and deterministic two-node recovery are reproducible from tests.
+- `AuthenticatedEncryption` now has semantic provider-boundary qualification tests; these intentionally do not certify cryptographic strength.
+- `docs/PRODUCTION_SECURITY_QUALIFICATION.md` records the required evidence for real production AEAD, secure key storage, and authenticated/encrypted transport providers.
 
 ## Safety boundaries
 
@@ -60,47 +70,34 @@ The durable federation state lock serializes concurrent threads within one proce
 
 `FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and validated by the CI matrix.
 
-Coordinated writers refresh durable admission indexes and journal sequence/hash state after acquiring the lock. This closes the stale-reader gap without claiming cross-store ACID atomicity.
-
 If a durable append outcome is ambiguous, the current in-memory process must not guess. Recovery must reconstruct authoritative admission state from durable storage before retrying or treating the message as newly admitted.
 
 ## Validation
 
-- GitHub Actions CI run #217 (`5fe36cea`) completed successfully across all 9 matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- Run #233 exposed a real synchronization flaw in the crash test: `multiprocessing.Queue` could lose its notification when the child called `os._exit()`. The test was corrected to use a process-shared `Event`.
-- Run #233 also showed the suite reached 186 passed / 3 skipped with only that test failing on the then-current commit; the failure was test synchronization, not the coordinator implementation.
-- GitHub Actions CI run #242 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- GitHub Actions CI run #244 completed successfully across all 9 OS/Python matrix jobs for Python 3.11, 3.12 and 3.13 on Ubuntu, Windows and macOS.
-- GitHub Actions CI run #248 completed successfully after strict conformance regression coverage.
-- GitHub Actions CI run #249 completed successfully after the interoperability boundary documentation update.
-- CI run #252 completed successfully across all 9 OS/Python matrix jobs, including the independent conformance consumer.
-- CI run #255 completed successfully across all 9 OS/Python matrix jobs, including the UTF-8 vector.
-- CI run #256 completed successfully across all 9 OS/Python matrix jobs, including the hardened consumer and UTF-8 vector.
-- CI run #262 exposed a contract-integration defect: the newly added admission vector was discovered by the canonical consumer, which expected `vector_id` and canonical envelope fields. The vector was made self-describing and the canonical consumer now delegates `vector_type=admission` to the dedicated semantic validator.
-- The admission vector/validator were then aligned to the intended ten-case contract, and interoperability documentation was corrected accordingly.
-- CI run #268 completed successfully across all 9 jobs after those corrections.
-- CI run #273 failed across all 9 jobs because four new adapter conformance tests called `isinstance()` on four non-`@runtime_checkable` protocols. Independent conformance validators still passed, and the existing suite reached 196 passed / 3 skipped before those four assertion failures.
-- The defect was fixed by marking `SecureKeyStore`, `AuthenticatedTransport`, `NodeAdmission`, and `KeyAdmission` as `@runtime_checkable`, matching the already-runtime-checkable coordinator contract.
-- CI run #274 completed successfully across all 9 OS/Python matrix jobs on the protocol fix commit.
-- CI run #275 completed successfully across all 9 OS/Python matrix jobs after the status update, confirming the adapter contract fix remains green on the current `main` history.
-- The reusable qualification harness and its memory-double integration were added after run #275; CI run #279 completed successfully across all 9 jobs before the latest qualification/recovery commits.
-- Commit `e7b43d46e83aff8b5c6e1cf3280e7a04faa4ebaf` added concrete `FileAdmissionCoordinator` qualification; fresh CI validation is pending.
-- Commit `cb5727f49d00bc573818faf698ac7c87ce5307b9` added ambiguous journal-write recovery coverage; fresh CI validation is pending.
-- Commit `5fce6a3c9d1ed29424535c9af510f192a3ee9a85` documented the ambiguous-outcome recovery rule; fresh CI validation is pending.
-- Commit `10d12a24b2a08a98c210748acca4669b1799b97d` strengthened reusable adapter fail-closed qualification checks, but CI run #286 failed across the 9 matrix jobs because the permissive key-store regression fixture itself violated the earlier empty-key-ID check before reaching the intended empty-key-material assertion.
-- Commit `93f5c45e058498abdeb711f8c9d4200e3b1179ff` corrected that regression fixture so empty key ID is still rejected while empty key material is accepted by the deliberately permissive double; fresh CI validation is pending.
-- Run #286 still passed both independent conformance validators before the single pytest failure, and the failure was identical across the matrix: 204 passed / 3 skipped on Ubuntu, with the targeted assertion message mismatch only.
-- Local pytest execution is not claimed because the current environment cannot resolve GitHub for repository cloning.
-- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from these reference primitives.
+- CI run #304 passed the full 9-job matrix for coordinated durable-admission crash recovery.
+- CI run #305 passed the full matrix for canonical serialization and replay invariant qualification.
+- CI run #311 passed all 9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, including independent federation and admission conformance before pytest.
+- CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
+- CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
+- All current supported jobs execute the independent conformance consumer, independent admission validator, and internal pytest suite successfully.
+- FreeBSD native CI remains intentionally disabled and outside the current release gate.
+- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
 ## Release-readiness boundary
 
-The codebase now has the reference architecture needed to implement platform-specific production adapters without changing the core protocol model. A production deployment still requires audited cryptographic algorithms/providers, authenticated and encrypted transport, secure key lifecycle storage, persistent/compacted replay state, multi-process/concurrency rules, failure-domain policy backed by authoritative observations, interoperability with an independent implementation, and operational recovery testing.
+The semantic V1 release gate is green except for the deliberate production confidentiality-provider checkbox. A production deployment still requires:
+
+1. a real audited AEAD provider selected and qualified for the exact deployment;
+2. secure key lifecycle storage with access control, rotation, revocation, backup/recovery and audit evidence;
+3. authenticated and encrypted transport with explicit certificate/trust/revocation policy where applicable;
+4. target-specific provider qualification and operational recovery evidence.
+
+The repository's HMAC integrity envelope and deterministic AEAD test double must never be presented as production confidentiality.
 
 ## Next phase
 
-- Verify the fresh full CI matrix for commit `93f5c45e058498abdeb711f8c9d4200e3b1179ff`.
-- Run the reusable qualification harness against each real production adapter as those adapters are introduced.
-- Expand conformance only where expected wire/semantic results can be specified independently of the reference implementation.
-- Keep `FileAdmissionCoordinator` explicitly local multi-process; stronger backends must define their own transaction, ordering, durability, and crash semantics.
-- Use the full CI matrix as the release gate for every adapter-contract change.
+- Select concrete production security providers per deployment target without changing the protocol contracts.
+- Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification.
+- Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
+- Keep the V1 gate blocked until those provider records exist.
+- After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
