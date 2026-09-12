@@ -80,11 +80,11 @@ def test_two_node_recovery_repairs_missing_replica_deterministically() -> None:
         NodeIdentity("node-b", "fp-b", 1, 1),
     )
     trust = TrustStore([TrustEntry("node-a", "fp-a", True), TrustEntry("node-b", "fp-b", True)])
-    directory = FederationDirectory(trust)
+    directory = FederationDirectory(trust, verifier=signer.verify)
     for index, identity in enumerate(identities, start=1):
         ad = NodeAdvertisement(identity, ("replication",), (f"carrier-{identity.node_id}",), index)
         signed = NodeAdvertisement(identity, ad.capabilities, ad.carrier_ids, ad.observed_ns,
-                                    signer.sign(ad.canonical_bytes()))
+                                   signer.sign(ad.canonical_bytes()))
         assert directory.observe(signed, now_ns=index)
 
     plan = FederationReconciler(directory).plan_repairs("object-1", present_on=("node-a",), desired_copies=2)
