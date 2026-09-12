@@ -59,13 +59,12 @@ def test_minimal_two_node_federation_round_trip_and_durable_admission(tmp_path) 
     )
     assert directory.observe(advertisement, now_ns=100) is True
 
-    unsigned = FederationEnvelope(
-        "node-a", "msg-1", "ADVERTISE", 1, 100,
-        {"protocol_version": 1, "capabilities": ["storage", "replication"]},
-    )
-    envelope = FederationEnvelope(*unsigned.__match_args__[:-1], signature=signer.sign(unsigned.unsigned_bytes()))
+    payload = {"protocol_version": 1, "capabilities": ["storage", "replication"]}
+    unsigned = FederationEnvelope("node-a", "msg-1", "ADVERTISE", 1, 100, payload)
+    envelope = FederationEnvelope("node-a", "msg-1", "ADVERTISE", 1, 100, payload,
+                                  signer.sign(unsigned.unsigned_bytes()))
     receiver = FederationReceiver(signer.verify)
-    assert receiver.receive(envelope, now_ns=100) == {"protocol_version": 1, "capabilities": ["storage", "replication"]}
+    assert receiver.receive(envelope, now_ns=100) == payload
 
     state_a = DurableFederationState(tmp_path / "node-a.log")
     state_b = DurableFederationState(tmp_path / "node-b.log")
@@ -89,7 +88,7 @@ def test_two_node_recovery_repairs_missing_replica_deterministically() -> None:
         assert directory.observe(signed, now_ns=index)
 
     plan = FederationReconciler(directory).plan_repairs("object-1", present_on=("node-a",), desired_copies=2)
-    assert plan == (plan[0],)
+    assert len(plan) == 1
     assert plan[0].source_node == "node-a"
     assert plan[0].target_node == "node-b"
     assert plan[0].action == "REPLICATE"
