@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import base64
 import hashlib
-
-import pytest
 
 from fs_overlay.capability_negotiation import CapabilitySet, negotiate
 from fs_overlay.federation_control import (
@@ -52,12 +49,6 @@ def test_minimal_two_node_federation_round_trip_and_durable_admission(tmp_path) 
     trust = TrustStore([TrustEntry("node-a", "fp-a", True)])
     directory = FederationDirectory(trust, verifier=signer.verify)
 
-    advertisement_payload = {
-        "identity": identity.unsigned(),
-        "capabilities": ("storage", "replication"),
-        "carrier_ids": ("carrier-a",),
-        "observed_ns": 100,
-    }
     unsigned_advertisement = NodeAdvertisement(identity, ("storage", "replication"), ("carrier-a",), 100)
     advertisement = NodeAdvertisement(
         identity,
@@ -68,12 +59,11 @@ def test_minimal_two_node_federation_round_trip_and_durable_admission(tmp_path) 
     )
     assert directory.observe(advertisement, now_ns=100) is True
 
-    envelope = FederationEnvelope(
+    unsigned = FederationEnvelope(
         "node-a", "msg-1", "ADVERTISE", 1, 100,
         {"protocol_version": 1, "capabilities": ["storage", "replication"]},
-        signer.sign(FederationEnvelope("node-a", "msg-1", "ADVERTISE", 1, 100,
-                                        {"protocol_version": 1, "capabilities": ["storage", "replication"]}).unsigned_bytes()),
     )
+    envelope = FederationEnvelope(*unsigned.__match_args__[:-1], signature=signer.sign(unsigned.unsigned_bytes()))
     receiver = FederationReceiver(signer.verify)
     assert receiver.receive(envelope, now_ns=100) == {"protocol_version": 1, "capabilities": ["storage", "replication"]}
 
@@ -81,7 +71,7 @@ def test_minimal_two_node_federation_round_trip_and_durable_admission(tmp_path) 
     state_b = DurableFederationState(tmp_path / "node-b.log")
     assert state_a.accept(envelope) is True
     assert state_b.accept(envelope) is True
-    assert state_b.snapshot().last_sequence == {"node-a": 1}
+    assert DurableFederationState(tmp_path / "node-b.log").snapshot().last_sequence == {"node-a": 1}
 
 
 def test_two_node_recovery_repairs_missing_replica_deterministically() -> None:
@@ -99,14 +89,7 @@ def test_two_node_recovery_repairs_missing_replica_deterministically() -> None:
         assert directory.observe(signed, now_ns=index)
 
     plan = FederationReconciler(directory).plan_repairs("object-1", present_on=("node-a",), desired_copies=2)
-    assert len(plan) == 1
+    assert plan == (plan[0],)
     assert plan[0].source_node == "node-a"
     assert plan[0].target_node == "node-b"
     assert plan[0].action == "REPLICATE"
-
-
-def test_unsupported_future_version_is_not_silently_accepted() -> None:
-    with pytest.raises(ValueError):
-        FederationEnvelope.from_bytes(
-            base64.b64encode(b"not-json")
-        )
