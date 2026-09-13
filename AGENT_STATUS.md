@@ -7,7 +7,7 @@
 - Repository: `JoTalbot/fs`
 - Branch: `main`
 - Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
-- Updated: 2026-09-12
+- Updated: 2026-09-14
 
 ## Current V1 position
 
@@ -21,6 +21,11 @@ Latest validation commits/runs:
 - `ed1d6d4844db5aaa49e39208144f13c20ca451ac`: defined the production cryptography qualification gate; CI run #313 green.
 - `58794593c76017117a29ce8d5b8729cfd71d0d2e`: updated V1 release-gate evidence; CI run #314 green.
 - `d1624ec8dd97af19abf0c48abcf21fdfc0e27e15`: added `docs/PRODUCTION_SECURITY_QUALIFICATION.md` defining the concrete production-provider evidence record.
+- `363870cde754a932727d9d188f77e59cc37c7e4b`: added the opt-in `CryptographyAESGCM` candidate adapter.
+- `f9ba3ef797100726fa8db65b4fba7accb471b687`: added semantic tests for the candidate AES-GCM adapter.
+- `acdef616833ecffb1ad3db300c44cb1888a146b6`: recorded that the AES-GCM adapter is candidate-only and not audited production evidence.
+- `68ba1fc080d25cbe303f8e3f735a5dd66bd60e93`: defined the production secure-key-storage provider plan.
+- `a59bbf0e1b87180e09509b1c2d51fa160b6bf24f`: added the production provider qualification runbook.
 
 ## Completed federation/control-plane foundation
 
@@ -79,7 +84,8 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - CI run #311 passed all 9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, including independent federation and admission conformance before pytest.
 - CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
 - CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
-- All current supported jobs execute the independent conformance consumer, independent admission validator, and internal pytest suite successfully.
+- Candidate AES-GCM provider tests were added after the last recorded generic CI run and are therefore **not represented as green CI evidence yet**.
+- All current supported jobs execute the independent conformance consumer, independent admission validator, and internal pytest suite successfully for the commits covered by those runs.
 - FreeBSD native CI remains intentionally disabled and outside the current release gate.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
@@ -92,12 +98,13 @@ The semantic V1 release gate is green except for the deliberate production confi
 3. authenticated and encrypted transport with explicit certificate/trust/revocation policy where applicable;
 4. target-specific provider qualification and operational recovery evidence.
 
-The repository's HMAC integrity envelope and deterministic AEAD test double must never be presented as production confidentiality.
+The repository's HMAC integrity envelope and deterministic AEAD test double must never be presented as production confidentiality. The `CryptographyAESGCM` adapter is a concrete candidate only and does not satisfy the audit requirement by itself.
 
 ## Next phase
 
-- Select concrete production security providers per deployment target without changing the protocol contracts.
-- Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification.
+- Wire the candidate AEAD dependency into a controlled qualification environment without changing the protocol contract.
+- Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification on the exact deployment artifact.
+- Select and qualify concrete secure key-storage and authenticated/encrypted transport providers per deployment target.
 - Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
 - Keep the V1 gate blocked until those provider records exist.
 - After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
