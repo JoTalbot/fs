@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `8a5a88643ef19d0eacef0320292a4dcbafb6442e`
+- Current commit: `89ce7491752719f8cca3a16954fd3a5451420ed4`
 - Updated: 2026-09-14
 
 ## Active step
@@ -14,19 +14,18 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - area: failure/recovery and deterministic multi-node federation qualification
-- claimed_files: `tests/test_federation_state.py`, `AGENT_STATUS.md`
-- goal: qualify deterministic two-node/three-node durable convergence and continue explicit journal/crash boundaries
-- status: multi-node fixture tests committed; CI #385 is running
-- decision: independent federation nodes must derive identical durable admission indexes from the same ordered envelope stream; replay/conflicting sequence state must fail closed
-- next_step: validate CI #385, fix any failures, then continue journal/crash qualification and reconciliation convergence tests
+- claimed_files: `tests/test_replication_policy.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: restore the replica-placement qualification gate, then continue journal/crash and node-loss recovery qualification
+- status: CI #389 exposed a regression-test expectation error; corrected on main and awaiting the new CI result
+- decision: known unhealthy present replicas do not satisfy healthy replica cardinality; unknown present nodes preserve the existing compatibility count; candidate ordering must be deterministic
+- next_step: validate the corrected test across the full matrix, then continue explicit journal/crash and reconciliation recovery boundaries
 
 ## Latest work
 
-- `8a5a88643ef19d0eacef0320292a4dcbafb6442e`: added deterministic two-node and three-node federation-state fixtures, restart convergence coverage, and fail-closed divergent/replayed stream tests.
-- CI #384 (`34855804838`) on `dea68c92d89a371c469471076a52cb188710194d`: **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider jobs. This validates the corrected deterministic replica-policy implementation.
-- CI #385 (`34856321995`) is running on `8a5a88643ef19d0eacef0320292a4dcbafb6442e`; no result is claimed until all jobs complete.
-- The prior replica-policy regression was diagnosed and corrected: unknown `present_on` entries retain the existing copy-count compatibility behavior, while known unhealthy replicas no longer satisfy desired healthy copies or reserve their failure domain.
-- CI #376 (`34855160140`) remains the recorded failed first attempt for that policy correction; later CI #383 validated the corrected semantics before the deterministic-selection cleanup, and #384 validates the current policy head.
+- `89ce7491752719f8cca3a16954fd3a5451420ed4`: corrected `test_policy_is_invariant_to_candidate_input_order`; the test now expects the policy's semantically correct three-target recovery when the known present node is unhealthy and verifies identical output for reversed input.
+- CI #389 (`34856529766`) exposed the test defect across all regular-platform jobs; crypto-provider jobs remained green. The failure was identical and deterministic, with `274/283` tests passing depending on platform and the single failing replica-policy assertion.
+- The preceding multi-node fixture implementation was `8a5a88643ef19d0eacef0320292a4dcbafb6442e`; CI #385 (`34856321995`) passed 18/18 before the later transaction-crash qualification commit.
+- CI #384 (`34855804838`) passed 18/18 for the corrected replica-policy implementation before multi-node fixture changes.
 
 ## Current V1 position
 
@@ -34,13 +33,9 @@ V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral ev
 
 FreeBSD native CI remains intentionally disabled and outside the release gate.
 
-## Reference production profile
-
-The reference target is Linux with AES-256-GCM through a vetted provider, an external versioned key service, active/retired/revoked lifecycle, mutual TLS, explicit trust anchors/revocation, peer identity binding, and fail-closed handling of authentication loss, invalid credentials, replay, downgrade, and endpoint confusion. This remains a reference target, not deployment evidence.
-
 ## Existing architecture boundary
 
-The completed foundation includes node identity/trust, signed capabilities, canonical federation envelopes, durable replay/admission state, cross-process coordination adapters, replica/self-healing primitives, deterministic negotiation, key lifecycle admission, conformance vectors/validators, MinimalInitiator, explicit production adapter contracts, EventLog recovery/concurrency qualification, transaction crash/recovery qualification, and failure-domain-aware replica recovery. Preserve fail-closed isolation, explicit authority, evidence-before-commit, and no secret material in repository state.
+The completed foundation includes node identity/trust, signed capabilities, canonical federation envelopes, durable replay/admission state, cross-process coordination adapters, replica/self-healing primitives, deterministic negotiation, key lifecycle admission, conformance vectors/validators, MinimalInitiator, explicit production adapter contracts, EventLog recovery/concurrency qualification, transaction crash/recovery qualification, failure-domain-aware replica recovery, and deterministic two-node/three-node federation-state fixtures. Preserve fail-closed isolation, explicit authority, evidence-before-commit, and no secret material in repository state.
 
 ## Release-readiness boundary
 
@@ -54,7 +49,7 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate CI #385 for deterministic multi-node federation fixtures.
+- Validate the corrected CI after `89ce7491752719f8cca3a16954fd3a5451420ed4`.
 - Continue Phase 2 with remaining explicit crash points and journal recovery boundaries.
 - Extend Phase 5 with deterministic reconciliation convergence and node-loss recovery where existing abstractions support it.
 - Preserve the distinction between process-local synchronization and cross-process durable coordination.
