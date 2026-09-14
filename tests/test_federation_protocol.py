@@ -1,3 +1,5 @@
+import concurrent.futures
+
 from fs_overlay.federation_protocol import FederationEnvelope, FederationReceiver, ReplayGuard
 
 
@@ -36,3 +38,15 @@ def test_receiver_rejects_invalid_signature() -> None:
     receiver = FederationReceiver(verifier, ReplayGuard())
     tampered = FederationEnvelope("node-a", "bad", "OBSERVE", 1, 1_000_000_000, {}, b"bad")
     assert receiver.receive(tampered, now_ns=1_000_000_001) is None
+
+
+def test_replay_guard_serializes_concurrent_duplicate_admission() -> None:
+    receiver = FederationReceiver(verifier, ReplayGuard())
+    envelope = signed()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(
+            lambda _: receiver.receive(envelope, now_ns=1_000_000_100),
+            range(16),
+        ))
+    assert results.count({"object": "x"}) == 1
+    assert results.count(None) == 15
