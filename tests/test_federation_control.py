@@ -101,6 +101,24 @@ def test_reconciler_drops_disabled_source_immediately():
     ) == ()
 
 
+def test_reconciler_drops_expired_source_at_read_time():
+    identities = [_identity("a"), _identity("b"), _identity("c")]
+    trust = TrustStore([
+        TrustEntry("a", "fp-a", True, expires_ns=10),
+        TrustEntry("b", "fp-b", True),
+        TrustEntry("c", "fp-c", True),
+    ])
+    directory = FederationDirectory(trust, _verifier)
+    for n in ("a", "b", "c"):
+        assert directory.observe(_ad(n, 1), now_ns=5)
+    assert [d.target_node for d in FederationReconciler(directory).plan_repairs(
+        "obj", present_on=("a",), desired_copies=2
+    )] == ["b"]
+    assert FederationReconciler(directory).plan_repairs(
+        "obj", present_on=("a",), desired_copies=2
+    ) == ()
+
+
 def test_minimal_bootstrap_is_atomic(tmp_path):
     config = MinimalBootstrap(tmp_path / "node.json").initialize(root=tmp_path / "carrier", node_id="node-a")
     loaded = MinimalBootstrap(tmp_path / "node.json").load()
