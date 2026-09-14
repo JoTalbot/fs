@@ -107,3 +107,24 @@ Learning:
 - [FAILURE] Replica recovery must distinguish healthy durable copies from nodes merely listed as present.
 - [RULE] Failed or unknown placement state must never reduce the number of required healthy replicas or block failure-domain diversity.
 Next: Validate CI #376, then build deterministic two-node and three-node federation fixtures and continue explicit journal/crash qualification.
+
+## 2026-09-14 | current-agent | replica-recovery-self-correction
+Base: e2c1f600aee58fd9b90a546a7164499eac0091d1
+Area: failure-domain-aware replica placement and recovery
+Goal: Correct the recovery fix without breaking the existing `present_on` copy-count contract.
+Research:
+- CI #376 (`34855160140`) failed in all regular-platform suites on the pre-correction head. The first failing Ubuntu 3.11 job reported `274 passed, 1 failed, 3 skipped, 8 deselected`.
+- Failure: `test_policy_prefers_new_failure_domains_deterministically` expected two new targets for `present_on={"a"}, desired_copies=3`, while the revised implementation returned three because it stopped counting the unknown present node.
+Changes:
+- Retained unknown `present_on` entries in the copy-count contract for backward compatibility.
+- Excluded only known unhealthy present candidates from the effective present count.
+- Kept failure-domain reservation based only on healthy known candidates, so an unhealthy known node cannot block recovery into another domain.
+- Updated the regression to explicitly preserve unknown-present compatibility.
+Validation:
+- CI #376 is a confirmed failure on `e2c1f600...`; no platform-specific regression was involved.
+- Corrected implementation `1c39e78ef5a43121bda1582f1ca26c578790733d`; corrected tests `6eb0686d5c82de623c64846177d2f42b6d5ca89d`.
+- A new full CI run was triggered by the corrected head; validation is pending.
+Learning:
+- [FAILURE] A safety hardening change must preserve documented compatibility semantics unless the contract is explicitly versioned.
+- [RULE] Treat unknown placement state differently from known failed state: unknown nodes may count toward legacy replica cardinality, but they must not reserve a failure domain.
+Next: Validate the corrected head across the full matrix, then continue deterministic multi-node federation fixtures.
