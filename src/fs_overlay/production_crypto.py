@@ -42,4 +42,6 @@ class CryptographyAESGCM(AuthenticatedEncryption):
             raise ValueError("invalid or truncated AES-GCM envelope")
         nonce = ciphertext[: self.nonce_size]
         payload = ciphertext[self.nonce_size :]
+        if len(payload) < 16:
+            raise ValueError("invalid or truncated AES-GCM envelope")
         return self._aesgcm.decrypt(nonce, payload, associated_data)
