@@ -75,3 +75,28 @@ def test_rollback_leaves_no_published_inventory_record(tmp_path: Path) -> None:
     assert not (engine.root / "inventory.log").exists()
     assert (engine.store.manifests / manifest.object_id).exists()
     assert all(engine.store._path(chunk).exists() for chunk in manifest.chunks)
+
+
+def test_failed_transaction_commit_marker_does_not_publish_after_restart(tmp_path: Path) -> None:
+    """Staged records remain unpublished when the durable commit marker is absent."""
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    tx = StorageTransaction(engine)
+    first = tx.prepare(b"staged one")
+    second = tx.prepare(b"staged two")
+    original_append = engine.journal.append
+
+    def fail_commit_marker(operation: str, payload: dict[str, object]):
+        if operation == "transaction_commit":
+            raise OSError("simulated crash before durable transaction commit marker")
+        return original_append(operation, payload)
+
+    engine.journal.append = fail_commit_marker
+    with pytest.raises(OSError, match="before durable transaction commit marker"):
+        tx.commit()
+
+    assert first.object_id not in engine.inventory.records
+    assert second.object_id not in engine.inventory.records
+
+    restored = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert restored.inventory.records == {}
+    assert restored.recover()["objects_after"] == 0
