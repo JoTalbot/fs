@@ -132,6 +132,12 @@ def run_adapter_conformance(
 
     coordinator: Any = coordinator_factory()
     _check(isinstance(coordinator, DurableAdmissionCoordinator), "coordinator does not implement DurableAdmissionCoordinator")
+    try:
+        coordinator.acquire("")
+    except (ValueError, TypeError, PermissionError, RuntimeError):
+        pass
+    else:
+        raise AdapterConformanceError("empty coordinator resource must be rejected")
     resource = "qualification-resource"
     with coordinator.acquire(resource):
         pass
