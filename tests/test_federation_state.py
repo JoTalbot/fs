@@ -211,3 +211,49 @@ def test_coordinated_admission_recovers_after_process_crash(tmp_path) -> None:
     assert restored.snapshot().seen_message_ids == frozenset({"crash-ambiguous"})
     assert not restored.accept(message(1, "retry-after-crash"))
     assert restored.accept(message(2, "next-after-crash"))
+
+
+def test_two_node_fixtures_converge_on_identical_ordered_stream(tmp_path) -> None:
+    """Independent nodes consuming the same stream must derive identical durable indexes."""
+    stream = (
+        message(1, "m1", "node-a"),
+        message(1, "m2", "node-b"),
+        message(2, "m3", "node-a"),
+        message(2, "m4", "node-b"),
+    )
+    first = DurableFederationState(tmp_path / "node-a.journal")
+    second = DurableFederationState(tmp_path / "node-b.journal")
+    assert [first.accept(item) for item in stream] == [True] * len(stream)
+    assert [second.accept(item) for item in stream] == [True] * len(stream)
+    assert first.snapshot() == second.snapshot()
+
+
+def test_three_node_fixtures_converge_after_restart(tmp_path) -> None:
+    """A surviving/restarted node reconstructs exactly the state of its peers."""
+    stream = (
+        message(1, "m1", "node-a"),
+        message(1, "m2", "node-b"),
+        message(1, "m3", "node-c"),
+        message(2, "m4", "node-a"),
+        message(2, "m5", "node-b"),
+        message(2, "m6", "node-c"),
+    )
+    paths = [tmp_path / f"node-{name}.journal" for name in ("a", "b", "c")]
+    states = [DurableFederationState(path) for path in paths]
+    for state in states:
+        assert [state.accept(item) for item in stream] == [True] * len(stream)
+    restarted = DurableFederationState(paths[2])
+    assert restarted.snapshot() == states[0].snapshot() == states[1].snapshot()
+
+
+def test_federation_nodes_reject_divergent_or_replayed_stream_entries(tmp_path) -> None:
+    """Convergence is fail-closed: conflicting sequence or duplicate IDs cannot be appended."""
+    left = DurableFederationState(tmp_path / "left.journal")
+    right = DurableFederationState(tmp_path / "right.journal")
+    first = message(1, "m1")
+    conflict = message(1, "different")
+    assert left.accept(first)
+    assert right.accept(first)
+    assert not left.accept(conflict)
+    assert not right.accept(first)
+    assert left.snapshot() == right.snapshot()
