@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `97fe74c553693002c93d3892b89ebab7391d077d`
+- Current commit: `72f62b2fb331ba05b47596f6f2b230f1f76942b7`
 - Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
 - Updated: 2026-09-14
 
@@ -18,30 +18,11 @@ A new candidate AES-GCM adapter was deliberately added as an opt-in provider. It
 
 ## Latest validation state
 
-Previously validated:
-
-- `b39b19ea562e9eb5ffd5332424c8e6ce2408df09`: fixed the signed two-node recovery fixture.
-- CI run #311: 9/9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs green.
-- `6b73c998749996f6230daa3d9f55e3d523f88c95`: added semantic qualification for the `AuthenticatedEncryption` provider boundary.
-- `ed1d6d4844db5aaa49e39208144f13c20ca451ac`: defined the production cryptography qualification gate; CI run #313 green.
-- `58794593c76017117a29ce8d5b8729cfd71d0d2e`: updated V1 release-gate evidence; CI run #314 green.
-- `d1624ec8dd97af19abf0c48abcf21fdfc0e27e15`: added `docs/PRODUCTION_SECURITY_QUALIFICATION.md` defining the concrete production-provider evidence record.
-- `363870cde754a932727d9d188f77e59cc37c7e4b`: added the opt-in `CryptographyAESGCM` candidate adapter.
-- `f9ba3ef797100726fa8db65b4fba7accb471b687`: added semantic tests for the candidate AES-GCM adapter.
-- `acdef616833ecffb1ad3db300c44cb1888a146b6`: recorded that the AES-GCM adapter is candidate-only and not audited production evidence.
-- `68ba1fc080d25cbe303f8e3f735a5dd66bd60e93`: defined the production secure-key-storage provider plan.
-- `a59bbf0e1b87180e09509b1c2d51fa160b6bf24f`: added the production provider qualification runbook.
-- `456b367fc8c6de5571d2dba4d2629119eac2347f`: explicitly marked the candidate AES-GCM test module as `crypto_provider` so the qualification suite has an identifiable boundary.
-- `77162fd0cd16502999532efb4ab7c1c71bf179a5`: added structural truncation validation in the candidate provider.
-- `97fe74c553693002c93d3892b89ebab7391d077d`: corrected the qualification test to distinguish structural truncation from authenticated-tag corruption.
-
-Current regression/remediation outcome:
-
-- CI run `34844253831` (#330) reproduced the candidate AES-GCM truncation-test failure. Generic jobs were green; the 9 crypto-provider jobs failed on the same test.
-- The failure was `cryptography.exceptions.InvalidTag` because the previous test removed one byte from a valid envelope, leaving a payload long enough to reach GCM authentication rather than the adapter's structural-length guard.
-- Commit `97fe74c553693002c93d3892b89ebab7391d077d` changed the test to truncate the envelope to `nonce_size + 15`, which is structurally below the fixed 16-byte tag boundary.
-- CI run `34844334740` (#331) completed **successfully** on the full 18-job workflow: 9 generic Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs plus 9 candidate crypto-provider jobs.
-- This validates the repository's current generic and candidate-provider CI wiring. It does not constitute an external cryptographic audit or production security certification.
+- CI run `34844334740` (#331) completed successfully on the full 18-job workflow: 9 generic Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs plus 9 candidate crypto-provider jobs.
+- Commit `97fe74c553693002c93d3892b89ebab7391d077d` corrected the qualification test to distinguish structural truncation from authenticated-tag corruption.
+- Commit `72f62b2fb331ba05b47596f6f2b230f1f76942b7` added `docs/PRODUCTION_QUALIFICATION_RECORD.md`, a deployment-specific evidence template that explicitly keeps secrets out of repository state.
+- `docs/V1_RELEASE_GATE.md` now records the green #331 generic and candidate-provider evidence while leaving the production confidentiality item blocked.
+- FreeBSD native CI remains intentionally disabled and outside the current release gate.
 
 ## Completed federation/control-plane foundation
 
@@ -101,7 +82,6 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
 - CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
 - CI run `34844334740` (#331) passed all 18 generic and candidate crypto-provider jobs after the truncation qualification fix.
-- FreeBSD native CI remains intentionally disabled and outside the current release gate.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
 ## Release-readiness boundary
@@ -120,8 +100,8 @@ The repository's HMAC integrity envelope and deterministic AEAD test double must
 
 ## Next phase
 
-- Build/qualify concrete secure key-storage and authenticated/encrypted transport adapters without putting secret material into repository state.
-- Extend provider-specific qualification with restart, rotation/revocation, malformed-envelope, failure and recovery evidence.
-- Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
+- Select the concrete deployment target for the production security adapters before implementing a target-specific key store or transport provider.
+- Use `docs/PRODUCTION_QUALIFICATION_RECORD.md` to capture exact provider versions, configuration, operational evidence and external review evidence.
+- Extend candidate-provider qualification with restart, rotation/revocation, malformed-envelope, failure and recovery evidence.
 - Keep V1 blocked until deployment-specific security evidence exists.
 - After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
