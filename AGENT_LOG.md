@@ -67,3 +67,21 @@ Learning:
 - [SECURITY] Replay prevention is a check-and-record invariant; locking only one side is insufficient because concurrent receivers can otherwise observe the same unused state.
 - [RULE] Process-local replay protection is not a substitute for the existing durable/cross-process coordination boundary.
 Next: Validate the full CI matrix for this hardening, then continue Phase 2 with the next explicit recovery invariant.
+
+## 2026-09-14 | current-agent | windows-coordination-fix
+Base: 339f867dac46126dfcd5e1333d8ab1ed37f9ccf1
+Area: cross-process durable admission coordination
+Goal: Fix the Windows-only race exposed by the transaction crash qualification CI run.
+Research:
+- CI #371 (`34853694239`) on Windows Python 3.13 failed in `test_coordinated_processes_refresh_stale_admission_state` with `PermissionError: [Errno 13] Permission denied` during the buffered `handle.flush()` used to prepare the lock file.
+- Python `msvcrt.locking` documentation -> the lock region may extend beyond EOF, so a pre-existing zero-length lock file does not require a buffered sentinel write before byte-range locking.
+Changes:
+- Replaced the Windows buffered sentinel-write path with `Path.touch(exist_ok=True)` followed by `r+b` open and direct byte-zero `msvcrt.locking`.
+- Preserved retained lock paths, automatic OS lock release after process crash, bounded timeout, and no stale-lock stealing.
+Validation:
+- CI #372 (`34853735052`): **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider jobs.
+Result: implementation `010685c84c3f9eebc1f5a0cf8643919df454d970`; status `fc76867b6602f78fca476a311e937ce05a89d1cf`.
+Learning:
+- [FAILURE] Windows file coordination must not depend on a concurrent buffered mutation of the shared lock path.
+- [RULE] Keep the lock file as durable coordination metadata, but make acquisition itself an OS-level byte-range operation with no pre-lock buffered write.
+Next: Continue Phase 2 with remaining explicit journal/crash boundaries and deterministic multi-node fixtures.
