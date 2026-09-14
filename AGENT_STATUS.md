@@ -6,25 +6,26 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `5349e32ba16905d95363cfa5fa97e0351c6516f1`
+- Current commit: `356142bfe94212a91ced614d4949caa121cd3a3b`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: production adapter qualification hardening
-- claimed_files: `src/fs_overlay/adapter_conformance.py`, `AGENT_STATUS.md`
-- goal: make coordinator qualification cover both generator-backed context managers and exception-path release semantics
+- area: failure/recovery and protocol qualification
+- claimed_files: `tests/test_federation_protocol_fuzz.py`, `src/fs_overlay/adapter_conformance.py`, `AGENT_STATUS.md`
+- goal: extend deployment-independent qualification with bounded randomized canonical-envelope coverage and coordinator exception-path release semantics
 - status: validating
-- decision: coordinator validation must enter the returned context manager; a successful body must release the resource, and a body exception must propagate without leaking the resource
-- next_step: validate CI for `5349e32ba16905d95363cfa5fa97e0351c6516f1`; if green, continue only with deployment-independent qualification gaps
+- decision: deterministic invariants can be exercised with bounded randomized fixtures without adding a production dependency; coordinator resources must be released on both normal and exceptional context exit
+- next_step: validate the new federation fuzz qualification and coordinator hardening in CI; fix any actual failures before advancing
 
 ## Latest work
 
-- `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`: corrected the coordinator check to enter the returned context manager, fixing the semantic failure reproduced in CI #351 and #353.
-- CI #354 (`34849727458`): **18/18 jobs passed** on the coordinator fix across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including the candidate crypto matrix.
-- `5349e32ba16905d95363cfa5fa97e0351c6516f1`: restored readable conformance-harness formatting and added a deployment-independent coordinator exception-path release check. The check requires the body exception to propagate and a subsequent acquisition of the same resource to succeed.
+- `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`: corrected coordinator qualification to enter the returned context manager.
+- CI #354 (`34849727458`): **18/18 jobs passed** on the coordinator fix across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto.
+- `5349e32ba16905d95363cfa5fa97e0351c6516f1`: restored readable conformance-harness formatting and added exception-path coordinator release qualification.
+- `356142bfe94212a91ced614d4949caa121cd3a3b`: added bounded randomized federation envelope round-trip/canonicalization tests, payload-order invariance coverage, and malformed-envelope fail-closed cases.
 
 ## Current V1 position
 
@@ -52,6 +53,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate CI for `5349e32ba16905d95363cfa5fa97e0351c6516f1`.
-- Continue hardening only deployment-independent qualification semantics until a real deployment target supplies evidence.
+- Validate `356142bfe94212a91ced614d4949caa121cd3a3b` in CI.
+- Continue Phase 2 failure/recovery and deterministic protocol qualification only where the invariant and evidence path are explicit.
 - Keep V1 blocked until concrete production evidence exists.
