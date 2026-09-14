@@ -57,6 +57,27 @@ def test_reconciler_is_deterministic():
     assert [d.target_node for d in decisions] == ["b", "c"]
 
 
+def test_reconciler_does_not_count_untrusted_present_replica():
+    identities = [_identity("a"), _identity("b"), _identity("c")]
+    trust = TrustStore([TrustEntry(i.node_id, i.public_key_fingerprint, True) for i in identities])
+    directory = FederationDirectory(trust, _verifier)
+    for n in ("a", "b", "c"):
+        assert directory.observe(_ad(n, 1))
+    decisions = FederationReconciler(directory).plan_repairs(
+        "obj", present_on=("a", "untrusted"), desired_copies=2
+    )
+    assert [(d.source_node, d.target_node) for d in decisions] == [("a", "b")]
+
+
+def test_reconciler_without_trusted_source_fails_closed():
+    identity = _identity("a")
+    directory = FederationDirectory(TrustStore(), _verifier)
+    assert not directory.observe(_ad(identity.node_id))
+    assert FederationReconciler(directory).plan_repairs(
+        "obj", present_on=(identity.node_id, "untrusted"), desired_copies=2
+    ) == ()
+
+
 def test_minimal_bootstrap_is_atomic(tmp_path):
     config = MinimalBootstrap(tmp_path / "node.json").initialize(root=tmp_path / "carrier", node_id="node-a")
     loaded = MinimalBootstrap(tmp_path / "node.json").load()
