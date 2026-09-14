@@ -38,13 +38,24 @@ def test_trusted_signed_advertisement_and_monotonic_observation():
     assert not directory.observe(_ad(observed=1))
 
 
-def test_revocation_blocks_future_observation():
+def test_revocation_blocks_future_observation_and_existing_node_availability():
     identity = _identity()
     trust = TrustStore([TrustEntry(identity.node_id, identity.public_key_fingerprint, True)])
     directory = FederationDirectory(trust, _verifier)
     assert directory.observe(_ad(observed=1))
+    assert len(directory.available()) == 1
     trust.revoke(identity.node_id)
     assert not directory.observe(_ad(observed=2))
+    assert directory.available() == ()
+
+
+def test_expired_trust_is_removed_from_available_view():
+    identity = _identity("expired")
+    trust = TrustStore([TrustEntry(identity.node_id, identity.public_key_fingerprint, True, expires_ns=10)])
+    directory = FederationDirectory(trust, _verifier)
+    assert directory.observe(_ad(identity.node_id, observed=1), now_ns=5)
+    assert directory.available(now_ns=9)
+    assert directory.available(now_ns=10) == ()
 
 
 def test_reconciler_is_deterministic():
@@ -75,6 +86,18 @@ def test_reconciler_without_trusted_source_fails_closed():
     assert not directory.observe(_ad(identity.node_id))
     assert FederationReconciler(directory).plan_repairs(
         "obj", present_on=(identity.node_id, "untrusted"), desired_copies=2
+    ) == ()
+
+
+def test_reconciler_drops_disabled_source_immediately():
+    identities = [_identity("a"), _identity("b"), _identity("c")]
+    trust = TrustStore([TrustEntry(i.node_id, i.public_key_fingerprint, True) for i in identities])
+    directory = FederationDirectory(trust, _verifier)
+    for n in ("a", "b", "c"):
+        assert directory.observe(_ad(n, 1))
+    trust.revoke("a")
+    assert FederationReconciler(directory).plan_repairs(
+        "obj", present_on=("a",), desired_copies=2
     ) == ()
 
 
