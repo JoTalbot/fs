@@ -16,3 +16,20 @@ def test_policy_fills_same_domain_when_diversity_is_exhausted() -> None:
         ReplicaCandidate("c", "rack-1", capacity_available=50),
     ]
     assert ReplicaPolicy().plan(candidates, present_on={"a"}, desired_copies=3) == ("b", "c")
+
+
+def test_policy_recovers_unhealthy_present_replica() -> None:
+    candidates = [
+        ReplicaCandidate("a", "rack-1", healthy=False),
+        ReplicaCandidate("b", "rack-2", capacity_available=100),
+        ReplicaCandidate("c", "rack-3", capacity_available=50),
+    ]
+    assert ReplicaPolicy().plan(candidates, present_on={"a"}, desired_copies=2) == ("b", "c")
+
+
+def test_policy_ignores_unknown_present_nodes_when_counting_healthy_copies() -> None:
+    candidates = [
+        ReplicaCandidate("b", "rack-2", capacity_available=100),
+        ReplicaCandidate("c", "rack-3", capacity_available=50),
+    ]
+    assert ReplicaPolicy().plan(candidates, present_on={"unknown"}, desired_copies=2) == ("b", "c")
