@@ -23,6 +23,20 @@ engine._commit_manifest(manifest, transaction_id=tx.transaction_id, publish_inve
 os._exit(17)
 """
 
+_CHILD_PARTIAL_MULTI_OBJECT_CRASH_SCRIPT = r"""
+import os
+import sys
+from fs_overlay.storage_engine import LocalStorageEngine, StorageTransaction
+root = sys.argv[1]
+engine = LocalStorageEngine(root, chunk_size=4)
+tx = StorageTransaction(engine)
+first = tx.prepare(b"first partial object")
+second = tx.prepare(b"second partial object")
+engine.journal.append("transaction_begin", {"transaction_id": tx.transaction_id})
+engine._commit_manifest(first, transaction_id=tx.transaction_id, publish_inventory=False)
+os._exit(21)
+"""
+
 _CHILD_POST_COMMIT_CRASH_SCRIPT = r"""
 import os
 import sys
@@ -44,6 +58,14 @@ os._exit(19)
 def test_incomplete_transaction_is_not_published_after_process_crash(tmp_path: Path) -> None:
     result = subprocess.run([sys.executable, "-c", _CHILD_CRASH_SCRIPT, str(tmp_path)], check=False)
     assert result.returncode == 17
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert recovered.inventory.records == {}
+    assert recovered.audit() == {"ok": True, "objects_checked": 0, "corrupt_objects": []}
+
+
+def test_partial_multi_object_transaction_is_not_published_after_crash(tmp_path: Path) -> None:
+    result = subprocess.run([sys.executable, "-c", _CHILD_PARTIAL_MULTI_OBJECT_CRASH_SCRIPT, str(tmp_path)], check=False)
+    assert result.returncode == 21
     recovered = LocalStorageEngine(tmp_path, chunk_size=4)
     assert recovered.inventory.records == {}
     assert recovered.audit() == {"ok": True, "objects_checked": 0, "corrupt_objects": []}
