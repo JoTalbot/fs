@@ -6,20 +6,20 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `0709d189d8b376191564fc7bf5cc248f72bfe40c`
+- Current commit: `f55bc1d03eeb798b09e1db445547cb63e0fd39d9`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- base_commit: `b3e22bf35ece3d307c2813ec466187027ab12c78`
-- area: deployment-specific production security qualification
-- claimed_files: `docs/PRODUCTION_REFERENCE_PROFILE.md`, `AGENT_STATUS.md`
-- goal: establish a concrete reference profile for secure key storage/lifecycle and authenticated/encrypted transport without claiming deployment or audit completion
+- base_commit: `22bb3b4c754bab684a7ce8a45af987bc040d6fbd`
+- area: production adapter contract hardening
+- claimed_files: `src/fs_overlay/production_adapters.py`, `AGENT_STATUS.md`
+- goal: make the authenticated transport lifecycle explicit in the production adapter boundary because the conformance harness already requires an explicit authentication transition
 - status: validating
-- decision: keep `SecureKeyStore` and `AuthenticatedTransport` as explicit adapter boundaries; reference Linux profile uses AES-256-GCM, an external versioned key service, and mutual TLS with explicit trust/revocation policy; no secrets enter repository state
-- next_step: validate commit `0709d189d8b376191564fc7bf5cc248f72bfe40c` in the full CI matrix, then qualify concrete target-specific adapters only against real deployment evidence
+- decision: `AuthenticatedTransport` now declares `authenticate(peer_node)` alongside observable peer identity, authenticated state, send/receive, and close; this aligns the protocol with the existing fail-closed conformance harness without introducing a fake production implementation
+- next_step: validate `f55bc1d03eeb798b09e1db445547cb63e0fd39d9` in CI, then continue qualification hardening only where the production boundary is explicit and deployment evidence can eventually be attached
 
 ## Latest work
 
@@ -28,6 +28,8 @@
 - `b3e22bf35ece3d307c2813ec466187027ab12c78`: fixed optional crypto import boundary so generic CI can collect tests without the crypto extra.
 - CI #340 (`34845940691`) passed all 18 generic and candidate crypto-provider jobs across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
 - `0709d189d8b376191564fc7bf5cc248f72bfe40c`: added `docs/PRODUCTION_REFERENCE_PROFILE.md` with reference architecture and qualification matrix.
+- `22bb3b4c754bab684a7ce8a45af987bc040d6fbd`: synchronized this coordination status with the reference-profile work; CI #342 passed 18/18.
+- `f55bc1d03eeb798b09e1db445547cb63e0fd39d9`: made the authenticated transport lifecycle explicit in `AuthenticatedTransport`.
 
 ## Current V1 position
 
@@ -60,6 +62,7 @@ The completed foundation includes node identity/trust, signed capabilities, cano
 - CI #331 (`34844334740`): 18/18 passed after candidate crypto truncation qualification fix.
 - CI #336 (`34844815878`): 18/18 passed for previous status head.
 - CI #340 (`34845940691`): 18/18 passed for `b3e22bf35ece3d307c2813ec466187027ab12c78`.
+- CI #342 (`34846403956`): 18/18 passed for `22bb3b4c754bab684a7ce8a45af987bc040d6fbd`.
 
 ## Release-readiness boundary
 
@@ -73,6 +76,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `0709d189d8b376191564fc7bf5cc248f72bfe40c` in the full 18-job CI matrix.
-- Then qualify concrete `SecureKeyStore` and `AuthenticatedTransport` implementations against a real deployment environment, not only mocks.
+- Validate `f55bc1d03eeb798b09e1db445547cb63e0fd39d9` in the full 18-job CI matrix.
+- Then continue hardening the adapter contracts/conformance tests before any concrete production implementation is claimed.
 - Keep V1 blocked until concrete production evidence exists.
