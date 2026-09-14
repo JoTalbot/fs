@@ -45,6 +45,7 @@ class ReplicaPolicy:
         effective_present_count = len(present - failed_present)
         needed = max(0, desired_copies - effective_present_count)
         selected: list[ReplicaCandidate] = []
+        selected_node_ids: set[str] = set()
         used_domains = set(existing_domains)
 
         for candidate in sorted(
@@ -58,7 +59,10 @@ class ReplicaPolicy:
         ):
             if len(selected) >= needed:
                 break
+            if candidate.node_id in selected_node_ids:
+                continue
             selected.append(candidate)
+            selected_node_ids.add(candidate.node_id)
             used_domains.add(candidate.failure_domain)
 
         return tuple(c.node_id for c in selected)
