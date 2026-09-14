@@ -139,7 +139,7 @@ class FederationReconciler:
         if not sources:
             return ()
         targets = [node.identity.node_id for node in self.directory.available() if node.identity.node_id not in present]
-        needed = max(0, desired_copies - len(present))
+        needed = max(0, desired_copies - len(sources))
         return tuple(
             ReconciliationDecision(object_id, sources[0], target, "REPLICATE", "restore desired replica count")
             for target in sorted(targets)[:needed]
