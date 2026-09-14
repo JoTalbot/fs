@@ -135,15 +135,23 @@ class FederationReconciler:
     def __init__(self, directory: FederationDirectory):
         self.directory = directory
 
-    def plan_repairs(self, object_id: str, *, present_on: Iterable[str], desired_copies: int = 2) -> tuple[ReconciliationDecision, ...]:
+    def plan_repairs(
+        self,
+        object_id: str,
+        *,
+        present_on: Iterable[str],
+        desired_copies: int = 2,
+        now_ns: int | None = None,
+    ) -> tuple[ReconciliationDecision, ...]:
         if desired_copies <= 0:
             raise ValueError("desired_copies must be positive")
         present = sorted(set(present_on))
-        trusted = {node.identity.node_id for node in self.directory.available()}
+        available = self.directory.available(now_ns=now_ns)
+        trusted = {node.identity.node_id for node in available}
         sources = [node for node in present if node in trusted]
         if not sources:
             return ()
-        targets = [node.identity.node_id for node in self.directory.available() if node.identity.node_id not in present]
+        targets = [node.identity.node_id for node in available if node.identity.node_id not in present]
         needed = max(0, desired_copies - len(sources))
         return tuple(
             ReconciliationDecision(object_id, sources[0], target, "REPLICATE", "restore desired replica count")
