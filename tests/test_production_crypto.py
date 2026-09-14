@@ -5,6 +5,9 @@ import pytest
 from fs_overlay.production_crypto import CryptographyAESGCM
 
 
+pytestmark = pytest.mark.crypto_provider
+
+
 @pytest.fixture
 def provider() -> CryptographyAESGCM:
     return CryptographyAESGCM(b"k" * 32)
