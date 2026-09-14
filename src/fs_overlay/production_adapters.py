@@ -23,7 +23,14 @@ class SecureKeyStore(Protocol):
 
 @runtime_checkable
 class AuthenticatedTransport(Protocol):
-    """Authenticated/encrypted transport boundary for federation traffic."""
+    """Authenticated/encrypted transport boundary for federation traffic.
+
+    Authentication is an explicit lifecycle transition. Implementations must
+    establish and verify the peer identity before accepting federation payloads;
+    callers must be able to observe that authenticated state and the bound peer.
+    """
+
+    def authenticate(self, peer_node: str) -> None: ...
 
     def send(self, peer_node: str, payload: bytes) -> None: ...
     def receive(self) -> bytes | None: ...
