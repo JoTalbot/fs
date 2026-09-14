@@ -13,7 +13,7 @@
 
 The reference V1 qualification program is substantially complete. The semantic/protocol foundation remains qualified, but V1 is **not** declared production-ready. Deployment-specific security providers still require concrete qualification evidence, including a real audited AEAD implementation, secure key storage, and authenticated/encrypted transport.
 
-A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression: the normal `.[test]` extra does not install `cryptography`, so the supported matrix currently fails when those candidate tests instantiate the provider. This is recorded as a real red-CI state and is not being hidden with conditional skips.
+A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression: the normal `.[test]` extra does not install `cryptography`, so the supported matrix failed when those candidate tests instantiated the provider. The tests have now been explicitly marked as `crypto_provider`, but the generic pytest configuration still has to be changed through a safe qualification path; no skip or false-green workaround has been introduced.
 
 ## Latest validation state
 
@@ -30,14 +30,16 @@ Previously validated:
 - `acdef616833ecffb1ad3db300c44cb1888a146b6`: recorded that the AES-GCM adapter is candidate-only and not audited production evidence.
 - `68ba1fc080d25cbe303f8e3f735a5dd66bd60e93`: defined the production secure-key-storage provider plan.
 - `a59bbf0e1b87180e09509b1c2d51fa160b6bf24f`: added the production provider qualification runbook.
+- `456b367fc8c6de5571d2dba4d2629119eac2347f`: explicitly marked the candidate AES-GCM test module as `crypto_provider` so the qualification suite has an identifiable boundary.
 
 Current regression evidence:
 
-- CI run `34784220152`: all 9 supported matrix jobs fail at the pytest step after both independent conformance validators pass.
+- CI run `34784220152`: all 9 supported matrix jobs failed at the pytest step after both independent conformance validators passed.
 - Representative Ubuntu 3.11 job: `259 passed, 3 skipped, 4 errors`.
-- All four errors are candidate AES-GCM tests failing because `cryptography` is absent from the installed `.[test]` environment.
-- The failure is specifically `ModuleNotFoundError: No module named 'cryptography'`, followed by the adapter's intentional runtime error explaining that the crypto extra is required.
-- The same failure pattern is present across the supported Ubuntu/Windows/macOS Python 3.11–3.13 matrix.
+- All four errors were candidate AES-GCM tests failing because `cryptography` was absent from the installed `.[test]` environment.
+- The failure was specifically `ModuleNotFoundError: No module named 'cryptography'`, followed by the adapter's intentional runtime error explaining that the crypto extra is required.
+- The same failure pattern was present across the supported Ubuntu/Windows/macOS Python 3.11–3.13 matrix.
+- Commit `456b367fc8c6de5571d2dba4d2629119eac2347f` does **not** by itself make the suite green: the marker is now explicit, but `pyproject.toml` has not been safely changed to exclude the optional marker from the generic gate.
 
 ## Completed federation/control-plane foundation
 
@@ -120,6 +122,7 @@ The repository's HMAC integrity envelope and deterministic AEAD test double must
 
 - Establish a controlled dependency path for the candidate AEAD provider without changing the protocol contract.
 - Keep candidate-provider tests explicit rather than skipping them when the provider is unavailable.
+- Resolve the generic-gate wiring without hiding provider failures or falsely certifying the candidate.
 - Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification on the exact deployment artifact.
 - Select and qualify concrete secure key-storage and authenticated/encrypted transport providers per deployment target.
 - Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
