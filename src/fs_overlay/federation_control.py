@@ -93,7 +93,7 @@ class NodeAdvertisement:
 
 
 class FederationDirectory:
-    """Last-observation directory gated by explicit trust and optional signature verification."""
+    """Last-observation directory gated by current explicit trust."""
 
     def __init__(self, trust: TrustStore, verifier: Callable[[bytes, bytes, str], bool] | None = None):
         self.trust = trust
@@ -111,8 +111,13 @@ class FederationDirectory:
         self.nodes[advertisement.identity.node_id] = advertisement
         return True
 
-    def available(self) -> tuple[NodeAdvertisement, ...]:
-        return tuple(self.nodes[node_id] for node_id in sorted(self.nodes))
+    def available(self, *, now_ns: int | None = None) -> tuple[NodeAdvertisement, ...]:
+        """Return only nodes trusted at read time, so revocation/expiry takes effect immediately."""
+        return tuple(
+            self.nodes[node_id]
+            for node_id in sorted(self.nodes)
+            if self.trust.admit(self.nodes[node_id].identity, now_ns=now_ns)
+        )
 
 
 @dataclass(frozen=True)
