@@ -5,7 +5,7 @@ FS keeps security-sensitive deployment mechanisms behind explicit adapter contra
 ## Contracts
 
 - `SecureKeyStore`: key material is opaque to the core, non-empty, addressable by stable key ID, and retrievable only through the adapter.
-- `AuthenticatedTransport`: federation payloads cannot be sent before peer authentication; peer identity and authentication state are observable; close terminates the authenticated state.
+- `AuthenticatedTransport`: authentication is an explicit lifecycle transition; federation payloads cannot be sent before peer authentication; peer identity and authentication state are observable; close terminates the authenticated state.
 - `NodeAdmission`: node identity and fingerprint are authoritative admission facts. A changed fingerprint is rejected and revocation removes admission.
 - `KeyAdmission`: node/key/fingerprint binding is authoritative. Fingerprint changes, revoked keys, and signing/verifying after revocation are rejected.
 - `DurableAdmissionCoordinator`: the critical section is acquired for a named resource and is released when its context exits.
@@ -14,14 +14,16 @@ FS keeps security-sensitive deployment mechanisms behind explicit adapter contra
 
 Adapter implementations must fail closed when a required security or authority fact cannot be established. At minimum, conformance tests cover:
 
-1. empty key material;
+1. empty key ID or key material;
 2. unauthenticated transport send;
-3. transport authentication loss after close;
-4. key fingerprint change under an existing key ID;
-5. revoked key cannot sign or verify;
-6. node fingerprint change under an existing node ID;
-7. revoked node is no longer admitted;
-8. coordinator context releases its resource after normal exit.
+3. empty transport peer identity during authentication;
+4. transport peer identity mismatch;
+5. transport authentication loss after close;
+6. key fingerprint change under an existing key ID;
+7. revoked key cannot sign or verify;
+8. node fingerprint change under an existing node ID;
+9. revoked node is no longer admitted;
+10. coordinator context releases its resource after normal exit.
 
 The tests in `tests/test_adapter_conformance.py` use deterministic in-memory doubles solely to verify the structural and semantic contract. They do not certify cryptographic strength, secure storage, network authentication, persistence, or distributed transaction semantics.
 
