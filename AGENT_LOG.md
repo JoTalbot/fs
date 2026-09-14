@@ -128,3 +128,26 @@ Learning:
 - [FAILURE] A safety hardening change must preserve documented compatibility semantics unless the contract is explicitly versioned.
 - [RULE] Treat unknown placement state differently from known failed state: unknown nodes may count toward legacy replica cardinality, but they must not reserve a failure domain.
 Next: Validate the corrected head across the full matrix, then continue deterministic multi-node federation fixtures.
+
+## 2026-09-14 | current-agent | multi-node-federation-fixtures
+Base: dea68c92d89a371c469471076a52cb188710194d
+Area: deterministic multi-node federation state convergence
+Goal: Establish executable two-node and three-node fixtures proving that independent durable federation states converge on the same ordered stream and remain fail-closed on divergent or replayed entries.
+Research:
+- Current `federation_state.py`, `federation_protocol.py`, and `test_federation_state.py` were re-read from `main` before implementation.
+- `DurableFederationState` rebuilds sender sequence high-water marks and accepted message IDs from the durable event journal, while the protocol envelope provides deterministic canonical serialization and per-sender sequencing.
+Skill discovery:
+- Repository `fs-agent-core` and existing federation invariants remained authoritative; no external skill was needed.
+Changes:
+- Added a two-node fixture consuming the same ordered four-message stream and requiring identical durable snapshots.
+- Added a three-node fixture consuming a six-message multi-sender stream, then restarting one node and requiring exact snapshot convergence with its surviving peers.
+- Added fail-closed coverage showing a conflicting same-sequence message and replayed message cannot alter converged state.
+Validation:
+- CI #384 (`34855804838`) passed **18/18 jobs** on the preceding replica-policy head.
+- CI #385 (`34856321995`) was triggered by this fixture commit and was still running when this record was written.
+Result: implementation/tests `8a5a88643ef19d0eacef0320292a4dcbafb6442e`.
+Learning:
+- [ARCHITECTURE] Multi-node convergence is currently qualified at the durable admission-index boundary, not as a network transport simulation.
+- [RULE] Identical ordered protocol streams must produce identical sender high-water marks and accepted-message sets after restart.
+- [SECURITY] Divergent sequence state and replay attempts must be rejected without mutating durable admission state.
+Next: Validate CI #385, then continue explicit journal/crash boundaries and deterministic reconciliation/node-loss convergence where existing abstractions support them.
