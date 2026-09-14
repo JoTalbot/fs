@@ -23,9 +23,11 @@ class ReplicaPolicy:
         candidate_list = list(candidates)
         present = set(present_on)
         healthy_present = [c for c in candidate_list if c.node_id in present and c.healthy]
+        failed_present = {c.node_id for c in candidate_list if c.node_id in present and not c.healthy}
         existing_domains = {c.failure_domain for c in healthy_present}
         eligible = [c for c in candidate_list if c.healthy and c.capacity_available >= 0 and c.node_id not in present]
-        needed = max(0, desired_copies - len(healthy_present))
+        effective_present_count = len(present - failed_present)
+        needed = max(0, desired_copies - effective_present_count)
         selected: list[ReplicaCandidate] = []
         used_domains = set(existing_domains)
         for candidate in sorted(eligible, key=lambda c: (-int(c.failure_domain not in used_domains), -c.capacity_available, -c.locality, c.node_id)):
