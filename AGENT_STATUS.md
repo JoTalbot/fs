@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `6954bd52114202e5cdb3b629b440db4c9249af5f`
+- Current commit: `bae203b3ef4e148f6b889904db93ec884fcf77f9`
 - Updated: 2026-09-14
 
 ## Active step
@@ -16,18 +16,20 @@
 - area: federation trust boundary and deterministic reconciliation qualification
 - claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: ensure trust revocation/expiry takes effect at reconciliation read time, then continue node-loss and recovery qualification
-- status: trust-filter hardening validated by the full CI matrix; continuing deterministic node-loss/reconciliation and journal recovery qualification
-- decision: an observed node is not usable merely because it was trusted when first observed; current trust must be checked when the directory is consumed
-- next_step: continue Phase 5 deterministic node-loss/reconciliation convergence and Phase 2 explicit journal/crash failure boundaries
+- status: CI #400 validated the trust-filter implementation; CI #404 exposed a deterministic test-time bug, which was fixed by making reconciler trust evaluation time injectable
+- decision: an observed node is not usable merely because it was trusted when first observed; current trust must be checked when the directory is consumed, and deterministic tests must control the trust clock explicitly
+- next_step: validate the corrected reconciliation head across the full matrix, then continue Phase 5 node-loss/reconciliation convergence and Phase 2 journal/crash boundaries
 
 ## Latest work
 
 - `e7d54da4587135510a79a54eccd15dfff59a0df8`: changed `FederationDirectory.available()` to filter stored advertisements through current trust state, so revocation and expiry immediately remove nodes from reconciliation eligibility.
 - `bb0e8bd45c097b465eb018518406c5e60ba29300`: added regression coverage for disabled trust, expired trust, and reconciliation refusing a disabled source.
 - CI #400 (`34863969229`): **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including all candidate crypto-provider jobs.
+- CI #404 (`34864633495`) exposed one test defect across the regular-platform matrix: the new expiry reconciliation test asserted a pre-expiry plan while `plan_repairs()` used wall-clock time.
+- `2134d2a1ee86d9ae125001d6df4e404297600cb2`: added optional `now_ns` to `FederationReconciler.plan_repairs()` and passed it through to the directory availability check.
+- `bae203b3ef4e148f6b889904db93ec884fcf77f9`: corrected the expiry regression to assert both pre-expiry and exact-expiry behavior deterministically.
 - Transaction commit-marker failure qualification is complete: staged immutable data survives persistence failure but remains unpublished without a durable `transaction_commit` marker.
 - Multi-object crash qualification confirms partial staged transactions are not published after restart.
-- Append-only agent history was restored and preserved in `AGENT_LOG.md` at `6954bd52114202e5cdb3b629b440db4c9249af5f`.
 
 ## Current V1 position
 
@@ -51,6 +53,7 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
+- Validate corrected head `bae203b3ef4e148f6b889904db93ec884fcf77f9` across the full matrix.
 - Continue Phase 5 with deterministic node-loss/reconciliation convergence where existing abstractions support it.
 - Continue Phase 2 with remaining explicit journal/crash failure boundaries.
 - Preserve the distinction between process-local synchronization and cross-process durable coordination.
