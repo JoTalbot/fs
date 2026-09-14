@@ -85,3 +85,25 @@ Learning:
 - [FAILURE] Windows file coordination must not depend on a concurrent buffered mutation of the shared lock path.
 - [RULE] Keep the lock file as durable coordination metadata, but make acquisition itself an OS-level byte-range operation with no pre-lock buffered write.
 Next: Continue Phase 2 with remaining explicit journal/crash boundaries and deterministic multi-node fixtures.
+
+## 2026-09-14 | current-agent | replica-recovery-hardening
+Base: 010685c84c3f9eebc1f5a0cf8643919df454d970
+Area: failure-domain-aware replica placement and recovery
+Goal: Ensure failed replicas do not falsely satisfy the desired durable copy count during recovery.
+Research:
+- Current `replication_policy.py` and `test_replication_policy.py` were re-read from `main` before implementation.
+- Existing policy already prioritizes new failure domains, but its copy-count calculation used all `present_on` nodes, including unhealthy or unknown nodes.
+Skill discovery:
+- Repository `fs-agent-core` and existing replication invariants remained authoritative; no external skill was needed for this deterministic policy correction.
+Changes:
+- Materialized candidates once so present-node health can be evaluated consistently.
+- Count only healthy present candidates toward `desired_copies`.
+- Use only healthy present candidates when reserving existing failure domains, allowing recovery into a different domain after failure.
+- Added regressions for an unhealthy present replica and an unknown present node.
+Validation:
+- GitHub Actions CI #376 (`34855160140`) was started for implementation `e2c1f600aee58fd9b90a546a7164499eac0091d1`; it was still **in progress** when this record was written.
+Result: implementation `e2c1f600aee58fd9b90a546a7164499eac0091d1`; tests `1547bd838c16861e98335f5b539e831d3b947b2a`; status `a1b67609506bf44a5a8dd863d04b55da0c57ff3f`.
+Learning:
+- [FAILURE] Replica recovery must distinguish healthy durable copies from nodes merely listed as present.
+- [RULE] Failed or unknown placement state must never reduce the number of required healthy replicas or block failure-domain diversity.
+Next: Validate CI #376, then build deterministic two-node and three-node federation fixtures and continue explicit journal/crash qualification.
