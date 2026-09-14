@@ -6,20 +6,20 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `ed22849fc392ab7b287d2b5c8e3d3796dd528dbf`
+- Current commit: `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- base_commit: `c75dfc320c79ec1fc4a3a1c8541eb3f97ac0c86d`
+- base_commit: `2366d4eb5875e09bbce0063d96d4baa9b2315d76`
 - area: production adapter qualification hardening
-- claimed_files: `src/fs_overlay/adapter_conformance.py`, `docs/ADAPTER_CONFORMANCE.md`, `AGENT_STATUS.md`
-- goal: strengthen deployment-independent fail-closed checks for unknown key/node authority
+- claimed_files: `src/fs_overlay/adapter_conformance.py`, `tests/test_adapter_conformance.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: make coordinator fail-closed qualification valid for both class-based and `@contextmanager`-based adapters
 - status: validating
-- decision: qualification now rejects loading unknown keys, signing/verifying with unknown keys, and admission of unknown nodes; existing empty-input, fingerprint-change, revocation, transport, and coordinator checks remain intact
-- next_step: finish CI run `34848156749` for commit `4a96da739f054cd9d4e66b2676e96c779701fd10`; then validate documentation/status synchronization and continue only with deployment-independent gaps
+- decision: coordinator resource validation must enter the returned context manager; merely calling `acquire()` does not execute generator-backed `@contextmanager` bodies
+- next_step: validate CI for `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`; if green, continue only with deployment-independent qualification gaps
 
 ## Latest work
 
@@ -36,7 +36,11 @@
 - `c75dfc320c79ec1fc4a3a1c8541eb3f97ac0c86d`: synchronized transport qualification status; CI #347 (`34847655589`) passed 18/18.
 - `4a96da739f054cd9d4e66b2676e96c779701fd10`: hardened key-store and admission conformance for unknown authority references.
 - `ed22849fc392ab7b287d2b5c8e3d3796dd528dbf`: documented the expanded admission fail-closed gate.
-- CI #348 (`34848156749`) is currently validating `4a96da739f054cd9d4e66b2676e96c779701fd10`; no failure has been observed.
+- `2366d4eb5875e09bbce0063d96d4baa9b2315d76`: added a coordinator empty-resource negative check, but the first harness form incorrectly assumed `acquire()` executes immediately.
+- `a961e02792ec53542cf465bf646c3893f1c79999`: restored the complete adapter conformance test suite after an accidental test-file truncation during synchronization.
+- `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`: corrected the coordinator check to enter the returned context manager, preserving compatibility with generator-backed context managers.
+- CI #351 (`34848686173`) failed because the coordinator check did not enter a `@contextmanager` result; 257 tests passed and 1 failed.
+- CI #353 (`34849166364`) reproduced the same semantic error after test restoration; the failure is now understood and corrected.
 
 ## Current V1 position
 
@@ -64,6 +68,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Finish CI validation for the current qualification hardening commit.
+- Validate CI for `a496ecc5e200488e77a390f834fbdbe9d73f6ce8`.
 - Continue hardening only deployment-independent qualification semantics until a real deployment target supplies evidence.
 - Keep V1 blocked until concrete production evidence exists.
