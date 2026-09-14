@@ -6,6 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
+- Current commit: `97fe74c553693002c93d3892b89ebab7391d077d`
 - Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
 - Updated: 2026-09-14
 
@@ -13,7 +14,7 @@
 
 The reference V1 qualification program is substantially complete. The semantic/protocol foundation remains qualified, but V1 is **not** declared production-ready. Deployment-specific security providers still require concrete qualification evidence, including a real audited AEAD implementation, secure key storage, and authenticated/encrypted transport.
 
-A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression: the normal `.[test]` extra did not install `cryptography`, so the supported matrix failed when those candidate tests instantiated the provider. The tests were explicitly marked as `crypto_provider`. The regression has now been isolated through a dedicated optional `crypto` dependency, a registered marker, and a separate full supported-matrix qualification job. Candidate-provider tests remain explicit and are not skipped.
+A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression and then a test-boundary bug. Both were corrected: the generic test gate excludes the explicit `crypto_provider` marker, the provider matrix installs the controlled crypto extra, and the truncation test now checks structural truncation rather than treating authenticated corruption as a structural-length error.
 
 ## Latest validation state
 
@@ -31,17 +32,16 @@ Previously validated:
 - `68ba1fc080d25cbe303f8e3f735a5dd66bd60e93`: defined the production secure-key-storage provider plan.
 - `a59bbf0e1b87180e09509b1c2d51fa160b6bf24f`: added the production provider qualification runbook.
 - `456b367fc8c6de5571d2dba4d2629119eac2347f`: explicitly marked the candidate AES-GCM test module as `crypto_provider` so the qualification suite has an identifiable boundary.
+- `77162fd0cd16502999532efb4ab7c1c71bf179a5`: added structural truncation validation in the candidate provider.
+- `97fe74c553693002c93d3892b89ebab7391d077d`: corrected the qualification test to distinguish structural truncation from authenticated-tag corruption.
 
-Current regression and remediation:
+Current regression/remediation outcome:
 
-- CI run `34784220152`: all 9 supported matrix jobs failed at the pytest step after both independent conformance validators passed.
-- Representative Ubuntu 3.11 job: `259 passed, 3 skipped, 4 errors`.
-- All four errors were candidate AES-GCM tests failing because `cryptography` was absent from the installed `.[test]` environment.
-- The failure was specifically `ModuleNotFoundError: No module named 'cryptography'`, followed by the adapter's intentional runtime error explaining that the crypto extra is required.
-- The same failure pattern was present across the supported Ubuntu/Windows/macOS Python 3.11–3.13 matrix.
-- Commit `456b367fc8c6de5571d2dba4d2629119eac2347f` did not by itself make the suite green: the marker was explicit, but the generic test environment still reached the candidate provider.
-- Commit `5bae8dc9664f1e1f362257a3ece2b18ffb117ae1` adds the optional `crypto` extra with `cryptography>=44`, registers the `crypto_provider` marker, and makes the default pytest gate exclude that marker without skipping the tests.
-- Commit `a3df56696fb1959647f177f72044374d9f5844e8` adds a separate Ubuntu/Windows/macOS × Python 3.11/3.12/3.13 crypto-provider qualification matrix that explicitly installs `.[test,crypto]` and runs only the candidate provider tests.
+- CI run `34844253831` (#330) reproduced the candidate AES-GCM truncation-test failure. Generic jobs were green; the 9 crypto-provider jobs failed on the same test.
+- The failure was `cryptography.exceptions.InvalidTag` because the previous test removed one byte from a valid envelope, leaving a payload long enough to reach GCM authentication rather than the adapter's structural-length guard.
+- Commit `97fe74c553693002c93d3892b89ebab7391d077d` changed the test to truncate the envelope to `nonce_size + 15`, which is structurally below the fixed 16-byte tag boundary.
+- CI run `34844334740` (#331) completed **successfully** on the full 18-job workflow: 9 generic Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs plus 9 candidate crypto-provider jobs.
+- This validates the repository's current generic and candidate-provider CI wiring. It does not constitute an external cryptographic audit or production security certification.
 
 ## Completed federation/control-plane foundation
 
@@ -100,15 +100,13 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - CI run #311 passed all 9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, including independent federation and admission conformance before pytest.
 - CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
 - CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
-- CI run `34784220152` is the last observed red run, caused by the candidate AES-GCM tests requiring a dependency not present in `.[test]`.
-- Independent federation and admission conformance passed in the failing run, isolating the regression to the candidate provider test layer.
-- The remediation commits are now on `main`; post-remediation CI has not yet been observed as green and must not be represented as such until the Actions results are checked.
+- CI run `34844334740` (#331) passed all 18 generic and candidate crypto-provider jobs after the truncation qualification fix.
 - FreeBSD native CI remains intentionally disabled and outside the current release gate.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
 ## Release-readiness boundary
 
-The semantic V1 release gate remains blocked on production security evidence. The candidate-provider CI regression has been structurally resolved in the repository, but its new CI evidence is still pending verification.
+The semantic V1 release gate remains blocked on production security evidence even though the repository CI matrix is now green.
 
 A production deployment still requires:
 
@@ -116,16 +114,14 @@ A production deployment still requires:
 2. secure key lifecycle storage with access control, rotation, revocation, backup/recovery and audit evidence;
 3. authenticated and encrypted transport with explicit certificate/trust/revocation policy where applicable;
 4. target-specific provider qualification and operational recovery evidence;
-5. a green supported CI matrix after the candidate-provider qualification path is correctly wired.
+5. exact provider versions/configuration and external security-review/audit evidence recorded in the qualification record.
 
 The repository's HMAC integrity envelope and deterministic AEAD test double must never be presented as production confidentiality. The `CryptographyAESGCM` adapter is a concrete candidate only and does not satisfy the audit requirement by itself.
 
 ## Next phase
 
-- Verify the post-remediation full supported CI matrix and the separate crypto-provider matrix.
-- Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification on the exact deployment artifact.
-- Select and qualify concrete secure key-storage and authenticated/encrypted transport providers per deployment target.
+- Build/qualify concrete secure key-storage and authenticated/encrypted transport adapters without putting secret material into repository state.
+- Extend provider-specific qualification with restart, rotation/revocation, malformed-envelope, failure and recovery evidence.
 - Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
-- Require 9/9 green supported generic jobs before advancing the release gate.
-- Keep the V1 gate blocked until provider records and green CI evidence exist.
+- Keep V1 blocked until deployment-specific security evidence exists.
 - After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
