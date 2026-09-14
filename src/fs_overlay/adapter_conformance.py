@@ -74,6 +74,12 @@ def run_adapter_conformance(
         pass
     else:
         raise AdapterConformanceError("unauthenticated transport send must be rejected")
+    try:
+        transport.authenticate("")
+    except (ValueError, TypeError, PermissionError, RuntimeError):
+        pass
+    else:
+        raise AdapterConformanceError("empty peer identity must be rejected")
     transport.authenticate("node-a")
     _check(transport.is_authenticated(), "authenticated transport must expose authenticated state")
     _check(transport.peer_node() == "node-a", "authenticated peer identity must be observable")
