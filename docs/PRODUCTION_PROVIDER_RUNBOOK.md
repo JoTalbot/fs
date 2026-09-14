@@ -49,12 +49,26 @@ For every concrete `AuthenticatedTransport`, record:
 
 Loss of authentication must fail closed. Capabilities or federation metadata must never be treated as a substitute for authenticated peer identity.
 
-## 4. Qualification execution
+## 4. Controlled AEAD test execution
+
+The candidate AES-GCM suite is explicitly marked `crypto_provider`. It is intentionally separate from the generic dependency-free test contract until the exact crypto dependency is selected and qualified.
+
+When qualifying the candidate in a controlled environment, install the exact pinned `cryptography` build selected for that deployment, then run:
+
+```text
+python -m pytest -m crypto_provider tests/test_production_crypto.py
+```
+
+The generic repository test command must not silently install or certify a production cryptography dependency. If the provider is unavailable, the candidate qualification is incomplete rather than skipped and reported as successful.
+
+Preserve the exact command, dependency lock information, package/build provenance, platform, architecture, configuration and result.
+
+## 5. Qualification execution
 
 Run the provider-specific semantic and misuse tests on the exact artifact intended for deployment. Preserve the test command, dependency lock information, platform, architecture, configuration and result.
 
 For production release, attach the resulting evidence to the release qualification record and reference it from `docs/V1_RELEASE_GATE.md` and `docs/PRODUCTION_SECURITY_QUALIFICATION.md`.
 
-## 5. Release decision
+## 6. Release decision
 
 V1 remains blocked when any production provider is only a candidate, lacks deployment-specific evidence, or has an unresolved security-review finding. A green generic CI matrix does not override this rule.
