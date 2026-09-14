@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Iterator
@@ -17,33 +18,37 @@ class EventLog:
         self._journal = AppendJournal(path)
         self._sequence = 0
         self._last_hash = ""
+        self._lock = threading.RLock()
         self.reload()
 
     def reload(self) -> None:
         """Refresh sequence/hash state from the journal after external coordination."""
-        self._sequence = 0
-        self._last_hash = ""
-        for event in self.replay():
-            self._sequence = max(self._sequence, int(event.get("sequence", 0)))
-            self._last_hash = str(event.get("event_hash", self._last_hash))
+        with self._lock:
+            self._sequence = 0
+            self._last_hash = ""
+            for event in self.replay():
+                self._sequence = max(self._sequence, int(event.get("sequence", 0)))
+                self._last_hash = str(event.get("event_hash", self._last_hash))
 
     def emit(self, event: str, *, object_id: str | None = None,
              details: dict[str, object] | None = None,
              causal_parent: str | None = None) -> dict[str, object]:
-        self._sequence += 1
-        payload = {
-            "event": event,
-            "object_id": object_id,
-            "details": details or {},
-            "timestamp_ns": time.time_ns(),
-            "monotonic_ns": time.monotonic_ns(),
-            "sequence": self._sequence,
-            "causal_parent": causal_parent or self._last_hash or None,
-        }
-        payload["event_hash"] = hashlib.sha256(_canonical(payload)).hexdigest()
-        record = self._journal.append("event", payload)
-        self._last_hash = str(payload["event_hash"])
-        return record
+        with self._lock:
+            sequence = self._sequence + 1
+            payload = {
+                "event": event,
+                "object_id": object_id,
+                "details": details or {},
+                "timestamp_ns": time.time_ns(),
+                "monotonic_ns": time.monotonic_ns(),
+                "sequence": sequence,
+                "causal_parent": causal_parent or self._last_hash or None,
+            }
+            payload["event_hash"] = hashlib.sha256(_canonical(payload)).hexdigest()
+            record = self._journal.append("event", payload)
+            self._sequence = sequence
+            self._last_hash = str(payload["event_hash"])
+            return record
 
     def replay(self) -> Iterator[dict[str, object]]:
         previous = ""
