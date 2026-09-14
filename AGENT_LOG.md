@@ -150,4 +150,24 @@ Learning:
 - [ARCHITECTURE] Multi-node convergence is currently qualified at the durable admission-index boundary, not as a network transport simulation.
 - [RULE] Identical ordered protocol streams must produce identical sender high-water marks and accepted-message sets after restart.
 - [SECURITY] Divergent sequence state and replay attempts must be rejected without mutating durable admission state.
-Next: Validate CI #385, then continue explicit journal/crash boundaries and deterministic reconciliation/node-loss convergence where existing abstractions support them.
+Next: Validate CI #385, then continue explicit journal/crash boundaries and deterministic reconciliation/node-loss convergence where existing abstractions support it.
+
+## 2026-09-14 | current-agent | replica-policy-test-correction
+Base: 8a5a88643ef19d0eacef0320292a4dcbafb6442e
+Area: deterministic replica placement qualification
+Goal: Remove a false regression failure without weakening the placement policy.
+Research:
+- CI #389 (`34856529766`) failed on all regular-platform Python jobs at `test_policy_is_invariant_to_candidate_input_order`.
+- The assertion expected `("b", "c")` while the policy correctly returned `("b", "c", "d")` because `a` is a known unhealthy present node and therefore cannot count toward the desired three healthy copies.
+- Candidate crypto-provider jobs in the same CI run passed.
+Changes:
+- Corrected the deterministic-order regression expectation to `("b", "c", "d")` and retained the reversed-input equality assertion.
+- Updated shared status to record the exact failure and correction.
+Validation:
+- CI #389 is a confirmed deterministic test-expectation failure, not a platform-specific implementation failure.
+- Corrected test commit: `89ce7491752719f8cca3a16954fd3a5451420ed4`.
+Result: `89ce7491752719f8cca3a16954fd3a5451420ed4`.
+Learning:
+- [FAILURE] A recovery test must encode the semantic replica-count contract, not an obsolete expected tuple copied from the pre-failure-domain behavior.
+- [RULE] When a known present replica is unhealthy, desired healthy copy count must be satisfied from eligible healthy targets; input-order invariance must compare equivalent policy outputs rather than constrain the cardinality incorrectly.
+Next: validate the corrected head, then continue journal/crash and reconciliation/node-loss qualification.
