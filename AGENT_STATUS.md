@@ -13,7 +13,7 @@
 
 The reference V1 qualification program is substantially complete. The semantic/protocol foundation remains qualified, but V1 is **not** declared production-ready. Deployment-specific security providers still require concrete qualification evidence, including a real audited AEAD implementation, secure key storage, and authenticated/encrypted transport.
 
-A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression: the normal `.[test]` extra does not install `cryptography`, so the supported matrix failed when those candidate tests instantiated the provider. The tests have now been explicitly marked as `crypto_provider`, but the generic pytest configuration still has to be changed through a safe qualification path; no skip or false-green workaround has been introduced.
+A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression: the normal `.[test]` extra did not install `cryptography`, so the supported matrix failed when those candidate tests instantiated the provider. The tests were explicitly marked as `crypto_provider`. The regression has now been isolated through a dedicated optional `crypto` dependency, a registered marker, and a separate full supported-matrix qualification job. Candidate-provider tests remain explicit and are not skipped.
 
 ## Latest validation state
 
@@ -32,14 +32,16 @@ Previously validated:
 - `a59bbf0e1b87180e09509b1c2d51fa160b6bf24f`: added the production provider qualification runbook.
 - `456b367fc8c6de5571d2dba4d2629119eac2347f`: explicitly marked the candidate AES-GCM test module as `crypto_provider` so the qualification suite has an identifiable boundary.
 
-Current regression evidence:
+Current regression and remediation:
 
 - CI run `34784220152`: all 9 supported matrix jobs failed at the pytest step after both independent conformance validators passed.
 - Representative Ubuntu 3.11 job: `259 passed, 3 skipped, 4 errors`.
 - All four errors were candidate AES-GCM tests failing because `cryptography` was absent from the installed `.[test]` environment.
 - The failure was specifically `ModuleNotFoundError: No module named 'cryptography'`, followed by the adapter's intentional runtime error explaining that the crypto extra is required.
 - The same failure pattern was present across the supported Ubuntu/Windows/macOS Python 3.11–3.13 matrix.
-- Commit `456b367fc8c6de5571d2dba4d2629119eac2347f` does **not** by itself make the suite green: the marker is now explicit, but `pyproject.toml` has not been safely changed to exclude the optional marker from the generic gate.
+- Commit `456b367fc8c6de5571d2dba4d2629119eac2347f` did not by itself make the suite green: the marker was explicit, but the generic test environment still reached the candidate provider.
+- Commit `5bae8dc9664f1e1f362257a3ece2b18ffb117ae1` adds the optional `crypto` extra with `cryptography>=44`, registers the `crypto_provider` marker, and makes the default pytest gate exclude that marker without skipping the tests.
+- Commit `a3df56696fb1959647f177f72044374d9f5844e8` adds a separate Ubuntu/Windows/macOS × Python 3.11/3.12/3.13 crypto-provider qualification matrix that explicitly installs `.[test,crypto]` and runs only the candidate provider tests.
 
 ## Completed federation/control-plane foundation
 
@@ -98,15 +100,15 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - CI run #311 passed all 9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, including independent federation and admission conformance before pytest.
 - CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
 - CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
-- CI run `34784220152` is currently red across all 9 supported jobs because the candidate AES-GCM tests require a dependency not present in `.[test]`.
-- Independent federation and admission conformance still pass in the failing run, isolating the regression to the candidate provider test layer.
-- Candidate AES-GCM tests therefore must not be represented as green CI evidence yet.
+- CI run `34784220152` is the last observed red run, caused by the candidate AES-GCM tests requiring a dependency not present in `.[test]`.
+- Independent federation and admission conformance passed in the failing run, isolating the regression to the candidate provider test layer.
+- The remediation commits are now on `main`; post-remediation CI has not yet been observed as green and must not be represented as such until the Actions results are checked.
 - FreeBSD native CI remains intentionally disabled and outside the current release gate.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
 ## Release-readiness boundary
 
-The semantic V1 release gate remains blocked on production security evidence. In addition, the candidate-provider CI regression must be resolved without weakening the test signal.
+The semantic V1 release gate remains blocked on production security evidence. The candidate-provider CI regression has been structurally resolved in the repository, but its new CI evidence is still pending verification.
 
 A production deployment still requires:
 
@@ -120,12 +122,10 @@ The repository's HMAC integrity envelope and deterministic AEAD test double must
 
 ## Next phase
 
-- Establish a controlled dependency path for the candidate AEAD provider without changing the protocol contract.
-- Keep candidate-provider tests explicit rather than skipping them when the provider is unavailable.
-- Resolve the generic-gate wiring without hiding provider failures or falsely certifying the candidate.
+- Verify the post-remediation full supported CI matrix and the separate crypto-provider matrix.
 - Run provider-specific positive/negative, restart, rotation/revocation and failure-mode qualification on the exact deployment artifact.
 - Select and qualify concrete secure key-storage and authenticated/encrypted transport providers per deployment target.
 - Record exact provider versions/configuration and external security-review/audit evidence in the production qualification record.
-- Re-run the full Ubuntu/Windows/macOS Python 3.11–3.13 matrix and require 9/9 green before advancing the gate.
-- Keep the V1 gate blocked until those provider records and green CI evidence exist.
+- Require 9/9 green supported generic jobs before advancing the release gate.
+- Keep the V1 gate blocked until provider records and green CI evidence exist.
 - After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
