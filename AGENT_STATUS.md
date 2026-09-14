@@ -6,20 +6,20 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `74199b192eae14fbeae8e455663851ffa7a812c9`
+- Current commit: `ed22849fc392ab7b287d2b5c8e3d3796dd528dbf`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- base_commit: `f55bc1d03eeb798b09e1db445547cb63e0fd39d9`
+- base_commit: `c75dfc320c79ec1fc4a3a1c8541eb3f97ac0c86d`
 - area: production adapter qualification hardening
 - claimed_files: `src/fs_overlay/adapter_conformance.py`, `docs/ADAPTER_CONFORMANCE.md`, `AGENT_STATUS.md`
-- goal: make the transport qualification gate explicitly reject empty peer identities before authentication
+- goal: strengthen deployment-independent fail-closed checks for unknown key/node authority
 - status: validating
-- decision: conformance now checks empty peer identity rejection in addition to unauthenticated send, peer mismatch, authenticated payload exchange, and authentication loss after close; no production implementation or credentials were introduced
-- next_step: validate commits `672807ec848085acc18af7ee641366fa736992eb` and `74199b192eae14fbeae8e455663851ffa7a812c9` in the full CI matrix, then continue with deployment-independent qualification gaps
+- decision: qualification now rejects loading unknown keys, signing/verifying with unknown keys, and admission of unknown nodes; existing empty-input, fingerprint-change, revocation, transport, and coordinator checks remain intact
+- next_step: finish CI run `34848156749` for commit `4a96da739f054cd9d4e66b2676e96c779701fd10`; then validate documentation/status synchronization and continue only with deployment-independent gaps
 
 ## Latest work
 
@@ -33,6 +33,10 @@
 - `6313cc820c82309a72fe7a847cec6d4c753c7cc0`: synchronized status; CI #344 passed 18/18.
 - `672807ec848085acc18af7ee641366fa736992eb`: added empty-peer authentication negative conformance check.
 - `74199b192eae14fbeae8e455663851ffa7a812c9`: documented the expanded transport conformance gate.
+- `c75dfc320c79ec1fc4a3a1c8541eb3f97ac0c86d`: synchronized transport qualification status; CI #347 (`34847655589`) passed 18/18.
+- `4a96da739f054cd9d4e66b2676e96c779701fd10`: hardened key-store and admission conformance for unknown authority references.
+- `ed22849fc392ab7b287d2b5c8e3d3796dd528dbf`: documented the expanded admission fail-closed gate.
+- CI #348 (`34848156749`) is currently validating `4a96da739f054cd9d4e66b2676e96c779701fd10`; no failure has been observed.
 
 ## Current V1 position
 
@@ -60,6 +64,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `672807ec848085acc18af7ee641366fa736992eb` and `74199b192eae14fbeae8e455663851ffa7a812c9` in the full 18-job CI matrix.
+- Finish CI validation for the current qualification hardening commit.
 - Continue hardening only deployment-independent qualification semantics until a real deployment target supplies evidence.
 - Keep V1 blocked until concrete production evidence exists.
