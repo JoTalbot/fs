@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import threading
 import time
 from dataclasses import dataclass
 from typing import Callable
@@ -68,27 +69,34 @@ class FederationEnvelope:
 
 
 class ReplayGuard:
-    """Reject duplicate, reordered, or stale envelopes per sender."""
+    """Reject duplicate, reordered, or stale envelopes per sender.
+
+    Admission is atomic within one process so concurrent receiver threads cannot
+    both observe the same message ID or sequence as unused before either records it.
+    Cross-process durability remains the responsibility of ``DurableFederationState``.
+    """
 
     def __init__(self) -> None:
         self._last_sequence: dict[str, int] = {}
         self._seen_ids: set[str] = set()
+        self._lock = threading.Lock()
 
     def accept(self, envelope: FederationEnvelope, *, now_ns: int | None = None,
                max_age_ns: int = 300_000_000_000) -> bool:
         if not envelope.sender_node or not envelope.message_id or envelope.sequence < 0:
             return False
-        if envelope.message_id in self._seen_ids:
-            return False
         now = time.time_ns() if now_ns is None else now_ns
         if envelope.issued_ns > now or now - envelope.issued_ns > max_age_ns:
             return False
-        previous = self._last_sequence.get(envelope.sender_node, -1)
-        if envelope.sequence <= previous:
-            return False
-        self._last_sequence[envelope.sender_node] = envelope.sequence
-        self._seen_ids.add(envelope.message_id)
-        return True
+        with self._lock:
+            if envelope.message_id in self._seen_ids:
+                return False
+            previous = self._last_sequence.get(envelope.sender_node, -1)
+            if envelope.sequence <= previous:
+                return False
+            self._last_sequence[envelope.sender_node] = envelope.sequence
+            self._seen_ids.add(envelope.message_id)
+            return True
 
 
 class FederationReceiver:
