@@ -70,10 +70,8 @@ class FileAdmissionCoordinator(DurableAdmissionCoordinator):
 
     def acquire(self, resource_id: str) -> AbstractContextManager[None]:
         path = self._path(resource_id)
-        handle = open(path, "a+b")
-        if os.name == "nt" and handle.seek(0, 2) == 0:
-            handle.write(b"\0")
-            handle.flush()
+        path.touch(exist_ok=True)
+        handle = open(path, "r+b")
         deadline = time.monotonic() + self.timeout
         try:
             while True:
