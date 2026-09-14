@@ -20,10 +20,12 @@ class ReplicaPolicy:
     def plan(self, candidates: Iterable[ReplicaCandidate], *, present_on: Iterable[str], desired_copies: int = 2) -> tuple[str, ...]:
         if desired_copies <= 0:
             raise ValueError("desired_copies must be positive")
+        candidate_list = list(candidates)
         present = set(present_on)
-        existing_domains = {c.failure_domain for c in candidates if c.node_id in present}
-        eligible = [c for c in candidates if c.healthy and c.capacity_available >= 0 and c.node_id not in present]
-        needed = max(0, desired_copies - len(present))
+        healthy_present = [c for c in candidate_list if c.node_id in present and c.healthy]
+        existing_domains = {c.failure_domain for c in healthy_present}
+        eligible = [c for c in candidate_list if c.healthy and c.capacity_available >= 0 and c.node_id not in present]
+        needed = max(0, desired_copies - len(healthy_present))
         selected: list[ReplicaCandidate] = []
         used_domains = set(existing_domains)
         for candidate in sorted(eligible, key=lambda c: (-int(c.failure_domain not in used_domains), -c.capacity_available, -c.locality, c.node_id)):
