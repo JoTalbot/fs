@@ -101,7 +101,7 @@ Changes:
 - Use only healthy present candidates when reserving existing failure domains, allowing recovery into a different domain after failure.
 - Added regressions for an unhealthy present replica and an unknown present node.
 Validation:
-- GitHub Actions CI #376 (`34855160140`) was started for implementation `e2c1f600aee58fd9b90a546a7164499eac0091d1`; it was still **in progress** when this record was written.
+- GitHub Actions CI #376 (`34855160140`) was started for implementation `e2c1f600aee58fd9b90a546a7164499eac0091d`; it was still **in progress** when this record was written.
 Result: implementation `e2c1f600aee58fd9b90a546a7164499eac0091d1`; tests `1547bd838c16861e98335f5b539e831d3b947b2a`; status `a1b67609506bf44a5a8dd863d04b55da0c57ff3f`.
 Learning:
 - [FAILURE] Replica recovery must distinguish healthy durable copies from nodes merely listed as present.
@@ -109,7 +109,7 @@ Learning:
 Next: Validate CI #376, then build deterministic two-node and three-node federation fixtures and continue explicit journal/crash qualification.
 
 ## 2026-09-14 | current-agent | replica-recovery-self-correction
-Base: e2c1f600aee58fd9b90a546a7164499eac0091d1
+Base: e2c1f600aee58fd9b90a546a7164499eac0091d
 Area: failure-domain-aware replica placement and recovery
 Goal: Correct the recovery fix without breaking the existing `present_on` copy-count contract.
 Research:
@@ -143,7 +143,7 @@ Changes:
 - Added a three-node fixture consuming a six-message multi-sender stream, then restarting one node and requiring exact snapshot convergence with its surviving peers.
 - Added fail-closed coverage showing a conflicting same-sequence message and replayed message cannot alter converged state.
 Validation:
-- CI #384 (`34855804838`) passed **18/18 jobs** on the preceding replica-policy head.
+- CI #384 (`34855804838`) passed 18/18 on the preceding replica-policy head.
 - CI #385 (`34856321995`) was triggered by this fixture commit and was still running when this record was written.
 Result: implementation/tests `8a5a88643ef19d0eacef0320292a4dcbafb6442e`.
 Learning:
@@ -170,4 +170,23 @@ Result: `89ce7491752719f8cca3a16954fd3a5451420ed4`.
 Learning:
 - [FAILURE] A recovery test must encode the semantic replica-count contract, not an obsolete expected tuple copied from the pre-failure-domain behavior.
 - [RULE] When a known present replica is unhealthy, desired healthy copy count must be satisfied from eligible healthy targets; input-order invariance must compare equivalent policy outputs rather than constrain the cardinality incorrectly.
-Next: validate the corrected head, then continue journal/crash and reconciliation/node-loss qualification.
+Next: validate the corrected test, then continue journal/crash and reconciliation/node-loss qualification.
+
+## 2026-09-14 | current-agent | transaction-commit-marker-failure
+Base: f9590e52e6e98c5d510d1a5a643c27af89b68fcc
+Area: durable transaction publication boundary
+Goal: Prove that failure to append the durable transaction commit marker cannot publish staged objects after restart.
+Research:
+- `StorageTransaction.commit()` publishes inventory only after `transaction_commit` is durably appended; recovery publishes staged records only when that marker is replayed.
+- Existing crash qualification covered process termination before the marker and after the marker, but not an injected append failure at the marker boundary.
+Changes:
+- Added `tests/test_storage_transaction_commit_failure.py` with an injected `transaction_commit` append failure.
+- Verified the live transaction keeps an empty inventory after the failure, while restart also keeps staged data unpublished and can still verify the immutable object bytes.
+Validation:
+- New test is committed; full CI for the new head is pending.
+- Preceding CI #393 (`34857239652`) passed **18/18 jobs** on `f9590e52e6e98c5d510d1a5a643c27af89b68fcc`.
+Result: `cfdb5c32205344e08cdf1a1f82e15ceefac90a05`; status sync `2d0d555577a0785ac5b4c65eed2abe31b78e1b0f`.
+Learning:
+- [FAILURE] A durable publication boundary must be qualified not only for process crashes but also for synchronous persistence errors exactly at the commit marker.
+- [RULE] Immutable staged bytes may survive a failed transaction, but inventory visibility must remain controlled exclusively by the durable commit marker.
+Next: Validate the new commit across the full matrix, then continue deterministic reconciliation/node-loss recovery qualification.
