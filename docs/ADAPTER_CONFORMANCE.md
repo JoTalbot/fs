@@ -14,16 +14,19 @@ FS keeps security-sensitive deployment mechanisms behind explicit adapter contra
 
 Adapter implementations must fail closed when a required security or authority fact cannot be established. At minimum, conformance tests cover:
 
-1. empty key ID or key material;
-2. unauthenticated transport send;
-3. empty transport peer identity during authentication;
-4. transport peer identity mismatch;
-5. transport authentication loss after close;
-6. key fingerprint change under an existing key ID;
-7. revoked key cannot sign or verify;
-8. node fingerprint change under an existing node ID;
-9. revoked node is no longer admitted;
-10. coordinator context releases its resource after normal exit.
+1. unknown key cannot be loaded from a fresh key store;
+2. empty key ID or key material;
+3. unauthenticated transport send;
+4. empty transport peer identity during authentication;
+5. transport peer identity mismatch;
+6. transport authentication loss after close;
+7. unknown key cannot sign or verify;
+8. key fingerprint change under an existing key ID;
+9. revoked key cannot sign or verify;
+10. unknown node is not admitted;
+11. node fingerprint change under an existing node ID;
+12. revoked node is no longer admitted;
+13. coordinator context releases its resource after normal exit.
 
 The tests in `tests/test_adapter_conformance.py` use deterministic in-memory doubles solely to verify the structural and semantic contract. They do not certify cryptographic strength, secure storage, network authentication, persistence, or distributed transaction semantics.
 
