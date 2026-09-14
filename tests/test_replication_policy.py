@@ -43,7 +43,7 @@ def test_policy_is_invariant_to_candidate_input_order() -> None:
         ReplicaCandidate("b", "rack-1", capacity_available=100, locality=10),
     ]
     policy = ReplicaPolicy()
-    expected = ("b", "c")
+    expected = ("b", "c", "d")
     assert policy.plan(candidates, present_on={"a"}, desired_copies=3) == expected
     assert policy.plan(reversed(candidates), present_on={"a"}, desired_copies=3) == expected
 
