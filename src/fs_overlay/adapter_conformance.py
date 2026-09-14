@@ -50,6 +50,12 @@ def run_adapter_conformance(
     _check(isinstance(store, SecureKeyStore), "key store does not implement SecureKeyStore")
     _check(not store.contains("k1"), "new key store must not contain an unknown key")
     try:
+        store.load("k1")
+    except (KeyError, LookupError, ValueError, TypeError, PermissionError):
+        pass
+    else:
+        raise AdapterConformanceError("unknown key must not be loadable")
+    try:
         store.store("", b"qualification-key")
     except (ValueError, TypeError):
         pass
@@ -97,6 +103,8 @@ def run_adapter_conformance(
 
     keys: Any = key_admission_factory()
     _check(isinstance(keys, KeyAdmission), "key admission does not implement KeyAdmission")
+    _check(not keys.can_sign("node-a", "unknown"), "unknown key must not be sign-capable")
+    _check(not keys.can_verify("node-a", "unknown"), "unknown key must not be verify-capable")
     _check(not keys.admit_key("", "k1", "fp-a"), "empty node id must be rejected by key admission")
     _check(not keys.admit_key("node-a", "", "fp-a"), "empty key id must be rejected by key admission")
     _check(not keys.admit_key("node-a", "k1", ""), "empty key fingerprint must be rejected")
@@ -112,6 +120,7 @@ def run_adapter_conformance(
 
     nodes: Any = node_admission_factory()
     _check(isinstance(nodes, NodeAdmission), "node admission does not implement NodeAdmission")
+    _check(not nodes.is_admitted("unknown", "fp-a"), "unknown node must not be admitted")
     _check(not nodes.admit("", "fp-a"), "empty node id must be rejected")
     _check(not nodes.admit("node-a", ""), "empty node fingerprint must be rejected")
     _check(nodes.admit("node-a", "fp-a"), "initial node admission must succeed")
