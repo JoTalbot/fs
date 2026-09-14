@@ -63,3 +63,12 @@ def test_policy_does_not_use_negative_capacity_targets() -> None:
         ReplicaCandidate("c", "rack-2", capacity_available=0),
     ]
     assert ReplicaPolicy().plan(candidates, present_on=set(), desired_copies=1) == ("c",)
+
+
+def test_policy_never_returns_duplicate_node_targets() -> None:
+    candidates = [
+        ReplicaCandidate("b", "rack-1", capacity_available=100),
+        ReplicaCandidate("b", "rack-2", capacity_available=90),
+        ReplicaCandidate("c", "rack-3", capacity_available=80),
+    ]
+    assert ReplicaPolicy().plan(candidates, present_on=set(), desired_copies=3) == ("b", "c")
