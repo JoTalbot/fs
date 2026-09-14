@@ -6,27 +6,27 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `cfdb5c32205344e08cdf1a1f82e15ceefac90a05`
+- Current commit: `bb0e8bd45c097b465eb018518406c5e60ba29300`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: failure/recovery and deterministic multi-node federation qualification
-- claimed_files: `tests/test_storage_transaction_commit_failure.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: qualify the final durable transaction publication boundary, then continue reconciliation/node-loss recovery qualification
-- status: commit-marker failure qualification added; latest full CI #393 on the preceding transaction-crash head passed 18/18
-- decision: a staged transaction without a durable `transaction_commit` marker must remain unpublished after restart, even when immutable object/manifest data is already durable
-- next_step: validate the new commit-marker failure regression across the full matrix, then continue deterministic reconciliation/node-loss recovery boundaries
+- area: federation trust boundary and deterministic reconciliation qualification
+- claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: ensure trust revocation/expiry takes effect at reconciliation read time, then continue node-loss and recovery qualification
+- status: found and fixed a stale-trust directory bug; regression coverage added; fresh full CI is pending
+- decision: an observed node is not usable merely because it was trusted when first observed; current trust must be checked when the directory is consumed
+- next_step: validate the fresh head across the full matrix, then continue deterministic node-loss/reconciliation and journal recovery boundaries
 
 ## Latest work
 
-- `cfdb5c32205344e08cdf1a1f82e15ceefac90a05`: added `test_commit_marker_append_failure_does_not_publish_staged_objects`, injecting failure at the durable `transaction_commit` append and verifying no inventory publication after restart while the immutable object remains readable.
-- CI #393 (`34857239652`) on `f9590e52e6e98c5d510d1a5a643c27af89b68fcc` passed **18/18 jobs**, covering Ubuntu/Windows/macOS and Python 3.11/3.12/3.13 plus candidate crypto-provider qualification.
-- `f9590e52e6e98c5d510d1a5a643c27af89b68fcc`: added partial multi-object crash qualification; restart correctly leaves all staged objects unpublished without a commit marker.
-- `89ce7491752719f8cca3a16954fd3a5451420ed4`: corrected the replica-policy input-order regression after CI #389 exposed an obsolete expected cardinality.
-- `8a5a88643ef19d0eacef0320292a4dcbafb6442e`: added deterministic two-node and three-node federation-state convergence/replay/divergence fixtures.
+- `e7d54da4587135510a79a54eccd15dfff59a0df8`: changed `FederationDirectory.available()` to filter stored advertisements through current trust state, so revocation and expiry immediately remove nodes from reconciliation eligibility.
+- `bb0e8bd45c097b465eb018518406c5e60ba29300`: added regression coverage for disabled trust, expired trust, and reconciliation refusing a disabled source.
+- CI #396 (`34858177089`) passed **18/18 jobs** on the preceding transaction commit-marker qualification head `cad8aae1644d5485d42ae0a002124b4f8f66205f`.
+- Transaction commit-marker failure qualification is complete: staged immutable data survives persistence failure but remains unpublished without a durable `transaction_commit` marker.
+- Multi-object crash qualification confirms partial staged transactions are not published after restart.
 
 ## Current V1 position
 
@@ -50,8 +50,8 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `cfdb5c32205344e08cdf1a1f82e15ceefac90a05` across the full matrix.
-- Continue Phase 2 with remaining explicit crash points and journal recovery boundaries.
-- Extend Phase 5 with deterministic reconciliation convergence and node-loss recovery where existing abstractions support it.
+- Validate `bb0e8bd45c097b465eb018518406c5e60ba29300` across the full matrix.
+- Continue Phase 5 with deterministic node-loss/reconciliation convergence where existing abstractions support it.
+- Continue Phase 2 with remaining explicit journal/crash failure boundaries.
 - Preserve the distinction between process-local synchronization and cross-process durable coordination.
 - Keep V1 blocked until concrete production evidence exists.
