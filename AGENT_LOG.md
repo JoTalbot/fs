@@ -136,7 +136,7 @@ Base: 8a5a88643ef19d0eacef0320292a4dcbafb6442e
 Area: deterministic replica placement qualification
 Goal: Remove a false regression failure without weakening the placement policy.
 Research:
-- CI #389 (`34856529766`) failed on all regular-platform Python jobs at `test_policy_is_invariant_to_candidate_input_order`.
+- CI #389 (`34856529766`) failed on all regular-platform suites at `test_policy_is_invariant_to_candidate_input_order`.
 - The assertion expected `("b", "c")` while the policy correctly returned `("b", "c", "d")` because `a` is a known unhealthy present node and therefore cannot count toward the desired three healthy copies.
 - Candidate crypto-provider jobs in the same CI run passed.
 Changes:
@@ -189,3 +189,23 @@ Learning:
 - [RULE] Federation read paths must revalidate trust before making an identity actionable.
 - [PROCESS] When synchronizing shared logs, preserve the complete historical file and append only the new qualification record.
 Next: Continue Phase 5 deterministic node-loss/reconciliation convergence and Phase 2 explicit journal/crash failure boundaries.
+
+## 2026-09-14 | current-agent | reconciler-expiry-self-correction
+Base: 3c761371874fc5be8e1079af223a9ef1692ef828
+Area: federation reconciliation trust-clock qualification
+Goal: Make the expiry regression deterministic without weakening the trust-at-read-time security invariant.
+Research:
+- CI #404 (`34864633495`) failed on 10 regular-platform jobs; every candidate crypto-provider job passed.
+- Failure was a test-time semantics defect: advertisements were observed at `now_ns=5`, but `FederationReconciler.plan_repairs()` called `directory.available()` without the same clock, so real wall-clock time made the expiring source unavailable even for the pre-expiry assertion.
+Changes:
+- Added optional `now_ns` to `FederationReconciler.plan_repairs()` and passed it directly to `FederationDirectory.available()`.
+- Updated the expiry regression to assert a repair exists at `now_ns=5` and disappears exactly at `now_ns=10`.
+Validation:
+- CI #404 is a confirmed deterministic qualification failure, not a production implementation failure.
+- Corrected implementation `2134d2a1ee86d9ae125001d6df4e404297600cb2`.
+- Corrected test `bae203b3ef4e148f6b889904db93ec884fcf77f9`.
+- Full CI for corrected head is pending.
+Learning:
+- [FAILURE] Time-sensitive security tests must inject the same trust clock through every layer that makes an authority decision.
+- [RULE] Reconciliation must never silently substitute wall-clock time when its caller is qualifying a precise trust boundary.
+Next: Validate corrected head across the full matrix, then continue deterministic node-loss/reconciliation convergence and journal/crash failure boundaries.
