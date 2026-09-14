@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from fs_overlay.production_crypto import CryptographyAESGCM
 
@@ -24,14 +25,14 @@ def test_aes_gcm_round_trip_and_nonce_uniqueness(provider: CryptographyAESGCM) -
 
 def test_aes_gcm_binds_associated_data(provider: CryptographyAESGCM) -> None:
     ciphertext = provider.encrypt(b"payload", associated_data=b"object:1")
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         provider.decrypt(ciphertext, associated_data=b"object:2")
 
 
 def test_aes_gcm_rejects_ciphertext_tampering(provider: CryptographyAESGCM) -> None:
     ciphertext = bytearray(provider.encrypt(b"payload"))
     ciphertext[-1] ^= 1
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         provider.decrypt(bytes(ciphertext))
 
 
@@ -54,7 +55,7 @@ def test_aes_gcm_key_rotation_keeps_old_data_decryptable_during_migration() -> N
     ciphertext = old.encrypt(b"payload", associated_data=b"object:rotate")
 
     assert old.decrypt(ciphertext, associated_data=b"object:rotate") == b"payload"
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         new.decrypt(ciphertext, associated_data=b"object:rotate")
 
     rotated = new.encrypt(b"payload", associated_data=b"object:rotate")
