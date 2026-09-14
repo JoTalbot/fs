@@ -182,9 +182,10 @@ Changes:
 - Added regression coverage for trust disablement, expiry at a precise timestamp, and reconciliation refusing a disabled source.
 Validation:
 - CI #396 (`34858177089`) passed **18/18 jobs** on the preceding transaction commit-marker qualification head `cad8aae1644d5485d42ae0a002124b4f8f66205f`.
-- Fresh CI for the trust-filter head is pending.
-Result: implementation `e7d54da4587135510a79a54eccd15dfff59a0df8`; tests `bb0e8bd45c097b465eb018518406c5e60ba29300`; status `ef721b82f9d6e63de7519536fe52a6e292a6da9b`.
+- CI #400 (`34863969229`) passed **18/18 jobs** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including all candidate crypto-provider jobs, for the trust-filter qualification head.
+Result: implementation `e7d54da4587135510a79a54eccd15dfff59a0df8`; tests `bb0e8bd45c097b465eb018518406c5e60ba29300`; status/log synchronization restored append-only history at `6954bd52114202e5cdb3b629b440db4c9249af5f` and status was refreshed immediately afterward.
 Learning:
 - [SECURITY] Trust is current authority, not a one-time admission event. Cached observations must not outlive revocation or expiry.
 - [RULE] Federation read paths must revalidate trust before making an identity actionable.
-Next: Validate the fresh head across the full matrix, then continue deterministic node-loss/reconciliation and journal recovery qualification.
+- [PROCESS] When synchronizing shared logs, preserve the complete historical file and append only the new qualification record.
+Next: Continue Phase 5 deterministic node-loss/reconciliation convergence and Phase 2 explicit journal/crash failure boundaries.
