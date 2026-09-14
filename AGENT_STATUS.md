@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `eeafb2c2e59f872e38654649d6ff7de0f2feae22`
+- Current commit: `b2d7ebc3838807727144ba12febaabb86a734dd2`
 - Updated: 2026-09-14
 
 ## Active step
@@ -14,11 +14,11 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - area: failure/recovery and protocol qualification
-- claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `AGENT_STATUS.md`
-- goal: harden deterministic federation reconciliation so replica targets are calculated from trusted-present replicas only
+- claimed_files: `src/fs_overlay/federation_protocol.py`, `tests/test_federation_protocol.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: make in-process federation replay admission atomic under concurrent receiver calls
 - status: validating
-- decision: untrusted nodes must never satisfy the desired trusted replica count; reconciliation remains fail-closed when no trusted source exists
-- next_step: validate the reconciler trust-boundary fix in CI; inspect any failure and continue Phase 2 qualification without reviving disabled FreeBSD CI
+- decision: replay protection must serialize the check-and-record critical section; otherwise concurrent threads can both admit the same message or sequence
+- next_step: validate the replay-guard hardening in the full CI matrix; diagnose any real failures before advancing Phase 2
 
 ## Latest work
 
@@ -27,7 +27,10 @@
 - `5349e32ba16905d95363cfa5fa97e0351c6516f1`: restored readable conformance-harness formatting and added exception-path coordinator release qualification.
 - `356142bfe94212a91ced614d4949caa121cd3a3b`: added bounded randomized federation envelope round-trip/canonicalization tests, payload-order invariance coverage, and malformed-envelope fail-closed cases.
 - `6e3862caeab313f3a3e7429c3ebe3e2df7bf5324`: fixed `FederationReconciler` to count only trusted-present replicas when calculating repair need.
-- `eeafb2c2e59f872e38654649d6ff7de0f2feae22`: added regression coverage proving an untrusted present node cannot satisfy the desired trusted replica count and that reconciliation fails closed without a trusted source.
+- `eeafb2c2e59f872e38654649d6ff7de0f2feae22`: added regression coverage for the reconciler trust boundary.
+- CI #361 (`34851345909`): **18/18 jobs passed** on the reconciler regression tests and full matrix.
+- `05747ab970b292f42e25ebd46531e1c79e360398`: serialized `ReplayGuard` admission with a process-local lock and documented the concurrency boundary.
+- `b2d7ebc3838807727144ba12febaabb86a734dd2`: added deterministic concurrent receiver qualification proving exactly one admission for a duplicated message under 16 concurrent calls.
 
 ## Current V1 position
 
@@ -55,6 +58,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `6e3862caeab313f3a3e7429c3ebe3e2df7bf5324` and `eeafb2c2e59f872e38654649d6ff7de0f2feae22` in CI.
+- Validate `05747ab970b292f42e25ebd46531e1c79e360398` and `b2d7ebc3838807727144ba12febaabb86a734dd2` in the full CI matrix.
 - Continue Phase 2 failure/recovery and deterministic protocol qualification only where the invariant and evidence path are explicit.
 - Keep V1 blocked until concrete production evidence exists.
