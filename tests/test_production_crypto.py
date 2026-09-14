@@ -42,6 +42,32 @@ def test_aes_gcm_rejects_structural_truncation(provider: CryptographyAESGCM) -> 
         provider.decrypt(truncated)
 
 
+def test_aes_gcm_survives_provider_restart(provider: CryptographyAESGCM) -> None:
+    ciphertext = provider.encrypt(b"payload", associated_data=b"object:restart")
+    restarted = CryptographyAESGCM(b"k" * 32)
+    assert restarted.decrypt(ciphertext, associated_data=b"object:restart") == b"payload"
+
+
+def test_aes_gcm_key_rotation_keeps_old_data_decryptable_during_migration() -> None:
+    old = CryptographyAESGCM(b"o" * 32)
+    new = CryptographyAESGCM(b"n" * 32)
+    ciphertext = old.encrypt(b"payload", associated_data=b"object:rotate")
+
+    assert old.decrypt(ciphertext, associated_data=b"object:rotate") == b"payload"
+    with pytest.raises(Exception):
+        new.decrypt(ciphertext, associated_data=b"object:rotate")
+
+    rotated = new.encrypt(b"payload", associated_data=b"object:rotate")
+    assert new.decrypt(rotated, associated_data=b"object:rotate") == b"payload"
+
+
+def test_aes_gcm_rejects_malformed_envelopes(provider: CryptographyAESGCM) -> None:
+    malformed = [b"", b"nonce-only", b"n" * (provider.nonce_size + 15)]
+    for ciphertext in malformed:
+        with pytest.raises(ValueError, match="invalid or truncated"):
+            provider.decrypt(ciphertext)
+
+
 def test_aes_gcm_requires_256_bit_key() -> None:
     with pytest.raises(ValueError, match="32-byte key"):
         CryptographyAESGCM(b"short")
