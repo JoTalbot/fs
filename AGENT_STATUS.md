@@ -1,120 +1,78 @@
 # FS Agent Status
 
-> Shared coordination state for parallel AI agents. Update this file at every substantive step boundary.
+> Shared coordination state for parallel AI agents.
 
 ## Current repository
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `6d231ef3d17ad81fc07a58981daf036db7921d6d`
-- Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
+- Current commit: `0709d189d8b376191564fc7bf5cc248f72bfe40c`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- base_commit: `6d231ef3d17ad81fc07a58981daf036db7921d6d`
-- area: candidate production crypto qualification
-- claimed_files: `tests/test_production_crypto.py`, `AGENT_STATUS.md`
-- goal: extend candidate AES-GCM qualification with restart, key rotation/revocation, malformed-envelope, and recovery evidence without claiming production certification
-- status: in progress
-- research: OWASP Key Management/Cryptographic Storage and current cryptography semantics reviewed; external crypto-secrets skill inspected as untrusted reference only
-- next_step: implement the smallest deterministic qualification tests, validate them in the repository CI matrix, then record the result
+- base_commit: `b3e22bf35ece3d307c2813ec466187027ab12c78`
+- area: deployment-specific production security qualification
+- claimed_files: `docs/PRODUCTION_REFERENCE_PROFILE.md`, `AGENT_STATUS.md`
+- goal: establish a concrete reference profile for secure key storage/lifecycle and authenticated/encrypted transport without claiming deployment or audit completion
+- status: validating
+- decision: keep `SecureKeyStore` and `AuthenticatedTransport` as explicit adapter boundaries; reference Linux profile uses AES-256-GCM, an external versioned key service, and mutual TLS with explicit trust/revocation policy; no secrets enter repository state
+- next_step: validate commit `0709d189d8b376191564fc7bf5cc248f72bfe40c` in the full CI matrix, then qualify concrete target-specific adapters only against real deployment evidence
+
+## Latest work
+
+- `397b005c5572ba97caafa4c202a71bd1279a5bf5`: lifecycle tests for provider restart, key rotation migration, and malformed envelopes.
+- `3d88713c83f94bfda91a050471a3d89ff10bce67`: precise `InvalidTag` assertions for authenticated-data/ciphertext/key mismatch.
+- `b3e22bf35ece3d307c2813ec466187027ab12c78`: fixed optional crypto import boundary so generic CI can collect tests without the crypto extra.
+- CI #340 (`34845940691`) passed all 18 generic and candidate crypto-provider jobs across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
+- `0709d189d8b376191564fc7bf5cc248f72bfe40c`: added `docs/PRODUCTION_REFERENCE_PROFILE.md` with reference architecture and qualification matrix.
 
 ## Current V1 position
 
-The reference V1 qualification program is substantially complete. The semantic/protocol foundation remains qualified, but V1 is **not** declared production-ready. Deployment-specific security providers still require concrete qualification evidence, including a real audited AEAD implementation, secure key storage, and authenticated/encrypted transport.
+V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, target-specific recovery evidence, and required external security review.
 
-A new candidate AES-GCM adapter was deliberately added as an opt-in provider. Its semantic tests exposed a CI dependency regression and then a test-boundary bug. Both were corrected: the generic test gate excludes the explicit `crypto_provider` marker, the provider matrix installs the controlled crypto extra, and the truncation test now checks structural truncation rather than treating authenticated corruption as a structural-length error.
+FreeBSD native CI remains intentionally disabled and outside the release gate.
 
-## Latest validation state
+## Reference production profile
 
-- CI run `34844815878` (#336) completed successfully on the full 18-job workflow for commit `6d231ef3d17ad81fc07a58981daf036db7921d6d`.
-- CI run `34844334740` (#331) also passed the full 18-job workflow after the truncation qualification fix.
-- Commit `c9072202940103324b6407f441f2167aa1e4d0a6` added `docs/PRODUCTION_QUALIFICATION_RECORD.md`, a deployment-specific evidence template that explicitly keeps secrets out of repository state.
-- `docs/V1_RELEASE_GATE.md` records the green candidate-provider evidence while leaving the production confidentiality item blocked.
-- FreeBSD native CI remains intentionally disabled and outside the current release gate.
+The reference target is Linux with:
 
-## Completed federation/control-plane foundation
+- AES-256-GCM through a vetted provider;
+- external versioned key service rather than plaintext key files;
+- explicit active/retired/revoked key lifecycle;
+- mutual TLS for federation channels;
+- explicit trust anchors and certificate/key revocation policy;
+- peer credential identity bound to admitted FS node identity/fingerprint;
+- fail-closed behavior on authentication loss, invalid credentials, replay, downgrade, and endpoint confusion.
 
-- Explicit `NodeIdentity` and fingerprint-bound `TrustStore` with expiry/revocation.
-- Signed capability advertisements with fail-closed trust and freshness admission.
-- Monotonic `FederationDirectory` observations and deterministic reconciliation planning.
-- Canonical `FederationEnvelope` with SHA-256 digest, signature boundary, replay protection, and deterministic byte serialization.
-- Journal-backed `DurableFederationState` for accepted message IDs and sender sequence high-water marks across restart.
-- Durable replay reconstruction fails closed on malformed accepted-state identity/sequence regressions; admission is serialized for threads sharing one state instance.
-- `DurableFederationState` accepts an injected admission coordinator and holds it across validation, journal emission, and state mutation.
-- Coordinated admissions refresh durable state indexes and `EventLog` sequence/hash state while holding the coordinator.
-- `EventLog.reload()` provides an explicit refresh boundary for processes that coordinate externally before emitting new journal records.
-- `FileAdmissionCoordinator` provides local cross-process coordination using OS file locks, bounded acquisition timeout, retained lock files, and no stale-lock stealing.
-- Crash semantics rely on OS lock release; the adapter never deletes or steals a supposedly stale lock.
-- Production adapter protocols are runtime-checkable for structural conformance.
-- `FederationAuditTrail` links reconciliation decisions to replica execution results through causal event chains.
-- Verified `ReplicaExecutor` performs source and post-copy target integrity checks.
-- Deterministic `SelfHealingPlanner` uses explicit trusted/healthy observations.
-- Failure-domain-aware `ReplicaPolicy` has deterministic candidate ordering.
-- Transport, signing, and key-provider dependency-injection contracts.
-- Deterministic capability negotiation with protocol-version fail-closed behavior.
-- Explicit key lifecycle model for active, retired, and revoked keys, including fail-closed duplicate-ID and silent-fingerprint-change checks.
-- Versioned federation conformance vectors and envelope round-trip tests.
-- `MinimalInitiator` requires explicit bootstrap configuration and injected key/signing/transport capabilities and sends the complete signed envelope without peer discovery.
-- Cross-platform capability discovery remains conservative and host-local.
-- Minimal bootstrap creates only an explicitly selected FS root and atomic configuration.
-- Explicit production security adapter contracts for protected key storage, authenticated/encrypted transport, authoritative node admission/revocation, and node/key lifecycle admission.
-- Versioned interoperability boundary documentation and strict conformance validation for published vectors.
-- Published protocol-v1 conformance vectors are consumable as standalone JSON data under `conformance/v1/`.
-- Dependency-free independent conformance and admission validators deliberately avoid `fs_overlay` imports.
-- CI executes both independent validators before the internal pytest suite on the full supported matrix.
-- Adapter-specific qualification tests cover positive and negative capability cases.
-- Ambiguous durable-admission recovery is executable across process crash/restart.
-- Canonical serialization/replay properties are qualified.
-- Recovery graph rejects cycles and produces deterministic plans.
-- Carrier changes enter quarantine rather than silent overwrite.
-- Compatibility/version policy is documented and tested fail-closed.
-- Minimal federation E2E lifecycle and deterministic two-node recovery are reproducible from tests.
-- `AuthenticatedEncryption` now has semantic provider-boundary qualification tests; these intentionally do not certify cryptographic strength.
-- `docs/PRODUCTION_SECURITY_QUALIFICATION.md` records the required evidence for real production AEAD, secure key storage, and authenticated/encrypted transport providers.
+This is a reference target, not evidence that a particular Vault/mTLS deployment or external audit is complete.
 
-## Safety boundaries
+## Existing architecture boundary
 
-The reference implementation does not silently scan or modify the host, discover arbitrary peers, grant trust from discovery, select unauthorized carriers, or claim distributed consensus. Network transport, production cryptography, secure key storage, concurrency coordination, and deployment-specific policy remain explicit adapters/operational boundaries.
+The completed foundation includes node identity/trust, signed capabilities, canonical federation envelopes, durable replay/admission state, cross-process coordination adapters, replica/self-healing primitives, deterministic negotiation, key lifecycle admission, conformance vectors/validators, MinimalInitiator, and explicit production adapter contracts. Preserve fail-closed isolation, explicit authority, evidence-before-commit, and no secret material in repository state.
 
-The durable federation state lock serializes concurrent threads within one process only. It does not claim multi-process atomicity. Deployments with multiple writers must supply an explicit `DurableAdmissionCoordinator` or equivalent file-locking/transactional backend.
+## Validation history
 
-`FileAdmissionCoordinator` is an adapter, not distributed consensus and not a transaction spanning the coordination lock and `EventLog`. Lock files are retained; there is no stale-lock deletion or lock stealing. Timeout means bounded waiting only. A crashed owner relies on OS lock release. Windows and POSIX locking behavior are isolated in the adapter and validated by the CI matrix.
-
-If a durable append outcome is ambiguous, the current in-memory process must not guess. Recovery must reconstruct authoritative admission state from durable storage before retrying or treating the message as newly admitted.
-
-## Validation
-
-- CI run #304 passed the full 9-job matrix for coordinated durable-admission crash recovery.
-- CI run #305 passed the full matrix for canonical serialization and replay invariant qualification.
-- CI run #311 passed all 9 supported Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, including independent federation and admission conformance before pytest.
-- CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
-- CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
-- CI run `34844334740` (#331) passed all 18 generic and candidate crypto-provider jobs after the truncation qualification fix.
-- CI run `34844815878` (#336) passed all 18 generic and candidate crypto-provider jobs for the current status head.
-- No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
+- CI #304/#305: durable admission recovery and canonical serialization/replay qualification passed.
+- CI #311/#313/#314: supported 9-job matrix passed for federation/conformance and release-gate changes.
+- CI #331 (`34844334740`): 18/18 passed after candidate crypto truncation qualification fix.
+- CI #336 (`34844815878`): 18/18 passed for previous status head.
+- CI #340 (`34845940691`): 18/18 passed for `b3e22bf35ece3d307c2813ec466187027ab12c78`.
 
 ## Release-readiness boundary
 
-The semantic V1 release gate remains blocked on production security evidence even though the repository CI matrix is now green for the code/crypto qualification head.
+The semantic V1 release gate remains blocked on deployment-specific security evidence:
 
-A production deployment still requires:
-
-1. a real audited AEAD provider selected and qualified for the exact deployment;
+1. real audited AEAD for the exact deployment;
 2. secure key lifecycle storage with access control, rotation, revocation, backup/recovery and audit evidence;
-3. authenticated and encrypted transport with explicit certificate/trust/revocation policy where applicable;
-4. target-specific provider qualification and operational recovery evidence;
-5. exact provider versions/configuration and external security-review/audit evidence recorded in the qualification record.
-
-The repository's HMAC integrity envelope and deterministic AEAD test double must never be presented as production confidentiality. The `CryptographyAESGCM` adapter is a concrete candidate only and does not satisfy the audit requirement by itself.
+3. authenticated/encrypted transport with explicit trust/revocation policy;
+4. target-specific qualification and operational recovery evidence;
+5. exact provider versions/configuration and external security-review evidence in `docs/PRODUCTION_QUALIFICATION_RECORD.md`.
 
 ## Next phase
 
-- **Active:** extend candidate-provider qualification with restart, rotation/revocation, malformed-envelope, failure and recovery evidence.
-- Select the concrete deployment target for the production security adapters before implementing a target-specific key store or transport provider.
-- Use `docs/PRODUCTION_QUALIFICATION_RECORD.md` to capture exact provider versions, configuration, operational evidence and external review evidence.
-- Keep V1 blocked until deployment-specific security evidence exists.
-- After production security qualification, advance to operational interoperability, deployment packaging, and broader federation-scale testing.
+- Validate `0709d189d8b376191564fc7bf5cc248f72bfe40c` in the full 18-job CI matrix.
+- Then qualify concrete `SecureKeyStore` and `AuthenticatedTransport` implementations against a real deployment environment, not only mocks.
+- Keep V1 blocked until concrete production evidence exists.
