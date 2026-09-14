@@ -23,6 +23,23 @@ engine._commit_manifest(manifest, transaction_id=tx.transaction_id, publish_inve
 os._exit(17)
 """
 
+_CHILD_POST_COMMIT_CRASH_SCRIPT = r"""
+import os
+import sys
+from fs_overlay.storage_engine import LocalStorageEngine, StorageTransaction
+root = sys.argv[1]
+engine = LocalStorageEngine(root, chunk_size=4)
+tx = StorageTransaction(engine)
+manifest = tx.prepare(b"post-commit crash payload")
+engine.journal.append("transaction_begin", {"transaction_id": tx.transaction_id})
+engine._commit_manifest(manifest, transaction_id=tx.transaction_id, publish_inventory=False)
+engine.journal.append("transaction_commit", {
+    "transaction_id": tx.transaction_id,
+    "object_ids": [manifest.object_id],
+})
+os._exit(19)
+"""
+
 
 def test_incomplete_transaction_is_not_published_after_process_crash(tmp_path: Path) -> None:
     result = subprocess.run([sys.executable, "-c", _CHILD_CRASH_SCRIPT, str(tmp_path)], check=False)
@@ -30,6 +47,16 @@ def test_incomplete_transaction_is_not_published_after_process_crash(tmp_path: P
     recovered = LocalStorageEngine(tmp_path, chunk_size=4)
     assert recovered.inventory.records == {}
     assert recovered.audit() == {"ok": True, "objects_checked": 0, "corrupt_objects": []}
+
+
+def test_committed_transaction_is_recovered_after_process_crash_before_memory_publish(tmp_path: Path) -> None:
+    result = subprocess.run([sys.executable, "-c", _CHILD_POST_COMMIT_CRASH_SCRIPT, str(tmp_path)], check=False)
+    assert result.returncode == 19
+    recovered = LocalStorageEngine(tmp_path, chunk_size=4)
+    assert len(recovered.inventory.records) == 1
+    manifest = next(iter(recovered.inventory.records.values()))
+    assert recovered.get(manifest.object_id) == b"post-commit crash payload"
+    assert recovered.audit()["ok"] is True
 
 
 def test_durable_transaction_commit_replays_after_restart(tmp_path: Path) -> None:
