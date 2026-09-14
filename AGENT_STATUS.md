@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `356142bfe94212a91ced614d4949caa121cd3a3b`
+- Current commit: `eeafb2c2e59f872e38654649d6ff7de0f2feae22`
 - Updated: 2026-09-14
 
 ## Active step
@@ -14,11 +14,11 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - area: failure/recovery and protocol qualification
-- claimed_files: `tests/test_federation_protocol_fuzz.py`, `src/fs_overlay/adapter_conformance.py`, `AGENT_STATUS.md`
-- goal: extend deployment-independent qualification with bounded randomized canonical-envelope coverage and coordinator exception-path release semantics
+- claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `AGENT_STATUS.md`
+- goal: harden deterministic federation reconciliation so replica targets are calculated from trusted-present replicas only
 - status: validating
-- decision: deterministic invariants can be exercised with bounded randomized fixtures without adding a production dependency; coordinator resources must be released on both normal and exceptional context exit
-- next_step: validate the new federation fuzz qualification and coordinator hardening in CI; fix any actual failures before advancing
+- decision: untrusted nodes must never satisfy the desired trusted replica count; reconciliation remains fail-closed when no trusted source exists
+- next_step: validate the reconciler trust-boundary fix in CI; inspect any failure and continue Phase 2 qualification without reviving disabled FreeBSD CI
 
 ## Latest work
 
@@ -26,6 +26,8 @@
 - CI #354 (`34849727458`): **18/18 jobs passed** on the coordinator fix across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto.
 - `5349e32ba16905d95363cfa5fa97e0351c6516f1`: restored readable conformance-harness formatting and added exception-path coordinator release qualification.
 - `356142bfe94212a91ced614d4949caa121cd3a3b`: added bounded randomized federation envelope round-trip/canonicalization tests, payload-order invariance coverage, and malformed-envelope fail-closed cases.
+- `6e3862caeab313f3a3e7429c3ebe3e2df7bf5324`: fixed `FederationReconciler` to count only trusted-present replicas when calculating repair need.
+- `eeafb2c2e59f872e38654649d6ff7de0f2feae22`: added regression coverage proving an untrusted present node cannot satisfy the desired trusted replica count and that reconciliation fails closed without a trusted source.
 
 ## Current V1 position
 
@@ -53,6 +55,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `356142bfe94212a91ced614d4949caa121cd3a3b` in CI.
+- Validate `6e3862caeab313f3a3e7429c3ebe3e2df7bf5324` and `eeafb2c2e59f872e38654649d6ff7de0f2feae22` in CI.
 - Continue Phase 2 failure/recovery and deterministic protocol qualification only where the invariant and evidence path are explicit.
 - Keep V1 blocked until concrete production evidence exists.
