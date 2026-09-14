@@ -112,10 +112,10 @@ def test_reconciler_drops_expired_source_at_read_time():
     for n in ("a", "b", "c"):
         assert directory.observe(_ad(n, 1), now_ns=5)
     assert [d.target_node for d in FederationReconciler(directory).plan_repairs(
-        "obj", present_on=("a",), desired_copies=2
+        "obj", present_on=("a",), desired_copies=2, now_ns=5
     )] == ["b"]
     assert FederationReconciler(directory).plan_repairs(
-        "obj", present_on=("a",), desired_copies=2
+        "obj", present_on=("a",), desired_copies=2, now_ns=10
     ) == ()
 
 
