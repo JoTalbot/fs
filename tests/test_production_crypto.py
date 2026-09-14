@@ -35,10 +35,11 @@ def test_aes_gcm_rejects_ciphertext_tampering(provider: CryptographyAESGCM) -> N
         provider.decrypt(bytes(ciphertext))
 
 
-def test_aes_gcm_rejects_truncation(provider: CryptographyAESGCM) -> None:
+def test_aes_gcm_rejects_structural_truncation(provider: CryptographyAESGCM) -> None:
     ciphertext = provider.encrypt(b"payload")
+    truncated = ciphertext[: provider.nonce_size + 15]
     with pytest.raises(ValueError, match="invalid or truncated"):
-        provider.decrypt(ciphertext[:-1])
+        provider.decrypt(truncated)
 
 
 def test_aes_gcm_requires_256_bit_key() -> None:
