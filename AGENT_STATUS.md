@@ -6,29 +6,27 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `6eb0686d5c82de623c64846177d2f42b6d5ca89d`
+- Current commit: `8a5a88643ef19d0eacef0320292a4dcbafb6442e`
 - Updated: 2026-09-14
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: failure/recovery and protocol qualification
-- claimed_files: `src/fs_overlay/replication_policy.py`, `tests/test_replication_policy.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: qualify failure-domain-aware replica recovery and deterministic multi-node substrate behavior
-- status: awaiting CI validation after self-correction
-- decision: known unhealthy present replicas must not satisfy desired copy count or reserve their failure domain; unknown present nodes retain the existing replica-count compatibility behavior but do not reserve a failure domain
-- next_step: validate the corrected policy, then continue deterministic two-node/three-node federation fixtures and explicit journal/crash boundaries
+- area: failure/recovery and deterministic multi-node federation qualification
+- claimed_files: `tests/test_federation_state.py`, `AGENT_STATUS.md`
+- goal: qualify deterministic two-node/three-node durable convergence and continue explicit journal/crash boundaries
+- status: multi-node fixture tests committed; CI #385 is running
+- decision: independent federation nodes must derive identical durable admission indexes from the same ordered envelope stream; replay/conflicting sequence state must fail closed
+- next_step: validate CI #385, fix any failures, then continue journal/crash qualification and reconciliation convergence tests
 
 ## Latest work
 
-- `1c39e78ef5a43121bda1582f1ca26c578790733d`: corrected the replica recovery fix after CI exposed that unknown `present_on` entries are part of the existing copy-count contract.
-- `6eb0686d5c82de623c64846177d2f42b6d5ca89d`: corrected regression coverage to preserve unknown-present compatibility while requiring recovery of known unhealthy replicas.
-- CI #376 (`34855160140`) **failed** on the first attempt: 274 passed, 1 failed, 3 skipped, 8 deselected. The failure was an existing expectation that an unknown present node counts toward the desired copy count. No platform-specific failure occurred.
-- The failing Ubuntu 3.11 log was inspected before correction; the same test logic affected the full Python matrix.
-- CI #372 (`34853735052`): **18/18 jobs passed** for the prior Windows coordination fix across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider jobs.
-- `339f867dac46126dfcd5e1333d8ab1ed37f9ccf1`: added a subprocess crash qualification immediately after durable `transaction_commit`, proving restart reconstructs committed inventory from the journal.
-- `6a1e231546f7e5b24927fab44192d6300513bd7e`: qualified EventLog concurrency and append-failure recovery; CI #369 (`34853169028`) passed **18/18**.
+- `8a5a88643ef19d0eacef0320292a4dcbafb6442e`: added deterministic two-node and three-node federation-state fixtures, restart convergence coverage, and fail-closed divergent/replayed stream tests.
+- CI #384 (`34855804838`) on `dea68c92d89a371c469471076a52cb188710194d`: **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider jobs. This validates the corrected deterministic replica-policy implementation.
+- CI #385 (`34856321995`) is running on `8a5a88643ef19d0eacef0320292a4dcbafb6442e`; no result is claimed until all jobs complete.
+- The prior replica-policy regression was diagnosed and corrected: unknown `present_on` entries retain the existing copy-count compatibility behavior, while known unhealthy replicas no longer satisfy desired healthy copies or reserve their failure domain.
+- CI #376 (`34855160140`) remains the recorded failed first attempt for that policy correction; later CI #383 validated the corrected semantics before the deterministic-selection cleanup, and #384 validates the current policy head.
 
 ## Current V1 position
 
@@ -42,7 +40,7 @@ The reference target is Linux with AES-256-GCM through a vetted provider, an ext
 
 ## Existing architecture boundary
 
-The completed foundation includes node identity/trust, signed capabilities, canonical federation envelopes, durable replay/admission state, cross-process coordination adapters, replica/self-healing primitives, deterministic negotiation, key lifecycle admission, conformance vectors/validators, MinimalInitiator, explicit production adapter contracts, EventLog recovery/concurrency qualification, and transaction crash/recovery qualification. Preserve fail-closed isolation, explicit authority, evidence-before-commit, and no secret material in repository state.
+The completed foundation includes node identity/trust, signed capabilities, canonical federation envelopes, durable replay/admission state, cross-process coordination adapters, replica/self-healing primitives, deterministic negotiation, key lifecycle admission, conformance vectors/validators, MinimalInitiator, explicit production adapter contracts, EventLog recovery/concurrency qualification, transaction crash/recovery qualification, and failure-domain-aware replica recovery. Preserve fail-closed isolation, explicit authority, evidence-before-commit, and no secret material in repository state.
 
 ## Release-readiness boundary
 
@@ -56,8 +54,8 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate corrected replica recovery semantics in the full CI matrix.
+- Validate CI #385 for deterministic multi-node federation fixtures.
 - Continue Phase 2 with remaining explicit crash points and journal recovery boundaries.
-- Build deterministic two-node and three-node federation fixtures for Phase 5.
+- Extend Phase 5 with deterministic reconciliation convergence and node-loss recovery where existing abstractions support it.
 - Preserve the distinction between process-local synchronization and cross-process durable coordination.
 - Keep V1 blocked until concrete production evidence exists.
