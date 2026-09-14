@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `bb0e8bd45c097b465eb018518406c5e60ba29300`
+- Current commit: `6954bd52114202e5cdb3b629b440db4c9249af5f`
 - Updated: 2026-09-14
 
 ## Active step
@@ -16,17 +16,18 @@
 - area: federation trust boundary and deterministic reconciliation qualification
 - claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: ensure trust revocation/expiry takes effect at reconciliation read time, then continue node-loss and recovery qualification
-- status: found and fixed a stale-trust directory bug; regression coverage added; fresh full CI is pending
+- status: trust-filter hardening validated by the full CI matrix; continuing deterministic node-loss/reconciliation and journal recovery qualification
 - decision: an observed node is not usable merely because it was trusted when first observed; current trust must be checked when the directory is consumed
-- next_step: validate the fresh head across the full matrix, then continue deterministic node-loss/reconciliation and journal recovery boundaries
+- next_step: continue Phase 5 deterministic node-loss/reconciliation convergence and Phase 2 explicit journal/crash failure boundaries
 
 ## Latest work
 
 - `e7d54da4587135510a79a54eccd15dfff59a0df8`: changed `FederationDirectory.available()` to filter stored advertisements through current trust state, so revocation and expiry immediately remove nodes from reconciliation eligibility.
 - `bb0e8bd45c097b465eb018518406c5e60ba29300`: added regression coverage for disabled trust, expired trust, and reconciliation refusing a disabled source.
-- CI #396 (`34858177089`) passed **18/18 jobs** on the preceding transaction commit-marker qualification head `cad8aae1644d5485d42ae0a002124b4f8f66205f`.
+- CI #400 (`34863969229`): **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including all candidate crypto-provider jobs.
 - Transaction commit-marker failure qualification is complete: staged immutable data survives persistence failure but remains unpublished without a durable `transaction_commit` marker.
 - Multi-object crash qualification confirms partial staged transactions are not published after restart.
+- Append-only agent history was restored and preserved in `AGENT_LOG.md` at `6954bd52114202e5cdb3b629b440db4c9249af5f`.
 
 ## Current V1 position
 
@@ -50,7 +51,6 @@ The semantic V1 release gate remains blocked on deployment-specific security evi
 
 ## Next phase
 
-- Validate `bb0e8bd45c097b465eb018518406c5e60ba29300` across the full matrix.
 - Continue Phase 5 with deterministic node-loss/reconciliation convergence where existing abstractions support it.
 - Continue Phase 2 with remaining explicit journal/crash failure boundaries.
 - Preserve the distinction between process-local synchronization and cross-process durable coordination.
