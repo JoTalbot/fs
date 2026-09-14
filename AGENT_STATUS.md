@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Current commit: `72f62b2fb331ba05b47596f6f2b230f1f76942b7`
+- Current commit: `c9072202940103324b6407f441f2167aa1e4d0a6`
 - Current architecture: portable local storage substrate with federation/control-plane reference primitives and explicit production-adapter boundaries.
 - Updated: 2026-09-14
 
@@ -20,8 +20,9 @@ A new candidate AES-GCM adapter was deliberately added as an opt-in provider. It
 
 - CI run `34844334740` (#331) completed successfully on the full 18-job workflow: 9 generic Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs plus 9 candidate crypto-provider jobs.
 - Commit `97fe74c553693002c93d3892b89ebab7391d077d` corrected the qualification test to distinguish structural truncation from authenticated-tag corruption.
-- Commit `72f62b2fb331ba05b47596f6f2b230f1f76942b7` added `docs/PRODUCTION_QUALIFICATION_RECORD.md`, a deployment-specific evidence template that explicitly keeps secrets out of repository state.
-- `docs/V1_RELEASE_GATE.md` now records the green #331 generic and candidate-provider evidence while leaving the production confidentiality item blocked.
+- Commit `c9072202940103324b6407f441f2167aa1e4d0a6` added `docs/PRODUCTION_QUALIFICATION_RECORD.md`, a deployment-specific evidence template that explicitly keeps secrets out of repository state.
+- `docs/V1_RELEASE_GATE.md` records the green #331 generic and candidate-provider evidence while leaving the production confidentiality item blocked.
+- CI run `34844787920` (#335) is the documentation/status follow-up on the current head and is pending observation; it must be checked before the current documentation head is called green.
 - FreeBSD native CI remains intentionally disabled and outside the current release gate.
 
 ## Completed federation/control-plane foundation
@@ -82,11 +83,12 @@ If a durable append outcome is ambiguous, the current in-memory process must not
 - CI run #313 passed all 9 supported jobs after the production cryptography qualification gate documentation.
 - CI run #314 passed all 9 supported jobs after the V1 release-gate evidence update.
 - CI run `34844334740` (#331) passed all 18 generic and candidate crypto-provider jobs after the truncation qualification fix.
+- CI run `34844787920` (#335) is pending for the current documentation/status head; no result is claimed yet.
 - No production cryptographic certification, distributed transaction guarantee, remote-copy guarantee, or native-platform guarantee is claimed from the reference primitives.
 
 ## Release-readiness boundary
 
-The semantic V1 release gate remains blocked on production security evidence even though the repository CI matrix is now green.
+The semantic V1 release gate remains blocked on production security evidence even though the repository CI matrix is now green for the code/crypto qualification head.
 
 A production deployment still requires:
 
