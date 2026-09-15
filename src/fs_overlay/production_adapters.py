@@ -10,7 +10,7 @@ from .identity_verification import (
     TrustRootStore,
     require_trusted_issuer,
 )
-from .key_lifecycle import KeyLifecycle, KeyRecord
+from .key_lifecycle import KeyLifecycle
 
 
 @runtime_checkable
@@ -49,7 +49,7 @@ class KeyAdmission(Protocol):
 class ReferenceKeyLifecycleAdmission:
     """Non-durable adapter that exposes ``KeyLifecycle`` as ``KeyAdmission``.
 
-    This adapter exists only to qualify the lifecycle semantics at the admission
+    This adapter exists only to qualify lifecycle semantics at the admission
     boundary. It is deliberately not a production authority: persistence,
     cross-process serialization, authenticated identity, and secure key storage
     remain deployment responsibilities supplied through injected adapters.
