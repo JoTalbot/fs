@@ -26,6 +26,7 @@ def _admissions(*, node_ok: bool = True, key_ok: bool = True, verify_ok: bool = 
 
     class Keys:
         def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool: return True
+        def retire_key(self, node_id: str, key_id: str) -> None: pass
         def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None: pass
         def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: return key_ok
         def can_sign(self, node_id: str, key_id: str) -> bool: return True
