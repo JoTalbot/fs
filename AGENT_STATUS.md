@@ -18,7 +18,7 @@
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, and auditable recovery decisions
 - status: rollback proof requires destination absence, staging absence, preserved source, and independent rollback verification; contradictory evidence such as mutation_complete with an absent destination is now fail-closed to manual review
 - decision: audit records document recovery decisions and proposed transitions only; they never grant authority or prove filesystem state. Recovery commit/abort proof requires complete evidence and never performs host mutation
-- next_step: validate the contradictory-evidence hardening across the full CI matrix, then continue qualification for ambiguous/conflicting destination evidence and journal recovery across reopen/replay
+- next_step: continue qualification for ambiguous/conflicting destination evidence and journal recovery across reopen/replay, then verify the full recovery evidence matrix remains fail-closed
 
 ## Latest work
 
@@ -34,11 +34,11 @@
 - `6209e9a0b543e3b56efd9565ef99cf1a0ddfe14d` — harden abort proof to require staging absence.
 - `8ba9636aea4a2a6dbb03915012b2139ded7c883e` — add regression proving residual staging blocks abort proof; CI 485 green.
 - `cab8ead337733ec991218a0863aafece68c12bed` — reject contradictory abort evidence when mutation completion is simultaneously claimed.
-- `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` — add regression for contradictory abort evidence; CI validation pending.
+- `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` — add regression for contradictory abort evidence; CI 489 and follow-up status validation CI 490 green.
 
 ## Validation boundary
 
-The previous corrected head `8ba9636aea4a2a6dbb03915012b2139ded7c883e` passed CI 485 (`34947996348`) across the configured Ubuntu, Windows, and macOS Python 3.11/3.12/3.13 matrix and candidate crypto-provider qualification jobs. The new contradictory-evidence hardening head `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` has triggered fresh CI; no pass is claimed yet. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+The contradictory-evidence hardening head `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` passed CI 489 (`34948463962`). The follow-up status synchronization commit was validated by CI 490 (`34948483781`), with all 18 configured jobs successful across Ubuntu, Windows, and macOS Python 3.11/3.12/3.13 plus candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
