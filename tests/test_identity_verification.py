@@ -7,19 +7,31 @@ from fs_overlay.production_adapters import (
     KeyAdmission,
     NodeAdmission,
     validate_authenticated_principal_admission,
+    verify_and_validate_authenticated_principal,
 )
 
 
 def _principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
-        principal_id="principal-1",
-        issuer_id="issuer-1",
-        node_id="node-1",
-        key_id="key-1",
-        key_fingerprint="a" * 64,
-        trust_root_id="root-1",
-        claims_digest="b" * 64,
+        principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
+        key_id="key-1", key_fingerprint="a" * 64, trust_root_id="root-1", claims_digest="b" * 64,
     )
+
+
+def _admissions(*, node_ok: bool = True, key_ok: bool = True, verify_ok: bool = True):
+    class Nodes:
+        def admit(self, node_id: str, public_key_fingerprint: str) -> bool: return True
+        def revoke(self, node_id: str, reason: str = "") -> None: pass
+        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool: return node_ok
+
+    class Keys:
+        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool: return True
+        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None: pass
+        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: return key_ok
+        def can_sign(self, node_id: str, key_id: str) -> bool: return True
+        def can_verify(self, node_id: str, key_id: str) -> bool: return verify_ok
+
+    return Nodes(), Keys()
 
 
 def test_authenticated_principal_evidence_requires_complete_identity() -> None:
@@ -30,28 +42,12 @@ def test_authenticated_principal_evidence_requires_complete_identity() -> None:
 
 def test_authenticated_principal_rejects_malformed_fingerprints() -> None:
     with pytest.raises(ValueError, match="SHA-256"):
-        AuthenticatedPrincipal(
-            principal_id="principal-1",
-            issuer_id="issuer-1",
-            node_id="node-1",
-            key_id="key-1",
-            key_fingerprint="short",
-            trust_root_id="root-1",
-            claims_digest="b" * 64,
-        )
+        AuthenticatedPrincipal("principal-1", "issuer-1", "node-1", "key-1", "short", "root-1", "b" * 64)
 
 
 def test_authenticated_principal_rejects_non_hex_digests() -> None:
     with pytest.raises(ValueError, match="hexadecimal"):
-        AuthenticatedPrincipal(
-            principal_id="principal-1",
-            issuer_id="issuer-1",
-            node_id="node-1",
-            key_id="key-1",
-            key_fingerprint="g" * 64,
-            trust_root_id="root-1",
-            claims_digest="b" * 64,
-        )
+        AuthenticatedPrincipal("principal-1", "issuer-1", "node-1", "key-1", "g" * 64, "root-1", "b" * 64)
 
 
 def test_identity_security_contracts_are_runtime_structural() -> None:
@@ -60,193 +56,67 @@ def test_identity_security_contracts_are_runtime_structural() -> None:
             return "issuer-fp" if issuer_id == "issuer-1" else None
 
     class Verifier:
-        def verify(
-            self,
-            *,
-            principal_id: str,
-            issuer_id: str,
-            node_id: str,
-            key_id: str,
-            key_fingerprint: str,
-            claims: bytes,
-            signature: bytes,
-        ) -> AuthenticatedPrincipal:
-            return AuthenticatedPrincipal(
-                principal_id=principal_id,
-                issuer_id=issuer_id,
-                node_id=node_id,
-                key_id=key_id,
-                key_fingerprint=key_fingerprint,
-                trust_root_id="root-1",
-                claims_digest=hashlib.sha256(claims).hexdigest(),
-            )
+        def verify(self, *, principal_id: str, issuer_id: str, node_id: str, key_id: str,
+                   key_fingerprint: str, claims: bytes, signature: bytes) -> AuthenticatedPrincipal:
+            return AuthenticatedPrincipal(principal_id, issuer_id, node_id, key_id, key_fingerprint,
+                                          "root-1", hashlib.sha256(claims).hexdigest())
 
     assert isinstance(Roots(), TrustRootStore)
     assert isinstance(Verifier(), PrincipalVerifier)
 
 
 def test_principal_verification_boundary_does_not_store_secret_material() -> None:
-    evidence = _principal()
-    assert "secret" not in repr(evidence).lower()
+    assert "secret" not in repr(_principal()).lower()
 
 
 def test_authenticated_principal_admission_gate_accepts_consistent_evidence() -> None:
-    class Nodes:
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
+    nodes, keys = _admissions()
+    validate_authenticated_principal_admission(_principal(), node_admission=nodes, key_admission=keys)
 
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            raise AssertionError("not used")
 
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return node_id == "node-1" and public_key_fingerprint == "a" * 64
+@pytest.mark.parametrize(
+    ("node_ok", "key_ok", "verify_ok", "message"),
+    [(False, True, True, "node is not admitted"),
+     (True, False, True, "key is not admitted"),
+     (True, True, False, "not usable for verification")],
+)
+def test_authenticated_principal_admission_gate_fails_closed(
+    node_ok: bool, key_ok: bool, verify_ok: bool, message: str
+) -> None:
+    nodes, keys = _admissions(node_ok=node_ok, key_ok=key_ok, verify_ok=verify_ok)
+    with pytest.raises(PermissionError, match=message):
+        validate_authenticated_principal_admission(_principal(), node_admission=nodes, key_admission=keys)
 
-    class Keys:
-        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
 
-        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
-            raise AssertionError("not used")
+def test_composed_verification_path_runs_admission_after_verifier() -> None:
+    class Verifier:
+        def verify(self, **kwargs) -> AuthenticatedPrincipal:
+            return _principal()
 
-        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return (node_id, key_id, fingerprint) == ("node-1", "key-1", "a" * 64)
-
-        def can_sign(self, node_id: str, key_id: str) -> bool:
-            return True
-
-        def can_verify(self, node_id: str, key_id: str) -> bool:
-            return (node_id, key_id) == ("node-1", "key-1")
-
-    validate_authenticated_principal_admission(
-        _principal(), node_admission=Nodes(), key_admission=Keys()
+    nodes, keys = _admissions()
+    result = verify_and_validate_authenticated_principal(
+        Verifier(), principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
+        key_id="key-1", key_fingerprint="a" * 64, claims=b"claims", signature=b"signature",
+        node_admission=nodes, key_admission=keys,
     )
+    assert result == _principal()
 
 
-def test_authenticated_principal_admission_gate_rejects_node_mismatch() -> None:
-    class Nodes:
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
+def test_composed_verification_path_rejects_after_verifier_on_admission_failure() -> None:
+    class Verifier:
+        def verify(self, **kwargs) -> AuthenticatedPrincipal:
+            return _principal()
 
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            pass
-
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return False
-
-    class Keys:
-        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
-            pass
-
-        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def can_sign(self, node_id: str, key_id: str) -> bool:
-            return True
-
-        def can_verify(self, node_id: str, key_id: str) -> bool:
-            return True
-
+    nodes, keys = _admissions(node_ok=False)
     with pytest.raises(PermissionError, match="node is not admitted"):
-        validate_authenticated_principal_admission(
-            _principal(), node_admission=Nodes(), key_admission=Keys()
-        )
-
-
-def test_authenticated_principal_admission_gate_rejects_key_binding_mismatch() -> None:
-    class Nodes:
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            pass
-
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-    class Keys:
-        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
-            pass
-
-        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return False
-
-        def can_sign(self, node_id: str, key_id: str) -> bool:
-            return True
-
-        def can_verify(self, node_id: str, key_id: str) -> bool:
-            return True
-
-    with pytest.raises(PermissionError, match="key is not admitted"):
-        validate_authenticated_principal_admission(
-            _principal(), node_admission=Nodes(), key_admission=Keys()
-        )
-
-
-def test_authenticated_principal_admission_gate_rejects_unusable_key() -> None:
-    class Nodes:
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            pass
-
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-    class Keys:
-        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
-            pass
-
-        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def can_sign(self, node_id: str, key_id: str) -> bool:
-            return True
-
-        def can_verify(self, node_id: str, key_id: str) -> bool:
-            return False
-
-    with pytest.raises(PermissionError, match="not usable for verification"):
-        validate_authenticated_principal_admission(
-            _principal(), node_admission=Nodes(), key_admission=Keys()
+        verify_and_validate_authenticated_principal(
+            Verifier(), principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
+            key_id="key-1", key_fingerprint="a" * 64, claims=b"claims", signature=b"signature",
+            node_admission=nodes, key_admission=keys,
         )
 
 
 def test_admission_protocols_are_runtime_structural() -> None:
-    class Nodes:
-        def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-        def revoke(self, node_id: str, reason: str = "") -> None:
-            pass
-
-        def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-            return True
-
-    class Keys:
-        def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
-            pass
-
-        def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-            return True
-
-        def can_sign(self, node_id: str, key_id: str) -> bool:
-            return True
-
-        def can_verify(self, node_id: str, key_id: str) -> bool:
-            return True
-
-    assert isinstance(Nodes(), NodeAdmission)
-    assert isinstance(Keys(), KeyAdmission)
+    nodes, keys = _admissions()
+    assert isinstance(nodes, NodeAdmission)
+    assert isinstance(keys, KeyAdmission)
