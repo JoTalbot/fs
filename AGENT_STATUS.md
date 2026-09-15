@@ -6,29 +6,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `12a66aacf85a3e6bc6be951a0ac2d7db213cead4`
-- Latest status synchronization commit: `fc9e019f259746feef8d4638f2dff0fab635ca8d` + subsequent test commit `12a66aac`
+- Latest implementation head: `533d2ed21fc307b9fd942c7e9a3e01c5e1ce3ac9`
+- Latest status synchronization commit: `ef9eb8b471c02f77112f333292e83b82dcde95fa` + status sync pending
 - Updated: 2026-09-15
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace registration and health
-- claimed_files: `src/fs_overlay/workspace_registry.py`, `tests/test_workspace_registry.py`, `AGENT_STATUS.md`
-- goal: add deterministic logical workspace registration and health semantics without mutating host state or expanding authority
-- status: workspace registry now supports explicit observed/managed modes, duplicate-ID rejection, health refresh, missing-directory detection, and fail-closed symlink handling
-- decision: managed mode requires explicit ownership/delegation; registration remains plan/state only and does not create or mutate host paths
-- next_step: validate registry through CI, then extend Phase 3 toward migration/import/export and content-addressed workspace state using existing storage abstractions
+- area: Phase 3 workspace content-addressed state
+- claimed_files: `src/fs_overlay/workspace_state.py`, `tests/test_workspace_state.py`, `docs/AGENT_STEP_2026-09-15_workspace-state.md`, `AGENT_STATUS.md`
+- goal: bind logical workspaces to immutable, verifiable storage snapshots without mutating host state or expanding authority
+- status: WorkspaceStateStore reuses existing SnapshotStore/MerkleDAG, stamps explicit workspace identity/mode metadata, rejects cross-workspace state, and resolves registered bindings safely
+- decision: workspace snapshots are logical catalog state, not filesystem copies; creation and retrieval never imply import, rollback, recovery, or host mutation authority
+- next_step: observe CI for this step, then implement explicit migration/import/export plans with verification and non-destructive defaults
 
 ## Latest work
 
-- `fc9e019f259746feef8d4638f2dff0fab635ca8d` — deterministic workspace registry and health model.
-- `12a66aacf85a3e6bc6be951a0ac2d7db213cead4` — registry regression coverage.
+- `f59cf8c7a2c3e37ab28ea8678434f99958e82537` — workspace content-addressed state implementation.
+- `533d2ed21fc307b9fd942c7e9a3e01c5e1ce3ac9` — workspace state regression tests.
+- `ef9eb8b471c02f77112f333292e83b82dcde95fa` — durable step record.
 
 ## Validation boundary
 
-Previous isolation/admission changes passed the observed CI matrix. The new registry commits have triggered CI but their final result has not yet been observed. No new registry CI pass is claimed until completion. This session has no local checkout/test runner.
+No local checkout/test runner is available in this session. Prior isolation/admission and registry validation had observed successful CI matrices. The workspace-state commits above still require their own GitHub Actions result before a new pass is claimed.
 
 ## Current V1 position
 
@@ -38,11 +39,11 @@ FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 ## Existing architecture boundary
 
-Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Existing storage resilience includes immutable content-addressed snapshots and Merkle verification; reuse those abstractions rather than inventing a parallel snapshot format.
+Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace state must not be presented as a filesystem copy or recovery guarantee.
 
 ## Next phase
 
-1. Validate workspace registry CI across the configured matrix.
-2. Continue Phase 3 migration/import/export and content-addressed workspace state using `SnapshotStore`/`MerkleDAG` where appropriate.
-3. Add workspace snapshot/recovery semantics only with explicit verification and rollback boundaries.
-4. Continue journal/crash qualification.
+1. Observe CI for workspace-state commits.
+2. Add explicit migration/import/export planning with source preservation and destination verification.
+3. Add workspace snapshot/recovery transitions only with explicit authority and rollback boundaries.
+4. Continue journal/crash qualification and production blockers.
