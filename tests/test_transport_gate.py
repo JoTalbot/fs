@@ -59,10 +59,20 @@ def test_receive_accepts_next_sequence_only():
     assert gate.receive() == b"two"
 
 
-@pytest.mark.parametrize("frames", [[frame(2)], [frame(1), frame(1)]])
-def test_receive_rejects_replay_or_sequence_jump_and_closes(frames):
-    transport = FakeTransport(frames=frames)
+def test_receive_rejects_sequence_jump_and_closes():
+    transport = FakeTransport(frames=[frame(2)])
     gate = FailClosedTransportGate(transport, principal())
+    with pytest.raises(TransportSecurityError, match="replay or sequence"):
+        gate.receive()
+    assert transport.closed
+    with pytest.raises(TransportSecurityError, match="session is closed"):
+        gate.receive()
+
+
+def test_receive_rejects_replay_after_a_valid_frame_and_closes():
+    transport = FakeTransport(frames=[frame(1), frame(1)])
+    gate = FailClosedTransportGate(transport, principal())
+    assert gate.receive() == b"payload"
     with pytest.raises(TransportSecurityError, match="replay or sequence"):
         gate.receive()
     assert transport.closed
