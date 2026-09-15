@@ -81,7 +81,7 @@ def test_recovery_requires_staging_absence_for_commit_proof(tmp_path: Path) -> N
     assert "staging" in plan.reason
 
 
-def test_recovery_proves_abort_only_when_destination_absent_and_rollback_safe(tmp_path: Path) -> None:
+def test_recovery_proves_abort_only_when_destination_absent_rollback_safe_and_staging_absent(tmp_path: Path) -> None:
     entry = _candidate(tmp_path)
     plan = reconcile_materializing_transaction(
         entry,
@@ -89,9 +89,25 @@ def test_recovery_proves_abort_only_when_destination_absent_and_rollback_safe(tm
             entry,
             destination_state=DestinationRecoveryState.ABSENT,
             rollback_safe=True,
+            staging_absent=True,
         ),
     )
     assert plan.decision is RecoveryDecision.ABORT_PROVEN
+
+
+def test_recovery_requires_staging_absence_for_abort_proof(tmp_path: Path) -> None:
+    entry = _candidate(tmp_path)
+    plan = reconcile_materializing_transaction(
+        entry,
+        _evidence(
+            entry,
+            destination_state=DestinationRecoveryState.ABSENT,
+            rollback_safe=True,
+            staging_absent=False,
+        ),
+    )
+    assert plan.decision is RecoveryDecision.MANUAL_REVIEW
+    assert "staging" in plan.reason
 
 
 def test_recovery_fails_closed_on_unknown_or_conflicting_evidence(tmp_path: Path) -> None:
