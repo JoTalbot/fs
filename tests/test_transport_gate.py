@@ -34,6 +34,23 @@ class FakeTransport:
         self.authenticated = False
 
 
+class FailingTransport(FakeTransport):
+    def __init__(self, *, send_error=False, receive_error=False):
+        super().__init__()
+        self.send_error = send_error
+        self.receive_error = receive_error
+
+    def send(self, peer_node: str, payload: bytes) -> None:
+        if self.send_error:
+            raise RuntimeError("provider send failure")
+        super().send(peer_node, payload)
+
+    def receive(self) -> bytes | None:
+        if self.receive_error:
+            raise RuntimeError("provider receive failure")
+        return super().receive()
+
+
 def principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(
         "principal-1", "issuer-1", "node-1", "key-1", "a" * 64, "root-1", "b" * 64
@@ -97,6 +114,38 @@ def test_peer_change_fails_closed():
         gate.send(b"blocked")
     assert transport.closed
     assert transport.sent == []
+
+
+def test_provider_send_failure_closes_session():
+    transport = FailingTransport(send_error=True)
+    gate = FailClosedTransportGate(transport, principal())
+    with pytest.raises(RuntimeError, match="provider send failure"):
+        gate.send(b"blocked")
+    assert transport.closed
+    with pytest.raises(TransportSecurityError, match="session is closed"):
+        gate.send(b"blocked")
+
+
+def test_provider_receive_failure_closes_session():
+    transport = FailingTransport(receive_error=True)
+    gate = FailClosedTransportGate(transport, principal())
+    with pytest.raises(RuntimeError, match="provider receive failure"):
+        gate.receive()
+    assert transport.closed
+    with pytest.raises(TransportSecurityError, match="session is closed"):
+        gate.receive()
+
+
+def test_transport_state_provider_failure_fails_closed_and_closes():
+    class BrokenStateTransport(FakeTransport):
+        def is_authenticated(self) -> bool:
+            raise RuntimeError("provider state failure")
+
+    transport = BrokenStateTransport()
+    gate = FailClosedTransportGate(transport, principal())
+    with pytest.raises(TransportSecurityError, match="state could not be validated"):
+        gate.validate_session()
+    assert transport.closed
 
 
 def test_malformed_frame_fails_closed():
