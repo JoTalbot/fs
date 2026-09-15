@@ -77,10 +77,26 @@ Changes:
 - Added a regression proving a retired key cannot be re-admitted while remaining verification-capable and non-signing.
 - Added a regression proving an unknown-node revoke request does not accidentally revoke the key from another node.
 Validation:
-- CI #667 (`34994069526`) is pending for head `8d27a26cc07360269b035bfdca472a6863af3135`.
+- CI #667 (`34994069526`) completed successfully across the configured Ubuntu/Windows/macOS Python 3.11/3.12/3.13 matrix and candidate crypto-provider jobs.
 - CI #664 (`34993046266`) for the preceding audit commit passed successfully.
-Result: test `8d27a26cc07360269b035bfdca472a6863af3135`; status sync `8ece186001f8639be336a60025783633e6599c61`.
+Result: test `8d27a26cc07360269b035bfdca472a6863af3135`; status sync `8ece186001f8639be336a60025783633e6599c61`; follow-up status sync commit `8f1a0183b31347458d274b34d1bbc8dcb5177454`.
 Learning:
 - [SECURITY] Terminal lifecycle semantics need explicit negative coverage, not only positive state assertions.
 - [RULE] A revocation operation must be scoped to the exact node/key binding and must not mutate unrelated authority when the requested binding is absent.
-Next: Validate CI #667; if green, continue with the next concrete provider-boundary gap.
+Next: Identify the next concrete provider-boundary contract gap and close it with the smallest fail-closed regression/hardening.
+
+## 2026-09-15 | current-agent | ci667-validation-status-sync
+Base: 8d27a26cc07360269b035bfdca472a6863af3135
+Area: validation and agent coordination
+Goal: Reconcile shared coordination state after the previously pending key-lifecycle CI completed.
+Research:
+- Checked GitHub Actions run `34994069526` directly after it had previously been pending.
+Changes:
+- Confirmed all reported jobs completed successfully.
+- Updated `AGENT_STATUS.md` to distinguish latest repository head from latest validated implementation head and to record CI #667 as passed.
+Validation:
+- CI #667: all listed Python and candidate crypto-provider jobs succeeded.
+Result: status sync `8f1a0183b31347458d274b34d1bbc8dcb5177454`.
+Learning:
+- [RULE] Validation claims must point to the exact implementation commit tested; documentation-only status commits do not retroactively become CI-tested implementation heads.
+Next: Identify the next concrete provider-boundary contract gap and close it with the smallest fail-closed regression/hardening.
