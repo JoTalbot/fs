@@ -15,6 +15,7 @@ from .workspace_transfer_recovery import (
     TransferRecoveryEvidence,
     TransferRecoveryPlan,
     reconcile_materializing_transaction,
+    recovery_evidence_digest,
 )
 
 
@@ -31,11 +32,12 @@ class RecoveryEvidenceVerifier(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class RecoveryPreflightResult:
-    """Verified recovery decision; it grants no filesystem capability."""
+    """Verified recovery decision plus the exact evidence digest; no capability."""
 
     transaction: TransferJournalEntry
     evidence: TransferRecoveryEvidence
     plan: TransferRecoveryPlan
+    evidence_digest: str
 
 
 def recovery_preflight(
@@ -62,4 +64,9 @@ def recovery_preflight(
     plan = reconcile_materializing_transaction(transaction, evidence)
     if plan.operation is not transaction.operation:
         raise PermissionError("recovery plan operation does not match journal")
-    return RecoveryPreflightResult(transaction, evidence, plan)
+    return RecoveryPreflightResult(
+        transaction,
+        evidence,
+        plan,
+        recovery_evidence_digest(evidence),
+    )
