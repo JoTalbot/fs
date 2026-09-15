@@ -65,147 +65,21 @@ Learning:
 - [RULE] Keep the lock file as durable coordination metadata, but make acquisition itself an OS-level byte-range operation with no pre-lock buffered write.
 Next: Continue Phase 2 with remaining explicit journal/crash boundaries and deterministic multi-node fixtures.
 
-## 2026-09-14 | current-agent | replica-recovery-hardening
-Base: 010685c84c3f9eebc1f5a0cf8643919df454d970
-Area: failure-domain-aware replica placement and recovery
-Goal: Ensure failed replicas do not falsely satisfy the desired durable copy count during recovery.
+## 2026-09-15 | current-agent | recovery-authority-audit
+Base: b6ee6fd1519cc454a944e7f3180e0913028e1456
+Area: cross-component recovery and authority boundaries
+Goal: Verify the ordering and fail-closed separation between normal executor admission, recovery evidence, rollback evidence, durable journal state, audit history, and host filesystem mutation.
 Research:
-- Current `replication_policy.py` and `test_replication_policy.py` were re-read from `main` before implementation.
-- Existing policy already prioritizes new failure domains, but its copy-count calculation used all `present_on` nodes, including unhealthy or unknown nodes.
-Skill discovery:
-- Repository `fs-agent-core` and existing replication invariants remained authoritative; no external skill was needed for this deterministic policy correction.
+- Re-read `executor_preflight.py`, `recovery_preflight.py`, `workspace_transfer_recovery.py`, `workspace_transfer_rollback.py`, `workspace_transfer_recovery_audit.py`, `workspace_transfer_journal.py`, `workspace_materializer.py`, `production_adapters.py`, `identity_verification.py`, and the governing V1/adapter/security qualification docs.
+- No new fail-open defect was found in the reviewed cross-component path.
 Changes:
-- Materialized candidates once so present-node health can be evaluated consistently.
-- Count only healthy present candidates toward `desired_copies`.
-- Use only healthy present candidates when reserving existing failure domains, allowing recovery into a different domain after failure.
-- Added regressions for an unhealthy present replica and an unknown present node.
+- Added `docs/AGENT_STEP_2026-09-15_cross-component-recovery-audit.md` documenting the audit boundary and decision.
+- Synchronized `AGENT_STATUS.md` to the audited head after CI completion.
 Validation:
-- GitHub Actions CI #376 (`34855160140`) was started for implementation `e2c1f600aee58fd9b90a546a7164499eac0091d`; it was still **in progress** when this record was written.
-Result: implementation `e2c1f600aee58fd9b90a546a7164499eac0091d1`; tests `1547bd838c16861e98335f5b539e831d3b947b2a`; status `a1b67609506bf44a5a8dd863d04b55da0c57ff3f`.
+- CI #664 for `b6ee6fd1519cc454a944e7f3180e0913028e1456` completed successfully.
+- Candidate provider tests remain semantic evidence only; no production audit or deployment certification is claimed.
+Result: audit `b6ee6fd1519cc454a944e7f3180e0913028e1456`; status sync `2b8189d639f67b468c7e0577c4cfacf0ecdc9622`.
 Learning:
-- [FAILURE] Replica recovery must distinguish healthy durable copies from nodes merely listed as present.
-- [RULE] Failed or unknown placement state must never reduce the number of required healthy replicas or block failure-domain diversity.
-Next: Validate CI #376, then build deterministic two-node and three-node federation fixtures and continue explicit journal/crash qualification.
-
-## 2026-09-14 | current-agent | replica-recovery-self-correction
-Base: e2c1f600aee58fd9b90a546a7164499eac0091d
-Area: failure-domain-aware replica placement and recovery
-Goal: Correct the recovery fix without breaking the existing `present_on` copy-count contract.
-Research:
-- CI #376 (`34855160140`) failed in all regular-platform suites on the pre-correction head. The first failing Ubuntu 3.11 job reported `274 passed, 1 failed, 3 skipped, 8 deselected`.
-- Failure: `test_policy_prefers_new_failure_domains_deterministically` expected two new targets for `present_on={"a"}, desired_copies=3`, while the revised implementation returned three because it stopped counting the unknown present node.
-Changes:
-- Retained unknown `present_on` entries in the copy-count contract for backward compatibility.
-- Excluded only known unhealthy present candidates from the effective present count.
-- Kept failure-domain reservation based only on healthy known candidates, so an unhealthy known node cannot block recovery into another domain.
-- Updated the regression to explicitly preserve unknown-present compatibility.
-Validation:
-- CI #376 is a confirmed failure on `e2c1f600...`; no platform-specific regression was involved.
-- Corrected implementation `1c39e78ef5a43121bda1582f1ca26c578790733d`; corrected tests `6eb0686d5c82de623c64846177d2f42b6d5ca89d`.
-- A new full CI run was triggered by the corrected head; validation is pending.
-Learning:
-- [FAILURE] A safety hardening change must preserve documented compatibility semantics unless the contract is explicitly versioned.
-- [RULE] Treat unknown placement state differently from known failed state: unknown nodes may count toward legacy replica cardinality, but they must not reserve a failure domain.
-Next: Validate the corrected head across the full matrix, then continue deterministic multi-node federation fixtures.
-
-## 2026-09-14 | current-agent | multi-node-federation-fixtures
-Base: dea68c92d89a371c469471076a52cb188710194d
-Area: deterministic multi-node federation state convergence
-Goal: Establish executable two-node and three-node fixtures proving that independent durable federation states converge on the same ordered stream and remain fail-closed on divergent or replayed entries.
-Research:
-- Current `federation_state.py`, `federation_protocol.py`, and `test_federation_state.py` were re-read from `main` before implementation.
-- `DurableFederationState` rebuilds sender sequence high-water marks and accepted message IDs from the durable event journal, while the protocol envelope provides deterministic canonical serialization and per-sender sequencing.
-Skill discovery:
-- Repository `fs-agent-core` and existing federation invariants remained authoritative; no external skill was needed.
-Changes:
-- Added a two-node fixture consuming the same ordered four-message stream and requiring identical durable snapshots.
-- Added a three-node fixture consuming a six-message multi-sender stream, then restarting one node and requiring exact snapshot convergence with its surviving peers.
-- Added fail-closed coverage showing a conflicting same-sequence message and replayed message cannot alter converged state.
-Validation:
-- CI #384 (`34855804838`) passed 18/18 on the preceding replica-policy head.
-- CI #385 (`34856321995`) was triggered by this fixture commit and was still running when this record was written.
-Result: implementation/tests `8a5a88643ef19d0eacef0320292a4dcbafb6442e`.
-Learning:
-- [ARCHITECTURE] Multi-node convergence is currently qualified at the durable admission-index boundary, not as a network transport simulation.
-- [RULE] Identical ordered protocol streams must produce identical sender high-water marks and accepted-message sets after restart.
-- [SECURITY] Divergent sequence state and replay attempts must be rejected without mutating durable admission state.
-Next: Validate CI #385, then continue explicit journal/crash boundaries and deterministic reconciliation/node-loss convergence where existing abstractions support it.
-
-## 2026-09-14 | current-agent | replica-policy-test-correction
-Base: 8a5a88643ef19d0eacef0320292a4dcbafb6442e
-Area: deterministic replica placement qualification
-Goal: Remove a false regression failure without weakening the placement policy.
-Research:
-- CI #389 (`34856529766`) failed on all regular-platform suites at `test_policy_is_invariant_to_candidate_input_order`.
-- The assertion expected `("b", "c")` while the policy correctly returned `("b", "c", "d")` because `a` is a known unhealthy present node and therefore cannot count toward the desired three healthy copies.
-- Candidate crypto-provider jobs in the same CI run passed.
-Changes:
-- Corrected the deterministic-order regression expectation to `("b", "c", "d")` and retained the reversed-input equality assertion.
-- Updated shared status to record the exact failure and correction.
-Validation:
-- CI #389 is a confirmed deterministic test-expectation failure, not a platform-specific implementation failure.
-- Corrected test commit: `89ce7491752719f8cca3a16954fd3a5451420ed4`.
-Result: `89ce7491752719f8cca3a16954fd3a5451420ed4`.
-Learning:
-- [FAILURE] A recovery test must encode the semantic replica-count contract, not an obsolete expected tuple copied from the pre-failure-domain behavior.
-- [RULE] When a known present replica is unhealthy, desired healthy copy count must be satisfied from eligible healthy targets; input-order invariance must compare equivalent policy outputs rather than constrain the cardinality incorrectly.
-Next: validate the corrected test, then continue journal/crash and reconciliation/node-loss qualification.
-
-## 2026-09-14 | current-agent | transaction-commit-marker-failure
-Base: f9590e52e6e98c5d510d1a5a643c27af89b68fcc
-Area: durable transaction publication boundary
-Goal: Prove that failure to append the durable transaction commit marker cannot publish staged objects after restart.
-Research:
-- `StorageTransaction.commit()` publishes inventory only after `transaction_commit` is durably appended; recovery publishes staged records only when that marker is replayed.
-- Existing crash qualification covered process termination before the marker and after the marker, but not an injected append failure at the marker boundary.
-Changes:
-- Added `tests/test_storage_transaction_commit_failure.py` with an injected `transaction_commit` append failure.
-- Verified the live transaction keeps an empty inventory after the failure, while restart also keeps staged data unpublished and can still verify the immutable object bytes.
-Validation:
-- New test is committed; full CI for the new head is pending.
-- Preceding CI #393 (`34857239652`) passed **18/18 jobs** on `f9590e52e6e98c5d510d1a5a643c27af89b68fcc`.
-Result: `cfdb5c32205344e08cdf1a1f82e15ceefac90a05`; status sync `2d0d555577a0785ac5b4c65eed2abe31b78e1b0f`.
-Learning:
-- [FAILURE] A durable publication boundary must be qualified not only for process crashes but also for synchronous persistence errors exactly at the commit marker.
-- [RULE] Immutable staged bytes may survive a failed transaction, but inventory visibility must remain controlled exclusively by the durable commit marker.
-Next: Validate the new commit across the full matrix, then continue deterministic reconciliation/node-loss recovery qualification.
-
-## 2026-09-14 | current-agent | trust-filter-at-read-time
-Base: cad8aae1644d5485d42ae0a002124b4f8f66205f
-Area: federation trust boundary and deterministic reconciliation
-Goal: Prevent retained directory observations from remaining actionable after trust is withdrawn or expires.
-Research:
-- `FederationDirectory.observe()` checked trust at observation time, but `available()` returned retained advertisements without rechecking current trust.
-- `FederationReconciler.plan_repairs()` consumes `available()`, so a node withdrawn after observation could remain a replication source.
-Changes:
-- Changed `FederationDirectory.available()` to revalidate `TrustStore.admit()` at read time.
-- Added regression coverage for trust disablement, expiry at a precise timestamp, and reconciliation refusing a disabled source.
-Validation:
-- CI #396 (`34858177089`) passed **18/18 jobs** on the preceding transaction commit-marker qualification head `cad8aae1644d5485d42ae0a002124b4f8f66205f`.
-- CI #400 (`34863969229`) passed **18/18 jobs** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including all candidate crypto-provider jobs, for the trust-filter qualification head.
-Result: implementation `e7d54da4587135510a79a54eccd15dfff59a0df8`; tests `bb0e8bd45c097b465eb018518406c5e60ba29300`; status/log synchronization restored append-only history at `6954bd52114202e5cdb3b629b440db4c9249af5f` and status was refreshed immediately afterward.
-Learning:
-- [SECURITY] Trust is current authority, not a one-time admission event. Cached observations must not outlive revocation or expiry.
-- [RULE] Federation read paths must revalidate trust before making an identity actionable.
-- [PROCESS] When synchronizing shared logs, preserve the complete historical file and append only the new qualification record.
-Next: Continue Phase 5 deterministic node-loss/reconciliation convergence and Phase 2 explicit journal/crash failure boundaries.
-
-## 2026-09-14 | current-agent | reconciler-expiry-self-correction
-Base: 3c761371874fc5be8e1079af223a9ef1692ef828
-Area: federation reconciliation trust-clock qualification
-Goal: Make the expiry regression deterministic without weakening the trust-at-read-time security invariant.
-Research:
-- CI #404 (`34864633495`) failed on 10 regular-platform jobs; every candidate crypto-provider job passed.
-- Failure was a test-time semantics defect: advertisements were observed at `now_ns=5`, but `FederationReconciler.plan_repairs()` called `directory.available()` without the same clock, so real wall-clock time made the expiring source unavailable even for the pre-expiry assertion.
-Changes:
-- Added optional `now_ns` to `FederationReconciler.plan_repairs()` and passed it directly to `FederationDirectory.available()`.
-- Updated the expiry regression to assert a repair exists at `now_ns=5` and disappears exactly at `now_ns=10`.
-Validation:
-- CI #404 is a confirmed deterministic qualification failure, not a production implementation failure.
-- Corrected implementation `2134d2a1ee86d9ae125001d6df4e404297600cb2`.
-- Corrected test `bae203b3ef4e148f6b889904db93ec884fcf77f9`.
-- Full CI for corrected head is pending.
-Learning:
-- [FAILURE] Time-sensitive security tests must inject the same trust clock through every layer that makes an authority decision.
-- [RULE] Reconciliation must never silently substitute wall-clock time when its caller is qualifying a precise trust boundary.
-Next: Validate corrected head across the full matrix, then continue deterministic node-loss/reconciliation convergence and journal/crash failure boundaries.
+- [SECURITY] Recovery evidence can prove a prior outcome but must never mint authority or substitute for current identity/revocation checks.
+- [RULE] The reference materializer remains non-destructive until a separately qualified crash-safe host executor exists.
+Next: Continue provider-specific semantic qualification and add code only for a demonstrated contract gap; keep secrets and external provider credentials out of repository state.
