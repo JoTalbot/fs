@@ -12,6 +12,7 @@ import hashlib
 import json
 
 from .authority_policy import PolicyAuthorization, validate_policy_authorization
+from .identity_verification import AuthenticatedPrincipal
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
@@ -166,4 +167,30 @@ def grant_policy_bound_transfer_authority(
         issuer_id=authorization.principal.issuer_id,
         policy_digest=policy_digest,
         authority_id=authority_id,
+    )
+
+
+def grant_authenticated_policy_bound_transfer_authority(
+    plan: WorkspaceTransferPlan,
+    *,
+    transaction_id: str,
+    scope: TransferAuthorityScope,
+    authorization: PolicyAuthorization,
+    authenticated_principal: AuthenticatedPrincipal,
+) -> TransferAuthority:
+    """Bind a policy authorization to independently verified identity evidence.
+
+    The evidence must match the principal and issuer named by the policy. The
+    verifier remains external and authoritative; this function never treats a
+    hand-constructed evidence record as proof of cryptographic authentication.
+    """
+    if authenticated_principal.principal_id != authorization.principal.principal_id:
+        raise PermissionError("authenticated principal does not match policy principal")
+    if authenticated_principal.issuer_id != authorization.principal.issuer_id:
+        raise PermissionError("authenticated issuer does not match policy issuer")
+    return grant_policy_bound_transfer_authority(
+        plan,
+        transaction_id=transaction_id,
+        scope=scope,
+        authorization=authorization,
     )
