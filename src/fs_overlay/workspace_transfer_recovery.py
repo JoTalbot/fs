@@ -91,6 +91,14 @@ def reconcile_materializing_transaction(
         )
 
     if evidence.destination_state is DestinationRecoveryState.ABSENT:
+        if evidence.mutation_complete:
+            return TransferRecoveryPlan(
+                entry.transaction_id,
+                entry.operation,
+                entry.snapshot_id,
+                RecoveryDecision.MANUAL_REVIEW,
+                "destination is absent but mutation completion conflicts with rollback proof",
+            )
         if evidence.rollback_safe and evidence.staging_absent:
             return TransferRecoveryPlan(
                 entry.transaction_id,
