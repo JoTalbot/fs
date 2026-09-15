@@ -32,7 +32,7 @@ class WorkspaceTransferPlan:
     snapshot_id: str
     source_workspace_id: str
     destination_workspace_id: str | None
-    source_path: Path
+    source_path: Path | None
     destination_path: Path | None
     source_preserved: bool = True
     destination_must_be_verified: bool = True
@@ -43,20 +43,13 @@ class WorkspaceTransferPlan:
         return not self.reasons
 
 
-def _admitted(binding: WorkspaceBinding) -> WorkspacePlan:
-    plan = plan_workspace(binding)
-    if not plan.admitted:
-        return plan
-    return plan
-
-
 def plan_export(
     state: WorkspaceState,
     source: WorkspaceBinding,
 ) -> WorkspaceTransferPlan:
     """Plan a non-destructive export of verified workspace state."""
     reasons = list(state.validate())
-    source_plan = _admitted(source)
+    source_plan = plan_workspace(source)
     reasons.extend(source_plan.reasons)
     if source.workspace_id != state.workspace_id:
         reasons.append("source_workspace_mismatch")
@@ -77,7 +70,7 @@ def plan_import(
 ) -> WorkspaceTransferPlan:
     """Plan import only into an existing, explicitly managed destination."""
     reasons = list(state.validate())
-    destination_plan = _admitted(destination)
+    destination_plan = plan_workspace(destination)
     reasons.extend(destination_plan.reasons)
     if not destination.owned_or_delegated:
         reasons.append("import_destination_requires_ownership_or_delegation")
@@ -88,8 +81,7 @@ def plan_import(
         state.snapshot.snapshot_id,
         state.workspace_id,
         destination.workspace_id,
-        Path(state.snapshot.metadata.get("workspace_path", destination.host_path)
-             if state.snapshot.metadata else destination.host_path),
+        None,
         Path(destination.host_path),
         reasons=tuple(dict.fromkeys(reasons)),
     )
