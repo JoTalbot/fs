@@ -9,6 +9,8 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
+from .identity_verification import AuthenticatedPrincipal
+
 
 @runtime_checkable
 class SecureKeyStore(Protocol):
@@ -91,7 +93,7 @@ class PrincipalVerifier(Protocol):
         key_fingerprint: str,
         claims: bytes,
         signature: bytes,
-    ) -> object: ...
+    ) -> AuthenticatedPrincipal: ...
 
 
 @runtime_checkable
