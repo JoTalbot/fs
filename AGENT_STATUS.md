@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `4d94cbd42fd05e33e18e58af7f2e7b28457eeef0`
+- Latest implementation head: `a2fbce2ffec0db8bda8c74c8c64715f3491ef3c1`
 - Updated: 2026-09-15
 
 ## Active step
@@ -15,23 +15,23 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, authenticated identity, transport, journal, and recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, durable revocation, and an authenticated transport session
-- status: repaired the CI regression by making the reference key lifecycle adapter terminal after retirement or revocation; the admission contract can no longer reactivate a terminal key. Identity test doubles now implement explicit retirement. Executor ordering and transport close-error regressions remain in place.
+- status: CI #634 exposed a semantic regression in the reference key lifecycle adapter: RETIRED keys must remain admitted and verification-capable while being non-signing and non-reactivatable. Fixed the adapter to separate retirement non-reactivation from terminal revocation. Fresh validation is now pending.
 - decision: policy, audit, identity, transport, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
 - next_step: validate the repaired head in GitHub Actions, then continue provider-boundary conformance and the AEAD boundary audit; review recovery/audit separation for remaining fail-open ordering gaps
 
 ## Latest work
 
-- `4d94cbd42fd05e33e18e58af7f2e7b28457eeef0` — make reference key lifecycle admission terminal after retirement or revocation.
+- `a2fbce2ffec0db8bda8c74c8c64715f3491ef3c1` — keep retired keys verification-capable while preventing reactivation.
+- `4d94cbd42fd05e33e18e58af7f2e7b28457eeef0` — attempted terminal lifecycle handling; CI exposed that retirement must remain verification-capable.
 - `3e30f0e7cbf61e72b97cb8a5d909a62ba1425d9c` — refresh status after CI regression fixes.
 - `091bdc1f076a37d868b33bae0965b22a50c12890` — restore production-adapter lifecycle regression expectations.
 - `1f7a0e26856854f3240fc4661b8db1ba3593b713` — fix identity admission test double to implement explicit key retirement.
-- `9548abe92a106341aae1e2c0f1908707a11cc9da` — add executor gate-ordering regressions proving revoked authority and invalid journal state do not touch the transport provider.
+- `9548abe92d106341aae1e2c0f1908707a11cc9da` — add executor gate-ordering regressions proving revoked authority and invalid journal state do not touch the transport provider.
 - `8f57d366a718c5ebf64d26e8bb6f4f093eac2512` — add transport regression proving provider close errors cannot mask the intended security failure.
-- `9498144c97d86824fc37583b05dab6fce6ad71e9` — qualify terminal reference key lifecycle admission.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI run #632 on `3e30f0e7cbf61e72b97cb8a5d909a62ba1425d9c` exposed one real lifecycle regression across the supported Python/OS matrix: the reference adapter still re-admitted a RETIRED key. The crypto-provider jobs were successful. The defect is now fixed in `4d94cbd`; a fresh validation run is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI #634 on `106065e28c822c7f10ab28a987ada25231a40ba2` failed 2 lifecycle assertions across the supported OS/Python matrix: retirement incorrectly made the reference adapter report the key as not admitted and not verification-capable. Independent conformance consumers passed and all candidate crypto-provider jobs passed. The defect is fixed in `a2fbce2ffec0db8bda8c74c8c64715f3491ef3c1`; fresh validation is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
 
 ## Current V1 position
 
