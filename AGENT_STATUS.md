@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `dfbcc708e6f9a10b1e9e23ce779146412c006575`
+- Latest implementation head: `efef7e47074a0cad5ed6e2631ce0496688d11d60`
 - Updated: 2026-09-15
 
 ## Active step
@@ -15,12 +15,13 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, authenticated identity, transport, journal, recovery, and content-addressed workspace integrity
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, durable revocation, an authenticated transport session, and strictly validated content-addressed state
-- status: snapshot object-ID integrity boundary is now hardened. Snapshot creation and persisted snapshot reads reject noncanonical object references before identity/Merkle acceptance. Existing cross-object manifest/snapshot substitution protections remain intact.
+- status: snapshot object-ID integrity boundary is hardened. A CI regression exposed only an over-specific test expectation during tamper decoding: canonical object validation runs before snapshot identity verification. The test expectation was corrected without weakening fail-closed behavior.
 - decision: policy, audit, identity, transport, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled; object presence remains distinct from identity and authorization
-- next_step: validate the new head across the full CI matrix, then continue cross-component security ordering and recovery/audit separation; add code only for concrete fail-closed gaps
+- next_step: validate the corrected head across the full CI matrix, then continue cross-component security ordering and recovery/audit separation; add code only for concrete fail-closed gaps
 
 ## Latest work
 
+- `efef7e47074a0cad5ed6e2631ce0496688d11d60` — correct the snapshot tamper regression expectation revealed by CI.
 - `dfbcc708e6f9a10b1e9e23ce779146412c006575` — document snapshot object-ID hardening step and shared coordination state.
 - `42009a68fc8c3c8023830f49f21356e3800dd650` — add snapshot object-ID regression coverage.
 - `9ff8ca589e792ed53b3ba8e0ecd0195735e29392` — require canonical lowercase SHA-256 object IDs at snapshot create/read boundaries.
@@ -29,7 +30,7 @@
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI #648 (`34987704228`) completed successfully on `ba69e16a4238a1678401d20d605d0402e15d95c2` after correcting the manifest identity-binding regression. The new snapshot object-ID hardening head is awaiting its own full CI result. FreeBSD native CI remains intentionally disabled and is outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI #652 (`34988832996`) failed in the test suite only because the newly added tamper-read test expected `invalid snapshot object id`, while the implementation correctly raised `snapshot identity verification failed` after canonical validation of the tampered payload changed the signed identity. Independent conformance and all candidate crypto-provider jobs passed. The test expectation was corrected in `efef7e47074a0cad5ed6e2631ce0496688d11d60`; a new CI run is required. FreeBSD native CI remains intentionally disabled and is outside the release gate.
 
 ## Current V1 position
 
