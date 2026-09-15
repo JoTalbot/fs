@@ -1,15 +1,19 @@
 from pathlib import Path
+import hashlib
 
 import pytest
 
+from fs_overlay.identity_verification import AuthenticatedPrincipal
 from fs_overlay.storage_engine import LocalStorageEngine
 from fs_overlay.workspace import WorkspaceBinding
 from fs_overlay.workspace_migration import plan_export, plan_import
 from fs_overlay.workspace_state import WorkspaceStateStore
 from fs_overlay.workspace_transfer_authority import (
     TransferAuthorityScope,
+    grant_authenticated_policy_bound_transfer_authority,
     grant_transfer_authority,
 )
+from fs_overlay.authority_policy import AuthorityConstraints, AuthorityPrincipal, PolicyAuthorization
 
 
 def _state_and_plans(tmp_path: Path):
@@ -97,3 +101,57 @@ def test_materialization_authority_rejects_export_plan(tmp_path: Path) -> None:
             scope=TransferAuthorityScope.MATERIALIZE,
             approved=True,
         )
+
+
+def test_authenticated_principal_must_match_policy(tmp_path: Path) -> None:
+    _, _, plan = _state_and_plans(tmp_path)
+    authorization = PolicyAuthorization(
+        principal=AuthorityPrincipal("principal-1", "issuer-1"),
+        constraints=AuthorityConstraints("destination", plan.snapshot_id),
+        approved=True,
+    )
+    evidence = AuthenticatedPrincipal(
+        principal_id="principal-2",
+        issuer_id="issuer-1",
+        node_id="node-1",
+        key_id="key-1",
+        key_fingerprint="a" * 64,
+        trust_root_id="root-1",
+        claims_digest=hashlib.sha256(b"claims").hexdigest(),
+    )
+    with pytest.raises(PermissionError, match="principal does not match"):
+        grant_authenticated_policy_bound_transfer_authority(
+            plan,
+            transaction_id="tx-auth-1",
+            scope=TransferAuthorityScope.MATERIALIZE,
+            authorization=authorization,
+            authenticated_principal=evidence,
+        )
+
+
+def test_authenticated_principal_binds_policy_authority(tmp_path: Path) -> None:
+    _, _, plan = _state_and_plans(tmp_path)
+    authorization = PolicyAuthorization(
+        principal=AuthorityPrincipal("principal-1", "issuer-1"),
+        constraints=AuthorityConstraints("destination", plan.snapshot_id),
+        approved=True,
+    )
+    evidence = AuthenticatedPrincipal(
+        principal_id="principal-1",
+        issuer_id="issuer-1",
+        node_id="node-1",
+        key_id="key-1",
+        key_fingerprint="a" * 64,
+        trust_root_id="root-1",
+        claims_digest=hashlib.sha256(b"claims").hexdigest(),
+    )
+    authority = grant_authenticated_policy_bound_transfer_authority(
+        plan,
+        transaction_id="tx-auth-2",
+        scope=TransferAuthorityScope.MATERIALIZE,
+        authorization=authorization,
+        authenticated_principal=evidence,
+    )
+    assert authority.principal_id == evidence.principal_id
+    assert authority.issuer_id == evidence.issuer_id
+    assert authority.authority_id is not None
