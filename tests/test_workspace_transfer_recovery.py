@@ -110,6 +110,22 @@ def test_recovery_requires_staging_absence_for_abort_proof(tmp_path: Path) -> No
     assert "staging" in plan.reason
 
 
+def test_recovery_rejects_contradictory_abort_evidence(tmp_path: Path) -> None:
+    entry = _candidate(tmp_path)
+    plan = reconcile_materializing_transaction(
+        entry,
+        _evidence(
+            entry,
+            destination_state=DestinationRecoveryState.ABSENT,
+            mutation_complete=True,
+            rollback_safe=True,
+            staging_absent=True,
+        ),
+    )
+    assert plan.decision is RecoveryDecision.MANUAL_REVIEW
+    assert "conflicts" in plan.reason
+
+
 def test_recovery_fails_closed_on_unknown_or_conflicting_evidence(tmp_path: Path) -> None:
     entry = _candidate(tmp_path)
     for state in (DestinationRecoveryState.UNKNOWN, DestinationRecoveryState.CONFLICTING):
