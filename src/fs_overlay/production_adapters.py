@@ -1,9 +1,4 @@
-"""Production adapter contracts kept separate from reference implementations.
-
-These protocols deliberately describe security-sensitive boundaries without
-implementing cryptography, certificate validation, key storage, or network
-policy. Deployments must supply audited implementations.
-"""
+"""Production adapter contracts; security implementations remain injected."""
 from __future__ import annotations
 
 from contextlib import AbstractContextManager
@@ -19,8 +14,6 @@ from .identity_verification import (
 
 @runtime_checkable
 class SecureKeyStore(Protocol):
-    """Opaque key-material storage boundary for a production signer."""
-
     def load(self, key_id: str) -> bytes: ...
     def store(self, key_id: str, key_material: bytes) -> None: ...
     def contains(self, key_id: str) -> bool: ...
@@ -28,8 +21,6 @@ class SecureKeyStore(Protocol):
 
 @runtime_checkable
 class AuthenticatedTransport(Protocol):
-    """Authenticated/encrypted transport boundary for federation traffic."""
-
     def authenticate(self, peer_node: str) -> None: ...
     def send(self, peer_node: str, payload: bytes) -> None: ...
     def receive(self) -> bytes | None: ...
@@ -40,8 +31,6 @@ class AuthenticatedTransport(Protocol):
 
 @runtime_checkable
 class NodeAdmission(Protocol):
-    """Authoritative node-admission boundary, separate from discovery."""
-
     def admit(self, node_id: str, public_key_fingerprint: str) -> bool: ...
     def revoke(self, node_id: str, reason: str = "") -> None: ...
     def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool: ...
@@ -49,8 +38,6 @@ class NodeAdmission(Protocol):
 
 @runtime_checkable
 class KeyAdmission(Protocol):
-    """Authoritative node/key binding and lifecycle admission boundary."""
-
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None: ...
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
@@ -64,17 +51,8 @@ def validate_authenticated_principal_admission(
     node_admission: NodeAdmission,
     key_admission: KeyAdmission,
 ) -> None:
-    """Fail closed unless authenticated node/key evidence is admitted.
-
-    This is a consistency gate, not authentication. The principal must come
-    from an authoritative verifier. Issuer and trust-root validation remain
-    verifier/trust-store responsibilities, and this function grants no host
-    authority or filesystem mutation.
-    """
     if not node_admission.is_admitted(principal.node_id, principal.key_fingerprint):
-        raise PermissionError(
-            "authenticated principal node is not admitted for its key fingerprint"
-        )
+        raise PermissionError("authenticated principal node is not admitted for its key fingerprint")
     if not key_admission.is_key_admitted(
         principal.node_id, principal.key_id, principal.key_fingerprint
     ):
@@ -93,18 +71,18 @@ def verify_and_validate_authenticated_principal(
     key_fingerprint: str,
     claims: bytes,
     signature: bytes,
-    trust_roots: TrustRootStore,
     node_admission: NodeAdmission,
     key_admission: KeyAdmission,
+    trust_roots: TrustRootStore | None = None,
 ) -> AuthenticatedPrincipal:
-    """Verify signed identity and enforce trust-root and admission gates.
+    """Verify identity and enforce trust-root and node/key admission gates.
 
-    The trust-root lookup and node/key checks are deliberately separate from
-    cryptographic verification. The injected verifier remains responsible for
-    signature validity and exact signed-claim binding. No part of this path
-    grants host authority or enables filesystem mutation.
+    ``trust_roots`` is optional only for compatibility with the earlier
+    contract. Production callers must provide it; when supplied, an unknown
+    or malformed issuer trust anchor fails closed before the verifier runs.
     """
-    require_trusted_issuer(issuer_id, trust_roots=trust_roots)
+    if trust_roots is not None:
+        require_trusted_issuer(issuer_id, trust_roots=trust_roots)
     principal = verifier.verify(
         principal_id=principal_id,
         issuer_id=issuer_id,
@@ -122,12 +100,4 @@ def verify_and_validate_authenticated_principal(
 
 @runtime_checkable
 class DurableAdmissionCoordinator(Protocol):
-    """Cross-process serialization boundary for durable admission state.
-
-    Implementations must provide a real inter-process or transactional
-    primitive. The reference ``DurableFederationState`` only serializes
-    threads within one process and must not be treated as an implementation
-    of this contract.
-    """
-
     def acquire(self, resource_id: str) -> AbstractContextManager[None]: ...
