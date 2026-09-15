@@ -12,11 +12,10 @@ from typing import Mapping
 
 from .authority_policy import PolicyAuthorization, validate_policy_authorization
 from .authority_revocation import AuthorityRevocationRegistry
-from .durable_admission import KeyAdmission, NodeAdmission
-from .identity_verification import AuthenticatedPrincipal, PrincipalVerifier, TrustRootStore
 from .identity_preflight import identity_preflight
+from .identity_verification import AuthenticatedPrincipal, PrincipalVerifier, TrustRootStore
+from .production_adapters import AuthenticatedTransport, KeyAdmission, NodeAdmission
 from .transport_gate import FailClosedTransportGate
-from .production_adapters import AuthenticatedTransport
 from .workspace_migration import WorkspaceTransferPlan
 from .workspace_transfer_authority import (
     TransferAuthority,
@@ -68,6 +67,9 @@ def executor_preflight(
     peer authentication; this function only binds that session to the verified
     principal.
     """
+    if not plan.ready:
+        raise PermissionError("executor preflight requires a ready transfer plan")
+
     principal = identity_preflight(
         principal_id=principal_id,
         issuer_id=issuer_id,
@@ -97,8 +99,6 @@ def executor_preflight(
 
     if authority.transaction_id != transaction.transaction_id:
         raise PermissionError("transfer authority transaction does not match journal")
-    if authority.transaction_id != transaction.transaction_id or authority.transaction_id != transaction.transaction_id:
-        raise PermissionError("transfer authority transaction mismatch")
     if authority.snapshot_id != plan.snapshot_id:
         raise PermissionError("transfer authority snapshot does not match plan")
     if authority.source_workspace_id != plan.source_workspace_id:
