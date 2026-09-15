@@ -104,9 +104,11 @@ def run_adapter_conformance(
     _check(not keys.can_sign("node-a", "k1"), "retired key must not sign")
     _check(keys.can_verify("node-a", "k1"), "retired key must remain verify-capable")
     _check(keys.is_key_admitted("node-a", "k1", "fp-a"), "retired key must remain admitted for verification")
+    _check(not keys.admit_key("node-a", "k1", "fp-a"), "retired key must not be re-admitted")
     keys.revoke_key("node-a", "k1", "qualification")
     _check(not keys.can_sign("node-a", "k1"), "revoked key must not sign")
     _check(not keys.can_verify("node-a", "k1"), "revoked key must not verify")
+    _check(not keys.admit_key("node-a", "k1", "fp-a"), "revoked key must not be re-admitted")
     checks.append("key-admission")
 
     nodes: Any = node_admission_factory()
