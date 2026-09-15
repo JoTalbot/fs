@@ -63,10 +63,14 @@ class ReferenceKeyLifecycleAdmission:
     def __init__(self, lifecycle: KeyLifecycle):
         self._lifecycle = lifecycle
         self._node_by_key: dict[str, str] = {}
-        self._terminal_keys: set[str] = set()
+        # Retirement is non-signing but remains valid for verification. Keep a
+        # separate non-reactivation marker so a retired key cannot be rebound
+        # while its existing node/key admission remains verification-capable.
+        self._non_reactivatable_keys: set[str] = set()
+        self._revoked_keys: set[str] = set()
 
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-        if key_id in self._terminal_keys:
+        if key_id in self._non_reactivatable_keys or key_id in self._revoked_keys:
             return False
         if self._lifecycle.fingerprint_for(key_id) != fingerprint:
             return False
@@ -82,16 +86,17 @@ class ReferenceKeyLifecycleAdmission:
         if self._node_by_key.get(key_id) != node_id:
             raise ValueError("key is not admitted")
         self._lifecycle.retire(key_id)
-        self._terminal_keys.add(key_id)
+        self._non_reactivatable_keys.add(key_id)
 
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
         if self._node_by_key.get(key_id) == node_id:
             self._lifecycle.revoke(key_id)
-            self._terminal_keys.add(key_id)
+            self._revoked_keys.add(key_id)
+            self._non_reactivatable_keys.add(key_id)
 
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
         return (
-            key_id not in self._terminal_keys
+            key_id not in self._revoked_keys
             and self._node_by_key.get(key_id) == node_id
             and self._lifecycle.fingerprint_for(key_id) == fingerprint
             and self._lifecycle.usable_for_verification(key_id)
@@ -99,14 +104,14 @@ class ReferenceKeyLifecycleAdmission:
 
     def can_sign(self, node_id: str, key_id: str) -> bool:
         return (
-            key_id not in self._terminal_keys
+            key_id not in self._revoked_keys
             and self._node_by_key.get(key_id) == node_id
             and self._lifecycle.usable_for_signing(key_id)
         )
 
     def can_verify(self, node_id: str, key_id: str) -> bool:
         return (
-            key_id not in self._terminal_keys
+            key_id not in self._revoked_keys
             and self._node_by_key.get(key_id) == node_id
             and self._lifecycle.usable_for_verification(key_id)
         )
