@@ -189,6 +189,13 @@ def test_transport_peer_mismatch_closes_before_authority_use(tmp_path):
     assert transport.closed
 
 
+def test_unauthenticated_transport_blocks_before_authority_use(tmp_path):
+    transport = Transport(authenticated=False)
+    with pytest.raises(Exception, match="not authenticated"):
+        run(tmp_path, transport=transport)
+    assert transport.closed
+
+
 def test_revoked_authority_blocks(tmp_path):
     revocations = AuthorityRevocationRegistry(tmp_path / "revocations.jsonl")
     revocations.revoke(authority().authority_id, reason="test")
