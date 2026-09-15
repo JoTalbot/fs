@@ -21,6 +21,7 @@ def test_node_admission_restart_revoke_and_tamper(tmp_path):
     assert DurableNodeAdmission(path).is_admitted("node-1", fingerprint)
     assert not store.admit("node-1", fp("different"))
     store.revoke("node-1")
+    assert not store.admit("node-1", fingerprint)
     assert not DurableNodeAdmission(path).is_admitted("node-1", fingerprint)
 
     lines = path.read_text().splitlines()
