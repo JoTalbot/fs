@@ -141,6 +141,8 @@ class BubblewrapWorkspaceBackend(IsolationBackend):
         path = Path(workspace_path)
         if not path.is_absolute():
             return IsolationPlan(self.name, (), (), False, "workspace_path_must_be_absolute")
+        if path.is_symlink():
+            return IsolationPlan(self.name, (), (), False, "workspace_path_must_not_be_symlink")
         if not path.is_dir():
             return IsolationPlan(self.name, (), (), False, "workspace_path_not_directory")
         if self._workspace_overlaps_runtime_root(path):
