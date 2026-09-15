@@ -124,12 +124,7 @@ def grant_policy_bound_transfer_authority(
     scope: TransferAuthorityScope,
     authorization: PolicyAuthorization,
 ) -> TransferAuthority:
-    """Issue authority only after exact policy authorization has been validated.
-
-    Principal and issuer are provenance claims supplied by the external control
-    plane. This function does not authenticate them, provide revocation, or grant
-    filesystem mutation capability. Those remain explicit future security gates.
-    """
+    """Issue authority only after exact policy authorization has been validated."""
     workspace_id = (
         plan.destination_workspace_id
         if scope is TransferAuthorityScope.MATERIALIZE
@@ -179,12 +174,7 @@ def grant_authenticated_policy_bound_transfer_authority(
     authorization: PolicyAuthorization,
     authenticated_principal: AuthenticatedPrincipal,
 ) -> TransferAuthority:
-    """Bind a policy authorization to independently verified identity evidence.
-
-    The evidence must match the principal and issuer named by the policy. The
-    verifier remains external and authoritative; this function never treats a
-    hand-constructed evidence record as proof of cryptographic authentication.
-    """
+    """Bind a policy authorization to independently verified identity evidence."""
     if authenticated_principal.principal_id != authorization.principal.principal_id:
         raise PermissionError("authenticated principal does not match policy principal")
     if authenticated_principal.issuer_id != authorization.principal.issuer_id:
@@ -197,19 +187,47 @@ def grant_authenticated_policy_bound_transfer_authority(
     )
 
 
+def validate_policy_bound_transfer_authority(
+    authority: TransferAuthority,
+    *,
+    policy: PolicyAuthorization,
+    authenticated_principal: AuthenticatedPrincipal,
+) -> None:
+    """Verify that authority provenance still represents this exact policy decision."""
+    if not authority.policy_digest or not authority.authority_id:
+        raise PermissionError("transfer authority has incomplete policy provenance")
+    if authority.principal_id != policy.principal.principal_id:
+        raise PermissionError("transfer authority principal does not match policy")
+    if authority.issuer_id != policy.principal.issuer_id:
+        raise PermissionError("transfer authority issuer does not match policy")
+    if authenticated_principal.principal_id != authority.principal_id:
+        raise PermissionError("authenticated principal does not match transfer authority")
+    if authenticated_principal.issuer_id != authority.issuer_id:
+        raise PermissionError("authenticated issuer does not match transfer authority")
+    expected_digest = _policy_digest(policy)
+    if authority.policy_digest != expected_digest:
+        raise PermissionError("transfer authority policy provenance does not match authorization")
+    expected_id = _authority_id(
+        transaction_id=authority.transaction_id,
+        snapshot_id=authority.snapshot_id,
+        source_workspace_id=authority.source_workspace_id,
+        destination_workspace_id=authority.destination_workspace_id,
+        scope=authority.scope,
+        principal_id=authority.principal_id,
+        issuer_id=authority.issuer_id,
+        policy_digest=authority.policy_digest,
+    )
+    if authority.authority_id != expected_id:
+        raise PermissionError("transfer authority identity provenance is invalid")
+
+
 def validate_authenticated_transfer_authority(
     authority: TransferAuthority,
     *,
     authenticated_principal: AuthenticatedPrincipal,
     revocations: AuthorityRevocationRegistry,
 ) -> None:
-    """Fail closed before authority use unless identity and revocation agree.
-
-    This helper does not authenticate the principal and does not conflate
-    principal/key revocation with revocation of one transfer authority. The
-    caller must supply independently verified identity evidence; the durable
-    authority registry remains the authoritative decision for this authority ID.
-    """
+    """Fail closed before authority use unless identity and revocation agree."""
     if not authority.authority_id:
         raise PermissionError("transfer authority has no durable authority identity")
     if not authority.principal_id or not authority.issuer_id:
