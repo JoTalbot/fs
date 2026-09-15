@@ -7,7 +7,8 @@
 - Repository: `JoTalbot/fs`
 - Branch: `main`
 - Latest implementation head: `f786ff1c6c638cadbd2f9c587b0de461de553fe8`
-- Latest durable step record: recovery audit trail contract
+- Latest test fix: `5ab158bd3b312324ac5c0f09bfbacbd6b1267225`
+- Latest durable step record: `docs/AGENT_STEP_2026-09-15_workspace-transfer-recovery-audit.md`
 - Updated: 2026-09-15
 
 ## Active step
@@ -16,9 +17,9 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, and auditable recovery decisions
-- status: rollback evidence CI is green; recovery audit trail and ambiguity tests are committed; fresh CI for the audit changes is pending
+- status: recovery audit trail is green in CI 475; final audit-chain regression test is aligned with the canonical event digest; no host filesystem mutation is enabled
 - decision: audit records document a recovery decision and proposed transition only; they never grant authority or prove filesystem state. Audit replay is fail-closed on identity, sequence, transition, hash-chain, or record-integrity violations
-- next_step: validate fresh CI for the audit contract; then expand crash/recovery ambiguity and residual-staging qualification without enabling host filesystem mutation
+- next_step: expand crash/recovery ambiguity and residual-staging qualification without enabling host filesystem mutation
 
 ## Latest work
 
@@ -32,11 +33,14 @@
 - `a73f34f7381f26d2a86d0ed38b5f59a1f7004252` — add rollback evidence regression tests; CI 468 green.
 - `647d4d675fa077ea9f3950fef5f6abbe03f6164e` — add append-only recovery audit trail with hash-chain replay.
 - `f786ff1c6c638cadbd2f9c587b0de461de553fe8` — fix slots-safe audit event construction and enforce decision/transition consistency.
-- `4bbbfd3c6f2884bfa38287b3f4d959eae02b0a11` — add recovery audit ambiguity/tamper regression tests.
+- `4bbbfd3c6f2884bfa38287b3f4d959eae02b0a11` — initial recovery audit ambiguity/tamper tests.
+- `e57da1dae8d31aeb4471a6dc8c602c8e348ef1b7` — correct the recovery audit chain regression setup.
+- `5ab158bd3b312324ac5c0f09bfbacbd6b1267225` — align the regression with the canonical event digest; CI 475 green.
+- `e376a687a88d396066247e6fa098e4931b0434c9` — record the recovery audit qualification and safety boundary.
 
 ## Validation boundary
 
-CI run 468 (`34944812950`) completed successfully for rollback evidence. CI runs 470 (`34945191867`) and 471 (`34945207088`) are queued for the audit implementation/test commits. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+CI 475 (`34945655398`) completed successfully for the final audit-chain test fix. CI 474 (`34945642721`) also completed successfully for the preceding audit test correction. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
@@ -50,8 +54,8 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Validate fresh CI for the audit implementation/tests and correct failures autonomously.
-2. Keep journal transitions and transaction identities fail-closed across reopen/replay.
-3. Expand qualification tests for unknown/conflicting evidence and residual staging state.
-4. Verify audit history cannot be interpreted as mutation authority or filesystem proof.
+1. Keep journal transitions and transaction identities fail-closed across reopen/replay.
+2. Expand qualification tests for unknown/conflicting evidence and residual staging state.
+3. Verify audit history cannot be interpreted as mutation authority or filesystem proof.
+4. Qualify crash/recovery evidence boundaries before any executor implementation.
 5. Only after crash/rollback qualification, consider a narrowly scoped host filesystem materializer.
