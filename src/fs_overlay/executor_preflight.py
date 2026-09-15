@@ -15,6 +15,7 @@ from .authority_revocation import AuthorityRevocationRegistry
 from .identity_preflight import identity_preflight
 from .identity_verification import AuthenticatedPrincipal, PrincipalVerifier, TrustRootStore
 from .production_adapters import AuthenticatedTransport, KeyAdmission, NodeAdmission
+from .recovery_preflight import RecoveryEvidenceVerifier, recovery_preflight
 from .transport_gate import FailClosedTransportGate
 from .workspace_migration import WorkspaceTransferPlan
 from .workspace_transfer_authority import (
@@ -58,6 +59,7 @@ def executor_preflight(
     claims: Mapping[str, object],
     signature: bytes,
     recovery: TransferRecoveryPlan | None = None,
+    recovery_evidence_verifier: RecoveryEvidenceVerifier | None = None,
 ) -> ExecutorPreflightResult:
     """Require every executor security gate before any future mutation.
 
@@ -67,6 +69,10 @@ def executor_preflight(
     transaction/recovery. The transport provider remains responsible for
     authenticated encryption and peer authentication; this function only binds
     that session to the verified principal.
+
+    A recovery plan is accepted only when it has been produced by the dedicated
+    recovery preflight with independently verified evidence. A bare plan that
+    merely matches journal identifiers is never sufficient.
     """
     if not plan.ready:
         raise PermissionError("executor preflight requires a ready transfer plan")
@@ -137,10 +143,11 @@ def executor_preflight(
         raise PermissionError("executor preflight requires a prepared transaction")
 
     if recovery is not None:
-        if recovery.transaction_id != transaction.transaction_id:
-            raise PermissionError("recovery plan transaction does not match journal")
-        if recovery.snapshot_id != transaction.snapshot_id:
-            raise PermissionError("recovery plan snapshot does not match journal")
+        if recovery_evidence_verifier is None:
+            raise PermissionError("recovery requires an independent evidence verifier")
+        raise PermissionError(
+            "recovery plan must be supplied through recovery_preflight with independently verified evidence"
+        )
 
     return ExecutorPreflightResult(
         principal=principal,
