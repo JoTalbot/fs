@@ -66,6 +66,35 @@ class KeyAdmission(Protocol):
 
 
 @runtime_checkable
+class TrustRootStore(Protocol):
+    """Authoritative issuer trust-anchor lookup boundary."""
+
+    def issuer_fingerprint(self, issuer_id: str) -> str | None: ...
+
+
+@runtime_checkable
+class PrincipalVerifier(Protocol):
+    """Audited verification boundary for signed principal claims.
+
+    Implementations must fail closed unless the issuer is trusted, the claimed
+    node/key binding is admitted, the key is usable for verification, the
+    signature is valid, and the signed claims bind all returned identity fields.
+    """
+
+    def verify(
+        self,
+        *,
+        principal_id: str,
+        issuer_id: str,
+        node_id: str,
+        key_id: str,
+        key_fingerprint: str,
+        claims: bytes,
+        signature: bytes,
+    ) -> object: ...
+
+
+@runtime_checkable
 class DurableAdmissionCoordinator(Protocol):
     """Cross-process serialization boundary for durable admission state.
 
