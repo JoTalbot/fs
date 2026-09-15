@@ -60,5 +60,5 @@ def test_snapshot_rejects_noncanonical_object_ids_when_reading(tmp_path: Path) -
     tampered = raw.replace(("a" * 64).encode(), ("A" * 64).encode(), 1)
     (tmp_path / "snapshots" / valid.snapshot_id).write_bytes(tampered)
 
-    with pytest.raises(ValueError, match="invalid snapshot object id"):
+    with pytest.raises(ValueError, match="snapshot identity verification failed"):
         store.get(valid.snapshot_id)
