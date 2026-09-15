@@ -6,31 +6,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `a6cacd59a31d43088239b1a5560f57cdf6c14b68`
-- Latest status synchronization commit: pending (this update)
+- Latest implementation head: `51a82437130e1562115a106f4bad7a8a9fddd390`
+- Latest durable step record: `5aacfb808f6dab18eae9379bc6d8ec2d9d9699a4`
 - Updated: 2026-09-15
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace transfer authority boundary
-- claimed_files: `src/fs_overlay/workspace_transfer_authority.py`, `tests/test_workspace_transfer_authority.py`, `docs/AGENT_STEP_2026-09-15_transfer-authority.md`, `AGENT_STATUS.md`
-- goal: establish explicit, auditable authority between a verified transfer plan and any future filesystem materializer
-- status: immutable authority contract implemented; explicit approval is required, authority is bound to transaction/snapshot/workspace identities, and scope is checked against transfer operation
-- decision: capability detection, path access, or ownership discovery never grants mutation authority implicitly; this step still performs no host filesystem mutation
-- next_step: validate the authority CI, then strengthen journal state-machine/transaction continuity before designing the materializer interface
+- area: Phase 3 workspace transfer journal / recovery boundary
+- claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
+- goal: make transfer intent replayable and fail-closed before any future filesystem materialization
+- status: strict prepared/materializing/committed/aborted state machine implemented; transaction identity continuity enforced; unresolved materializing transactions exposed as recovery candidates
+- decision: journal state never grants filesystem authority; capability detection, path access, or journal presence cannot authorize mutation implicitly
+- next_step: validate fresh CI, then define a non-destructive materializer protocol bound to explicit TransferAuthority and journal state
 
 ## Latest work
 
-- `0cdd69c74010fa16ad7a8451af07dbb805e58a4c` — explicit transfer authority contract.
-- `783bf12ca6688151da7963a164e07c07818048b2` — bind authority scope to transfer operation.
-- `e8652182f519fb0db64d2795cc584b1d27206883` — authority regression tests.
-- `a6cacd59a31d43088239b1a5560f57cdf6c14b68` — durable authority step record.
+- `1e1f239768f6300647d1b3d7b5fcdab2e1a7916a` — enforce transfer journal state machine and identity continuity.
+- `51a82437130e1562115a106f4bad7a8a9fddd390` — journal recovery regression coverage.
+- `5aacfb808f6dab18eae9379bc6d8ec2d9d9699a4` — durable step record update.
 
 ## Validation boundary
 
-Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. Run 440 (`34941562752`) completed successfully. Fresh CI runs for the journal/authority changes are still being validated; no pass is claimed for the latest head until its jobs complete. No local checkout/test runner is available in this session.
+Run 449 (`34942329593`) completed successfully for the preceding authority documentation commit. The state-machine commits triggered newer CI and must be checked by run/head before any pass is claimed. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -40,12 +39,12 @@ FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 ## Existing architecture boundary
 
-Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans must not be presented as completed filesystem migration, recovery, or rollback.
+Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans and journal entries must not be presented as completed filesystem migration, recovery, or rollback.
 
 ## Next phase
 
 1. Observe fresh CI and correct failures autonomously.
-2. Strengthen transfer journal phase/state-machine validation and transaction identity continuity.
-3. Define materializer contract around explicit authority plus durable journal state.
+2. Keep journal transitions and transaction identities fail-closed across reopen/replay.
+3. Define a non-destructive materializer contract around explicit authority and journal state.
 4. Add crash-state reconciliation and transactional rollback evidence before destructive host mutation.
 5. Continue snapshot/recovery qualification and production blockers.
