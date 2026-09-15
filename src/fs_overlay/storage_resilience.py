@@ -94,7 +94,10 @@ class SnapshotStore:
                 os.unlink(temporary)
 
     def get(self, snapshot_id: str) -> Snapshot:
-        return Snapshot.from_bytes((self.root / snapshot_id).read_bytes())
+        snapshot = Snapshot.from_bytes((self.root / snapshot_id).read_bytes())
+        if snapshot.snapshot_id != snapshot_id:
+            raise ValueError("snapshot identity verification failed")
+        return snapshot
 
 
 @dataclass(frozen=True)
