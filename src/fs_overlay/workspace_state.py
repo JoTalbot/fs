@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .storage_engine import LocalStorageEngine
 from .storage_resilience import Snapshot, SnapshotStore
-from .workspace import WorkspaceBinding, WorkspacePlan, plan_workspace
+from .workspace import WorkspaceBinding, plan_workspace
 from .workspace_registry import WorkspaceRegistry
 
 
