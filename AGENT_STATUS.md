@@ -6,19 +6,19 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation/test head: `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9`
-- Latest durable step record: `docs/AGENT_STEP_2026-09-15_workspace-transfer-recovery-matrix.md`
+- Latest implementation/test head: `a5e542b99197c414688290d8dfbb27a454079072`
+- Latest durable step record: `docs/AGENT_STEP_2026-09-15_workspace-transfer-authority-boundary.md`
 - Updated: 2026-09-15
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace transfer materializer / recovery boundary
-- goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, and auditable recovery decisions
-- status: recovery qualification now covers the mandatory commit/abort proof bits as a matrix; missing evidence and contradictory evidence remain fail-closed to manual review
-- decision: audit records document recovery decisions and proposed transitions only; they never grant authority or prove filesystem state. Recovery commit/abort proof requires complete evidence and never performs host mutation
-- next_step: qualify the end-to-end crash path across journal reopen/replay, evidence-derived recovery decisions, and audit replay without allowing any layer to mutate or authorize the host filesystem
+- area: Phase 3 workspace transfer materializer / authority and recovery boundary
+- goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, and policy constraints
+- status: crash/recovery/audit qualification is end-to-end evidence-only; the materializer now also rejects non-`TransferAuthority` objects before inspecting authority fields
+- decision: audit records and recovery decisions never grant authority or advance journal state; materialization requires an explicit authority object plus exact plan/journal identity binding; host filesystem mutation remains disabled
+- next_step: qualify the policy/control-plane boundary for authenticated authority provenance, revocation, and compiled constraints before any executor is considered
 
 ## Latest work
 
@@ -36,15 +36,19 @@
 - `cab8ead337733ec991218a0863aafece68c12bed` — reject contradictory abort evidence when mutation completion is simultaneously claimed.
 - `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` — add regression for contradictory abort evidence; CI 489 and follow-up status validation CI 490 green.
 - `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9` — expand fail-closed recovery evidence matrix; CI 492 green across the configured matrix.
-- `b9d5e2978a2ef81398eba2114eacc7efd37185e9` — record the recovery evidence matrix qualification boundary and next end-to-end target.
+- `b9d5e2978a2ef81398eba2114eacc7efd37185e9` — record the recovery evidence matrix qualification boundary.
+- `c177c4c15f5129d6b4cd4ef6312273254185e913` — add end-to-end reopened-journal recovery/audit evidence-only regressions; CI 495 green, 18/18.
+- `0595abe0634ca710819c7c172fa065412d172940` — harden the materializer boundary against arbitrary/non-authority objects.
+- `a5e542b99197c414688290d8dfbb27a454079072` — add regression proving non-authority objects are rejected fail-closed.
+- `d2cee328abbb1272d50728ae2bb470a3083f1a93` — record authority-boundary qualification and the remaining authenticated-policy gap.
 
 ## Validation boundary
 
-Recovery evidence matrix head `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9` passed CI 492 (`34949554522`) with all 18 configured jobs successful across Ubuntu, Windows, and macOS Python 3.11/3.12/3.13 plus candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+The end-to-end recovery/audit head `c177c4c15f5129d6b4cd4ef6312273254185e913` passed CI 495 (`34951052214`) with all 18 configured jobs successful. The authority-boundary change is currently in GitHub Actions validation as CI 497 (`34951835051` for `a5e542b...`); the durable status update itself follows this change. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
-V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, target-specific recovery evidence, and required external security review.
+V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, target-specific recovery evidence, and required external security review. The current Python `TransferAuthority` is an explicit contract object, not yet an authenticated security token.
 
 FreeBSD native CI remains intentionally disabled and outside the release gate.
 
@@ -54,8 +58,8 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Keep journal transitions and transaction identities fail-closed across reopen/replay.
-2. Exercise the end-to-end crash chain: reopened MATERIALIZING journal candidate → recovery evidence → recovery decision → audit event/replay.
-3. Assert recovery decisions and audit records never mutate journal phase or grant transfer authority.
-4. Expand qualification for unknown/conflicting destination evidence and contradictory recovery evidence as needed.
-5. Only after crash/rollback qualification, consider a narrowly scoped host filesystem materializer.
+1. Verify CI 497 and the status-sync workflow.
+2. Inspect policy/control-plane contracts for authenticated principal provenance, revocation, and constraint compilation.
+3. Add only the smallest fail-closed contract/regression needed at that boundary.
+4. Keep recovery/audit evidence separate from authority issuance.
+5. Only after authority, policy, crash, and rollback qualification, consider a narrowly scoped host filesystem materializer.
