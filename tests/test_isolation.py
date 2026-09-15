@@ -88,6 +88,20 @@ def test_bubblewrap_rejects_workspace_inside_runtime_roots(monkeypatch):
 
 
 @linux_only
+def test_bubblewrap_rejects_symlink_workspace_root(tmp_path, monkeypatch):
+    backend = BubblewrapWorkspaceBackend()
+    monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
+    monkeypatch.setattr(backend, "_version", lambda binary: (0, 12, 0))
+    real_workspace = tmp_path / "real-workspace"
+    real_workspace.mkdir()
+    link = tmp_path / "workspace-link"
+    link.symlink_to(real_workspace, target_is_directory=True)
+    plan = backend.plan(str(link))
+    assert not plan.available
+    assert plan.reason == "workspace_path_must_not_be_symlink"
+
+
+@linux_only
 def test_bubblewrap_preserves_network_policy(tmp_path, monkeypatch):
     backend = BubblewrapWorkspaceBackend()
     monkeypatch.setattr(backend, "_binary", lambda: "/usr/bin/bwrap")
