@@ -81,6 +81,35 @@ def test_recovery_requires_staging_absence_for_commit_proof(tmp_path: Path) -> N
     assert "staging" in plan.reason
 
 
+@pytest.mark.parametrize(
+    ("destination_verified", "mutation_complete", "staging_absent"),
+    [
+        (False, True, True),
+        (True, False, True),
+        (True, True, False),
+        (False, False, False),
+    ],
+)
+def test_matching_destination_requires_every_commit_proof_bit(
+    tmp_path: Path,
+    destination_verified: bool,
+    mutation_complete: bool,
+    staging_absent: bool,
+) -> None:
+    entry = _candidate(tmp_path)
+    plan = reconcile_materializing_transaction(
+        entry,
+        _evidence(
+            entry,
+            destination_state=DestinationRecoveryState.MATCHES_SNAPSHOT,
+            destination_verified=destination_verified,
+            mutation_complete=mutation_complete,
+            staging_absent=staging_absent,
+        ),
+    )
+    assert plan.decision is RecoveryDecision.MANUAL_REVIEW
+
+
 def test_recovery_proves_abort_only_when_destination_absent_rollback_safe_and_staging_absent(tmp_path: Path) -> None:
     entry = _candidate(tmp_path)
     plan = reconcile_materializing_transaction(
@@ -108,6 +137,28 @@ def test_recovery_requires_staging_absence_for_abort_proof(tmp_path: Path) -> No
     )
     assert plan.decision is RecoveryDecision.MANUAL_REVIEW
     assert "staging" in plan.reason
+
+
+@pytest.mark.parametrize(
+    ("rollback_safe", "staging_absent"),
+    [(False, True), (True, False), (False, False)],
+)
+def test_absent_destination_requires_every_abort_proof_bit(
+    tmp_path: Path,
+    rollback_safe: bool,
+    staging_absent: bool,
+) -> None:
+    entry = _candidate(tmp_path)
+    plan = reconcile_materializing_transaction(
+        entry,
+        _evidence(
+            entry,
+            destination_state=DestinationRecoveryState.ABSENT,
+            rollback_safe=rollback_safe,
+            staging_absent=staging_absent,
+        ),
+    )
+    assert plan.decision is RecoveryDecision.MANUAL_REVIEW
 
 
 def test_recovery_rejects_contradictory_abort_evidence(tmp_path: Path) -> None:
