@@ -39,8 +39,16 @@ class AuthenticatedPrincipal:
         )
         if any(not value for value in values):
             raise ValueError("authenticated principal evidence requires all identity fields")
-        if len(self.key_fingerprint) != 64 or len(self.claims_digest) != 64:
-            raise ValueError("authenticated principal evidence requires SHA-256 fingerprints")
+        for field_name, value in (
+            ("key fingerprint", self.key_fingerprint),
+            ("claims digest", self.claims_digest),
+        ):
+            if len(value) != 64:
+                raise ValueError(f"{field_name} requires a 64-character SHA-256 digest")
+            try:
+                int(value, 16)
+            except ValueError as exc:
+                raise ValueError(f"{field_name} requires hexadecimal SHA-256 encoding") from exc
 
 
 @runtime_checkable
