@@ -63,6 +63,12 @@ def executor_preflight(
     separate ``recovery_preflight`` boundary with independently verified
     evidence. Keeping the two paths separate prevents a caller from smuggling
     an unverified recovery decision through normal execution admission.
+
+    The transport session is established last. Identity, policy, exact plan,
+    journal state, authority provenance, and live revocation are all checked
+    before an injected transport is allowed to authenticate. This avoids
+    creating an authenticated provider session for an authority that is
+    already known to be unusable.
     """
     if not plan.ready:
         raise PermissionError("executor preflight requires a ready transfer plan")
@@ -80,9 +86,6 @@ def executor_preflight(
         node_admission=node_admission,
         key_admission=key_admission,
     )
-
-    transport_gate = FailClosedTransportGate(transport, principal)
-    transport_gate.validate_session()
 
     scope_workspace = (
         plan.destination_workspace_id
@@ -131,6 +134,9 @@ def executor_preflight(
         raise PermissionError("journal destination does not match transfer plan")
     if transaction.phase is not TransferJournalPhase.PREPARED:
         raise PermissionError("executor preflight requires a prepared transaction")
+
+    transport_gate = FailClosedTransportGate(transport, principal)
+    transport_gate.validate_session()
 
     return ExecutorPreflightResult(
         principal=principal,
