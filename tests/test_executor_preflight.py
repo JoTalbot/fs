@@ -1,21 +1,18 @@
+from __future__ import annotations
+
 import pytest
 
 from fs_overlay.authority_policy import AuthorityConstraints, AuthorityPrincipal, PolicyAuthorization
 from fs_overlay.authority_revocation import AuthorityRevocationRegistry
 from fs_overlay.executor_preflight import executor_preflight
 from fs_overlay.identity_verification import AuthenticatedPrincipal
+from fs_overlay.transport_gate import TransportSecurityError
 from fs_overlay.workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 from fs_overlay.workspace_transfer_authority import TransferAuthority, TransferAuthorityScope
 from fs_overlay.workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase
 
 
-FINGERPRINT = "a" * 64
-CLAIMS_DIGEST = "b" * 64
-
-
-class TrustRoots:
-    def issuer_fingerprint(self, issuer_id):
-        return FINGERPRINT if issuer_id == "issuer-1" else None
+_DIGEST = "a" * 64
 
 
 class Verifier:
@@ -25,48 +22,48 @@ class Verifier:
     def verify(self, **kwargs):
         self.calls += 1
         return AuthenticatedPrincipal(
-            kwargs["principal_id"], kwargs["issuer_id"], kwargs["node_id"],
-            kwargs["key_id"], kwargs["key_fingerprint"], "root-1", CLAIMS_DIGEST,
+            principal_id=kwargs["principal_id"],
+            issuer_id=kwargs["issuer_id"],
+            node_id=kwargs["node_id"],
+            key_id=kwargs["key_id"],
+            key_fingerprint=kwargs["key_fingerprint"],
+            trust_root_id="root-1",
+            claims_digest=_DIGEST,
         )
+
+
+class Roots:
+    def issuer_fingerprint(self, issuer):
+        return _DIGEST
 
 
 class Nodes:
     def is_admitted(self, node_id, fingerprint):
-        return node_id == "node-1" and fingerprint == FINGERPRINT
+        return True
 
 
 class Keys:
-    def is_key_admitted(self, node_id, key_id, fingerprint):
-        return (node_id, key_id, fingerprint) == ("node-1", "key-1", FINGERPRINT)
-
-    def can_verify(self, node_id, key_id):
-        return (node_id, key_id) == ("node-1", "key-1")
-
-    def can_sign(self, node_id, key_id):
-        return self.can_verify(node_id, key_id)
-
-    def admit_key(self, *args, **kwargs):
+    def is_admitted(self, node_id, key_id, fingerprint):
         return True
 
-    def revoke_key(self, *args, **kwargs):
-        return None
+    def can_verify(self, node_id, key_id):
+        return True
 
 
 class Transport:
-    def __init__(self, peer="node-1", authenticated=True):
+    def __init__(self, peer="node-1"):
         self.peer = peer
-        self.authenticated = authenticated
         self.closed = False
-
-    def authenticate(self, peer_node):
-        self.peer = peer_node
         self.authenticated = True
 
+    def authenticate(self, peer_node):
+        return None
+
     def send(self, peer_node, payload):
-        assert peer_node == self.peer
+        return None
 
     def receive(self):
-        return None
+        return b""
 
     def peer_node(self):
         return self.peer
@@ -78,54 +75,67 @@ class Transport:
         self.closed = True
 
 
-def plan():
-    return WorkspaceTransferPlan(
-        WorkspaceTransfer.MIGRATE,
-        "snapshot-1",
-        "source-1",
-        "dest-1",
-        None,
-        None,
+def run(tmp_path, **overrides):
+    plan = WorkspaceTransferPlan(
+        operation=WorkspaceTransfer.MIGRATE,
+        source_workspace_id="source-1",
+        destination_workspace_id="dest-1",
+        snapshot_id="snap-1",
+        destination_path="/future/materialize",
+        ready=True,
+        source_preserved=True,
     )
-
-
-def policy():
-    return PolicyAuthorization(
-        AuthorityPrincipal("principal-1", "issuer-1"),
-        AuthorityConstraints("dest-1", "snapshot-1"),
-        True,
-    )
-
-
-def authority():
-    return TransferAuthority(
+    transaction = TransferJournalEntry(
         transaction_id="tx-1",
-        snapshot_id="snapshot-1",
+        operation=WorkspaceTransfer.MIGRATE,
+        snapshot_id="snap-1",
+        source_workspace_id="source-1",
+        destination_workspace_id="dest-1",
+        phase=TransferJournalPhase.PREPARED,
+    )
+    principal = AuthenticatedPrincipal(
+        principal_id="principal-1",
+        issuer_id="issuer-1",
+        node_id="node-1",
+        key_id="key-1",
+        key_fingerprint=_DIGEST,
+        trust_root_id="root-1",
+        claims_digest=_DIGEST,
+    )
+    authorization = PolicyAuthorization(
+        principal=AuthorityPrincipal(principal_id=principal.principal_id, issuer_id=principal.issuer_id),
+        constraints=AuthorityConstraints(workspace_id="dest-1", snapshot_id="snap-1"),
+        approved=True,
+    )
+    authority = TransferAuthority(
+        transaction_id="tx-1",
+        snapshot_id="snap-1",
         source_workspace_id="source-1",
         destination_workspace_id="dest-1",
         scope=TransferAuthorityScope.MATERIALIZE,
-        principal_id="principal-1",
-        issuer_id="issuer-1",
+        principal_id=principal.principal_id,
+        issuer_id=principal.issuer_id,
+        policy_digest=_DIGEST,
         authority_id="authority-1",
-        policy_digest="c" * 64,
     )
-
-
-def transaction():
-    return TransferJournalEntry(
-        "tx-1", TransferJournalPhase.PREPARED, WorkspaceTransfer.MIGRATE,
-        "snapshot-1", "source-1", "dest-1",
-    )
-
-
-def run(tmp_path, **overrides):
     values = dict(
-        plan=plan(), transaction=transaction(), authority=authority(), policy=policy(),
-        principal_verifier=Verifier(), trust_roots=TrustRoots(),
-        node_admission=Nodes(), key_admission=Keys(), transport=Transport(),
+        plan=plan,
+        transaction=transaction,
+        authority=authority,
+        policy=authorization,
+        principal_verifier=Verifier(),
+        trust_roots=Roots(),
+        node_admission=Nodes(),
+        key_admission=Keys(),
+        transport=Transport(),
         revocations=AuthorityRevocationRegistry(tmp_path / "revocations.jsonl"),
-        principal_id="principal-1", issuer_id="issuer-1", node_id="node-1", key_id="key-1",
-        key_fingerprint=FINGERPRINT, claims={"role": "executor"}, signature=b"signature",
+        principal_id=principal.principal_id,
+        issuer_id=principal.issuer_id,
+        node_id=principal.node_id,
+        key_id=principal.key_id,
+        key_fingerprint=principal.key_fingerprint,
+        claims={"sub": principal.principal_id},
+        signature=b"signature",
     )
     values.update(overrides)
     return executor_preflight(**values)
@@ -161,18 +171,26 @@ def test_revoked_authority_blocks(tmp_path):
 
 
 def test_journal_mismatch_blocks(tmp_path):
-    bad_transaction = transaction().__class__(
-        "tx-other", TransferJournalPhase.PREPARED, WorkspaceTransfer.MIGRATE,
-        "snapshot-1", "source-1", "dest-1",
+    transaction = TransferJournalEntry(
+        transaction_id="tx-other",
+        operation=WorkspaceTransfer.MIGRATE,
+        snapshot_id="snap-1",
+        source_workspace_id="source-1",
+        destination_workspace_id="dest-1",
+        phase=TransferJournalPhase.PREPARED,
     )
     with pytest.raises(PermissionError, match="transaction"):
-        run(tmp_path, transaction=bad_transaction)
+        run(tmp_path, transaction=transaction)
 
 
 def test_non_prepared_transaction_blocks(tmp_path):
-    bad_transaction = transaction().__class__(
-        "tx-1", TransferJournalPhase.MATERIALIZING, WorkspaceTransfer.MIGRATE,
-        "snapshot-1", "source-1", "dest-1",
+    transaction = TransferJournalEntry(
+        transaction_id="tx-1",
+        operation=WorkspaceTransfer.MIGRATE,
+        snapshot_id="snap-1",
+        source_workspace_id="source-1",
+        destination_workspace_id="dest-1",
+        phase=TransferJournalPhase.PREPARING,
     )
     with pytest.raises(PermissionError, match="prepared"):
-        run(tmp_path, transaction=bad_transaction)
+        run(tmp_path, transaction=transaction)
