@@ -53,7 +53,9 @@ def plan_workspace(binding: WorkspaceBinding) -> WorkspacePlan:
     reasons = list(binding.validate())
     if not reasons:
         path = Path(binding.host_path)
-        if not path.exists():
+        if path.is_symlink():
+            reasons.append("workspace_path_must_not_be_symlink")
+        elif not path.exists():
             reasons.append("workspace_path_not_found")
         elif not path.is_dir():
             reasons.append("workspace_path_not_directory")
