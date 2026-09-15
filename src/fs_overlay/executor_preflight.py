@@ -21,6 +21,7 @@ from .workspace_transfer_authority import (
     TransferAuthority,
     TransferAuthorityScope,
     validate_authenticated_transfer_authority,
+    validate_policy_bound_transfer_authority,
 )
 from .workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase
 from .workspace_transfer_recovery import TransferRecoveryPlan
@@ -62,10 +63,10 @@ def executor_preflight(
 
     Ordering is deliberate and fail-closed:
     trust root/identity -> node/key admission -> authenticated transport ->
-    policy -> authority -> durable authority revocation -> transaction/recovery.
-    The transport provider remains responsible for authenticated encryption and
-    peer authentication; this function only binds that session to the verified
-    principal.
+    policy -> authority provenance -> durable authority revocation ->
+    transaction/recovery. The transport provider remains responsible for
+    authenticated encryption and peer authentication; this function only binds
+    that session to the verified principal.
     """
     if not plan.ready:
         raise PermissionError("executor preflight requires a ready transfer plan")
@@ -113,6 +114,11 @@ def executor_preflight(
     )
     if authority.scope is not expected_scope:
         raise PermissionError("transfer authority scope does not match transfer operation")
+    validate_policy_bound_transfer_authority(
+        authority,
+        policy=policy,
+        authenticated_principal=principal,
+    )
     validate_authenticated_transfer_authority(
         authority,
         authenticated_principal=principal,
