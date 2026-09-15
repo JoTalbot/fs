@@ -148,6 +148,20 @@ def test_transport_state_provider_failure_fails_closed_and_closes():
     assert transport.closed
 
 
+def test_security_failure_is_not_masked_by_provider_close_failure():
+    class BrokenCloseTransport(FakeTransport):
+        def close(self) -> None:
+            self.closed = True
+            raise RuntimeError("provider close failure")
+
+    transport = BrokenCloseTransport(authenticated=False)
+    gate = FailClosedTransportGate(transport, principal())
+    with pytest.raises(TransportSecurityError, match="not authenticated") as exc_info:
+        gate.validate_session()
+    assert isinstance(exc_info.value, TransportSecurityError)
+    assert transport.closed
+
+
 def test_malformed_frame_fails_closed():
     transport = FakeTransport(frames=[b"short"])
     gate = FailClosedTransportGate(transport, principal())
