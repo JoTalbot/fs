@@ -1,20 +1,23 @@
-"""Non-destructive contract for future workspace transfer materialization.
+"""Non-destructive materializer admission boundary for workspace transfers.
 
-This module validates that an explicit authority grant and durable journal state
-match the exact transfer plan. It intentionally performs no filesystem mutation.
+The module intentionally performs no host filesystem mutation. A future
+executor must enter through the unified security preflight and independently
+revalidate every authority, identity, transport, transaction, and recovery
+condition immediately before mutation.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Mapping, Protocol
 
+from .authority_policy import PolicyAuthorization
 from .authority_revocation import AuthorityRevocationRegistry
+from .identity_verification import AuthenticatedPrincipal, PrincipalVerifier, TrustRootStore
+from .production_adapters import AuthenticatedTransport, KeyAdmission, NodeAdmission
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 from .workspace_transfer_authority import TransferAuthority, TransferAuthorityScope
-from .workspace_transfer_journal import (
-    TransferJournalPhase,
-    WorkspaceTransferJournal,
-)
+from .workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase, WorkspaceTransferJournal
+from .workspace_transfer_recovery import TransferRecoveryPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,15 +37,11 @@ class WorkspaceMaterializer(Protocol):
 
     Implementations must revalidate preconditions immediately before mutation,
     journal each durable phase, preserve the source by default, and provide
-    crash/rollback evidence. This protocol itself grants no filesystem access.
+    independently verified crash/rollback evidence. This protocol itself grants
+    no filesystem access.
     """
 
-    def prepare(
-        self,
-        plan: WorkspaceTransferPlan,
-        authority: TransferAuthority,
-        journal: WorkspaceTransferJournal,
-    ) -> MaterializationPreflight: ...
+    def prepare(self, plan: WorkspaceTransferPlan, authority: TransferAuthority, journal: WorkspaceTransferJournal) -> MaterializationPreflight: ...
 
 
 def validate_materialization_preflight(
@@ -51,7 +50,12 @@ def validate_materialization_preflight(
     journal: WorkspaceTransferJournal,
     revocations: AuthorityRevocationRegistry | None = None,
 ) -> MaterializationPreflight:
-    """Validate exact plan/authority/journal binding without touching the host FS."""
+    """Validate legacy plan/journal admission without host filesystem mutation.
+
+    This compatibility boundary intentionally accepts no identity or transport
+    evidence and therefore is not sufficient authorization for host mutation.
+    Use ``validate_materialization_executor_preflight`` for any future executor.
+    """
     if not plan.ready:
         raise ValueError("materialization requires a ready transfer plan")
     if not isinstance(authority, TransferAuthority):
@@ -75,32 +79,77 @@ def validate_materialization_preflight(
             raise PermissionError("revocation check requires authority provenance")
         if revocations.is_revoked(authority.authority_id):
             raise PermissionError("transfer authority has been revoked")
-
-    entries = list(journal.replay())
     current = next(
-        (entry for entry in reversed(entries) if entry.transaction_id == authority.transaction_id),
+        (entry for entry in reversed(list(journal.replay())) if entry.transaction_id == authority.transaction_id),
         None,
     )
     if current is None:
         raise ValueError("journal transaction does not exist")
     if current.operation is not plan.operation or current.snapshot_id != plan.snapshot_id:
         raise PermissionError("journal transaction does not match transfer plan")
-    if (
-        current.source_workspace_id != plan.source_workspace_id
-        or current.destination_workspace_id != plan.destination_workspace_id
-    ):
+    if current.source_workspace_id != plan.source_workspace_id or current.destination_workspace_id != plan.destination_workspace_id:
         raise PermissionError("journal workspaces do not match transfer plan")
-    if current.phase not in {
-        TransferJournalPhase.PREPARED,
-        TransferJournalPhase.MATERIALIZING,
-    }:
+    if current.phase not in {TransferJournalPhase.PREPARED, TransferJournalPhase.MATERIALIZING}:
         raise ValueError("transfer is not in a materializable journal state")
-
     return MaterializationPreflight(
-        transaction_id=authority.transaction_id,
-        snapshot_id=plan.snapshot_id,
-        source_workspace_id=plan.source_workspace_id,
-        destination_workspace_id=plan.destination_workspace_id,
-        operation=plan.operation,
-        source_preserved=plan.source_preserved,
+        authority.transaction_id,
+        plan.snapshot_id,
+        plan.source_workspace_id,
+        plan.destination_workspace_id,
+        plan.operation,
+        plan.source_preserved,
+    )
+
+
+def validate_materialization_executor_preflight(
+    plan: WorkspaceTransferPlan,
+    *,
+    transaction: TransferJournalEntry,
+    authority: TransferAuthority,
+    policy: PolicyAuthorization,
+    principal_verifier: PrincipalVerifier,
+    trust_roots: TrustRootStore,
+    node_admission: NodeAdmission,
+    key_admission: KeyAdmission,
+    transport: AuthenticatedTransport,
+    revocations: AuthorityRevocationRegistry,
+    principal_id: str,
+    issuer_id: str,
+    node_id: str,
+    key_id: str,
+    key_fingerprint: str,
+    claims: Mapping[str, object],
+    signature: bytes,
+    recovery: TransferRecoveryPlan | None = None,
+) -> MaterializationPreflight:
+    """Canonical admission facade for a future materialization executor."""
+    from .executor_preflight import executor_preflight
+
+    result = executor_preflight(
+        plan,
+        transaction=transaction,
+        authority=authority,
+        policy=policy,
+        principal_verifier=principal_verifier,
+        trust_roots=trust_roots,
+        node_admission=node_admission,
+        key_admission=key_admission,
+        transport=transport,
+        revocations=revocations,
+        principal_id=principal_id,
+        issuer_id=issuer_id,
+        node_id=node_id,
+        key_id=key_id,
+        key_fingerprint=key_fingerprint,
+        claims=claims,
+        signature=signature,
+        recovery=recovery,
+    )
+    return MaterializationPreflight(
+        result.transaction_id,
+        plan.snapshot_id,
+        plan.source_workspace_id,
+        plan.destination_workspace_id,
+        plan.operation,
+        plan.source_preserved,
     )
