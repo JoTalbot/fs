@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import tempfile
 import time
 import uuid
@@ -16,6 +17,16 @@ from pathlib import Path
 from typing import Iterable
 
 from .storage_engine import MerkleDAG, _canonical
+
+
+_OBJECT_ID_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _validate_object_id(object_id: object) -> str:
+    """Require the canonical lowercase SHA-256 representation for object IDs."""
+    if not isinstance(object_id, str) or _OBJECT_ID_RE.fullmatch(object_id) is None:
+        raise ValueError("invalid snapshot object id")
+    return object_id
 
 
 @dataclass(frozen=True)
@@ -41,7 +52,10 @@ class Snapshot:
     @classmethod
     def from_bytes(cls, data: bytes) -> "Snapshot":
         raw = json.loads(data)
-        snapshot = cls(str(raw["snapshot_id"]), int(raw["generation"]), tuple(raw["objects"]),
+        objects = tuple(raw["objects"])
+        for object_id in objects:
+            _validate_object_id(object_id)
+        snapshot = cls(str(raw["snapshot_id"]), int(raw["generation"]), objects,
                        str(raw["merkle_root"]), int(raw["created_ns"]), raw.get("metadata"))
         if snapshot.identity() != snapshot.snapshot_id:
             raise ValueError("snapshot identity verification failed")
@@ -60,6 +74,8 @@ class SnapshotStore:
     def create(self, objects: Iterable[str], *, generation: int,
                metadata: dict[str, str] | None = None) -> Snapshot:
         ordered = tuple(sorted(set(objects)))
+        for object_id in ordered:
+            _validate_object_id(object_id)
         now = time.time_ns()
         root = MerkleDAG.root(ordered)
         unsigned = Snapshot("", generation, ordered, root, now, metadata)
