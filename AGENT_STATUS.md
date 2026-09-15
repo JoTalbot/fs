@@ -6,7 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `8d27a26cc07360269b035bfdca472a6863af3135`
+- Latest repository head: `48ad8d0680df953d5461b4a5c49561c2f971129c`
+- Latest validated implementation head: `8d27a26cc07360269b035bfdca472a6863af3135`
 - Updated: 2026-09-15
 
 ## Active step
@@ -14,25 +15,25 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-15T16:02:00Z`
-- base_commit: `8d27a26cc07360269b035bfdca472a6863af3135`
+- base_commit: `48ad8d0680df953d5461b4a5c49561c2f971129c`
 - area: production-provider boundary qualification
 - claimed_files: `src/fs_overlay/key_lifecycle.py`, `src/fs_overlay/production_adapters.py`, `src/fs_overlay/transport_gate.py`, `tests/test_key_lifecycle.py`, `tests/test_production_adapters.py`, `tests/test_transport_gate.py`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: continue evidence-backed fail-closed qualification without implementing unaudited production security providers or host filesystem mutation
-- status: cross-component recovery/authority audit completed with no new fail-open defect. CI #664 for the audit commit completed successfully. Added regression coverage proving a retired key cannot be re-admitted and that a revoke request for an unknown node does not mutate the key binding. CI #667 is pending for the new test head.
+- status: CI #667 (`34994069526`) completed successfully across the configured Python/platform matrix, including candidate crypto-provider jobs. The key lifecycle regression head is validated. No production audit or deployment certification is claimed.
 - decision: preserve explicit provider boundaries, terminal retired/revoked admission semantics, authenticated transport ordering, durable revocation, and identity/content-address integrity; do not claim external audit evidence that does not exist
-- next_step: validate CI #667; if green, continue with the next concrete provider-boundary gap
+- next_step: identify and implement the next concrete provider-boundary contract gap, with negative/fail-closed evidence first
 
 ## Latest work
 
-- `8d27a26cc07360269b035bfdca472a6863af3135` — strengthen key lifecycle terminal admission regressions.
+- `48ad8d0680df953d5461b4a5c49561c2f971129c` — append key lifecycle qualification record.
+- `8d27a26cc07360269b035bfdca472a6863af3135` — strengthen key lifecycle terminal admission regressions; CI #667 passed.
 - `d8ddb66e3b6d0d7f53f245250a8d76bff0944a78` — append recovery authority audit to agent log.
 - `2b8189d639f67b468c7e0577c4cfacf0ecdc9622` — sync agent status after recovery audit CI.
 - `b6ee6fd1519cc454a944e7f3180e0913028e1456` — document cross-component recovery and authority boundary audit.
-- `5a5fcaa33f2c59ff8e93d8b83d6672fbbb51db8b` — narrow snapshot regression expectation to identity failure.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI #664 for `b6ee6fd1519cc454a944e7f3180e0913028e1456` completed successfully. CI #667 is running for the latest test hardening. The workflow validates the configured platform/Python matrix and candidate provider jobs. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI #667 (`34994069526`) for `8d27a26cc07360269b035bfdca472a6863af3135` completed successfully: configured Ubuntu/Windows/macOS Python 3.11/3.12/3.13 tests and candidate crypto-provider jobs passed. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 ## Current V1 position
 
@@ -46,8 +47,8 @@ Snapshot object IDs are schema/integrity identifiers. Their canonical SHA-256 en
 
 ## Next phase
 
-1. Validate CI #667 and repair any concrete regression without weakening security semantics.
-2. Continue secure key storage/lifecycle conformance, including explicit ACTIVE/RETIRED/REVOKED semantics and secret-material handling, without implementing key storage in FS.
-3. Continue cross-component conformance evidence for AAD/object identity binding, trust-root ordering, identity admission, live revocation, transport peer binding, and provider failure paths.
+1. Identify the next concrete provider-boundary gap from the existing contracts and qualification matrix.
+2. Add the smallest negative/fail-closed regression or contract hardening that closes that demonstrated gap.
+3. Validate the change through GitHub Actions before treating it as evidence.
 4. Keep recovery and audit evidence separate from authority issuance and host filesystem capability.
 5. Only after the security-provider and recovery gates pass, consider a narrowly scoped host filesystem materializer.
