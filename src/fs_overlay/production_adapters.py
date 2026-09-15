@@ -15,6 +15,8 @@ from .key_lifecycle import KeyLifecycle
 
 @runtime_checkable
 class SecureKeyStore(Protocol):
+    """Protected key-material boundary; plaintext must stay out of FS state/logs."""
+
     def load(self, key_id: str) -> bytes: ...
     def store(self, key_id: str, key_material: bytes) -> None: ...
     def contains(self, key_id: str) -> bool: ...
@@ -39,7 +41,10 @@ class NodeAdmission(Protocol):
 
 @runtime_checkable
 class KeyAdmission(Protocol):
+    """Authoritative node/key binding with explicit lifecycle transitions."""
+
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
+    def retire_key(self, node_id: str, key_id: str) -> None: ...
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None: ...
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
     def can_sign(self, node_id: str, key_id: str) -> bool: ...
@@ -67,6 +72,11 @@ class ReferenceKeyLifecycleAdmission:
             return False
         self._node_by_key[key_id] = node_id
         return True
+
+    def retire_key(self, node_id: str, key_id: str) -> None:
+        if self._node_by_key.get(key_id) != node_id:
+            raise ValueError("key is not admitted")
+        self._lifecycle.retire(key_id)
 
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
         if self._node_by_key.get(key_id) == node_id:
