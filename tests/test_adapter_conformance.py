@@ -75,7 +75,7 @@ class MemoryKeyAdmission:
         previous = self._keys.get(key)
         if previous is not None and previous != fingerprint:
             return False
-        if self._status.get(key) == "REVOKED":
+        if self._status.get(key) in {"RETIRED", "REVOKED"}:
             return False
         self._keys[key] = fingerprint
         self._status[key] = "ACTIVE"
@@ -198,9 +198,11 @@ def test_key_admission_rejects_fingerprint_change_and_revocation() -> None:
     assert admission.is_key_admitted("node-a", "k1", "fp-a")
     assert not admission.can_sign("node-a", "k1")
     assert admission.can_verify("node-a", "k1")
+    assert not admission.admit_key("node-a", "k1", "fp-a")
     admission.revoke_key("node-a", "k1", "test")
     assert not admission.can_sign("node-a", "k1")
     assert not admission.can_verify("node-a", "k1")
+    assert not admission.admit_key("node-a", "k1", "fp-a")
 
 
 def test_node_admission_contract_is_distinct_from_key_admission() -> None:
