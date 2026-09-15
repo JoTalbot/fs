@@ -6,19 +6,19 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation/test head: `72f816502e6db7800786d2680ec04846f304afe7`
-- Latest durable step record: `docs/AGENT_STEP_2026-09-15_revocation-concurrency.md`
+- Latest implementation/test head: `ed35d70098cb0b04532c7440a997575277d6908d`
+- Latest durable step record: `docs/AGENT_STEP_2026-09-15_identity-verification.md`
 - Updated: 2026-09-15
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace transfer materializer / authority, policy, and revocation boundary
-- goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, and durable revocation
-- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is now a separate durable fail-closed registry with cross-process serialization, restart-safe reads, and revocation-aware materializer preflight
-- decision: policy, audit, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: define authenticated principal/issuer verification and secure key/transport lifecycle, then bind authenticated provenance to policy and revocation
+- area: Phase 3 workspace transfer materializer / authority, policy, revocation, and authenticated identity boundary
+- goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, and durable revocation
+- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is a separate durable fail-closed registry with cross-process serialization and restart-safe reads; authenticated principal/trust-root/verifier contracts are defined and authenticated provenance is bound to policy authority
+- decision: policy, audit, identity, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
+- next_step: qualify concrete trust/key verification and authenticated transport lifecycle boundaries, then bind authenticated identity to revocation decisions
 
 ## Latest work
 
@@ -33,25 +33,28 @@
 - `58f8d1b98d4d475c1b0135e6d781bdc72eac41aa` — harden revocation concurrency and restart-safe reads with cross-process OS locking and durable refresh.
 - `72f816502e6db7800786d2680ec04846f304afe7` — qualify concurrent revocation writers with a multiprocessing regression test.
 - `40f554ad8595aca284f0e43b0111c23604152991` — record the revocation concurrency qualification step.
+- `46dc5ccf44818143b541da4dc71b0849229f376c` — define authenticated principal/trust-root/verifier contracts and bind authenticated provenance to policy-bound authority issuance.
+- `ed35d70098cb0b04532c7440a997575277d6908d` — qualify authenticated provenance binding with mismatch and success regression coverage.
+- `44b7b8b6236a22d052ae9ef1a59363b50f3a6601` — record the authenticated identity verification qualification boundary.
 
 ## Validation boundary
 
-GitHub Actions run `#516` (`34955600185`) for the revocation implementation is green. Fresh run `#517` (`34955618776`) for the concurrent-writer qualification is also green across all 18 configured jobs, including Python tests on Ubuntu/Windows/macOS for Python 3.11-3.13 and candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+GitHub Actions run `#516` (`34955600185`) for the revocation implementation is green. Run `#517` (`34955618776`) for concurrent revocation writers was previously green across all 18 configured jobs. The workflow run for the authenticated-provenance implementation commit is still progressing: completed macOS Python 3.11 and macOS candidate-crypto lanes are green, with other matrix lanes queued/in progress. The subsequent documentation/status commits may trigger separate validation runs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
-V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, target-specific recovery evidence, and required external security review. The current Python authority/policy objects are explicit contracts and claims, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
+V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, authoritative trust-root and identity verification, target-specific recovery evidence, and required external security review. The current Python authority/policy objects and authenticated-principal evidence are explicit contracts/provenance, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
 
 FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 ## Existing architecture boundary
 
-Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans, journal entries, materializer preflight results, recovery/rollback evidence, policy decisions, revocation state, and audit decisions must not be presented as completed filesystem migration, recovery, or rollback.
+Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans, journal entries, materializer preflight results, recovery/rollback evidence, policy decisions, authenticated identity evidence, revocation state, and audit decisions must not be presented as completed filesystem migration, recovery, rollback, or authentication.
 
 ## Next phase
 
-1. Define authenticated-principal and issuer verification, including trust roots and key lifecycle, without placing secrets in repository state.
-2. Define authenticated/encrypted transport and fail-closed peer-authentication loss semantics.
-3. Bind authenticated provenance to policy authorization and durable revocation semantics.
-4. Add conformance/regression evidence for identity, trust, key rotation/revocation, and replay boundaries.
+1. Qualify authoritative trust-root and principal verification against node admission and key lifecycle state.
+2. Define and qualify authenticated/encrypted transport, including peer identity binding and fail-closed authentication-loss semantics.
+3. Bind authenticated identity provenance to durable revocation decisions without conflating principal revocation with individual authority revocation.
+4. Add conformance/regression evidence for identity, trust, key rotation/revocation, replay, and transport lifecycle boundaries.
 5. Only after authority, policy, crash, rollback, authentication, and revocation qualification, consider a narrowly scoped host filesystem materializer.
