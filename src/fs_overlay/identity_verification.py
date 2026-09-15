@@ -68,7 +68,7 @@ def require_trusted_issuer(issuer_id: str, *, trust_roots: TrustRootStore) -> st
     """
     fingerprint = trust_roots.issuer_fingerprint(issuer_id)
     if fingerprint is None:
-        raise PermissionError("authenticated principal issuer is not a trusted issuer")
+        raise PermissionError("issuer is not trusted")
     if len(fingerprint) != 64:
         raise PermissionError("trusted issuer fingerprint is not a SHA-256 digest")
     try:
