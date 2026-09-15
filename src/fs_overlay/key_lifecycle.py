@@ -48,6 +48,17 @@ class KeyLifecycle:
                 self.records[key_id] = KeyRecord(existing.key_id, existing.fingerprint, "RETIRED")
         self.records[record.key_id] = record
 
+    def retire(self, key_id: str) -> None:
+        """Stop a key from signing while retaining it for verification."""
+        current = self.records.get(key_id)
+        if current is None:
+            raise ValueError("key is not admitted")
+        if current.status == "REVOKED":
+            raise ValueError("revoked key cannot be retired")
+        if current.status == "RETIRED":
+            return
+        self.records[key_id] = KeyRecord(current.key_id, current.fingerprint, "RETIRED")
+
     def revoke(self, key_id: str) -> None:
         current = self.records.get(key_id)
         if current is None:
