@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation/test head: `accdf96c89a69e44204a6db444285aa7d171082d`
-- Latest durable step record: `docs/AGENT_STEP_2026-09-15_authority-revocation.md`
+- Latest implementation/test head: `72f816502e6db7800786d2680ec04846f304afe7`
+- Latest durable step record: `docs/AGENT_STEP_2026-09-15_revocation-concurrency.md`
 - Updated: 2026-09-15
 
 ## Active step
@@ -16,9 +16,9 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, and revocation boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, and durable revocation
-- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is now a separate durable fail-closed registry and can be checked during revocation-aware materializer preflight
+- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is now a separate durable fail-closed registry with cross-process serialization, restart-safe reads, and revocation-aware materializer preflight
 - decision: policy, audit, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: qualify the revocation implementation, then define authenticated principal/issuer verification and secure key/transport lifecycle before any executor is considered
+- next_step: define authenticated principal/issuer verification and secure key/transport lifecycle, then bind authenticated provenance to policy and revocation
 
 ## Latest work
 
@@ -30,10 +30,13 @@
 - `28ca185c1f232813c9cf096a9ed998e451ab27db` — bind materializer preflight to revocation-aware authority provenance.
 - `5b8813fa0ca791de02cc2dea85d27ea66be34022` — record the authority revocation qualification boundary.
 - `accdf96c89a69e44204a6db444285aa7d171082d` — add materializer revocation regression coverage.
+- `58f8d1b98d4d475c1b0135e6d781bdc72eac41aa` — harden revocation concurrency and restart-safe reads with cross-process OS locking and durable refresh.
+- `72f816502e6db7800786d2680ec04846f304afe7` — qualify concurrent revocation writers with a multiprocessing regression test.
+- `40f554ad8595aca284f0e43b0111c23604152991` — record the revocation concurrency qualification step.
 
 ## Validation boundary
 
-CI run `34952533752` for the policy-bound implementation/tests is now green across all 18 configured jobs. Durable policy-boundary run `34952548635` is also green across all 18 configured jobs. The revocation implementation/test commits are newer and require fresh GitHub Actions qualification. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+GitHub Actions run `#516` (`34955600185`) for the revocation implementation is green. Fresh run `#517` (`34955618776`) for the concurrent-writer qualification is also green across all 18 configured jobs, including Python tests on Ubuntu/Windows/macOS for Python 3.11-3.13 and candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
@@ -47,8 +50,8 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Verify the fresh revocation implementation/test CI.
-2. Harden/qualify concurrent and restart-safe revocation semantics if CI exposes issues.
-3. Define authenticated-principal and issuer verification, including trust roots and key lifecycle, without placing secrets in repository state.
-4. Bind authenticated provenance to policy authorization and revocation semantics.
+1. Define authenticated-principal and issuer verification, including trust roots and key lifecycle, without placing secrets in repository state.
+2. Define authenticated/encrypted transport and fail-closed peer-authentication loss semantics.
+3. Bind authenticated provenance to policy authorization and durable revocation semantics.
+4. Add conformance/regression evidence for identity, trust, key rotation/revocation, and replay boundaries.
 5. Only after authority, policy, crash, rollback, authentication, and revocation qualification, consider a narrowly scoped host filesystem materializer.
