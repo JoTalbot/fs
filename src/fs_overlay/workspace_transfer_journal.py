@@ -6,6 +6,7 @@ precondition and provide its own transactional filesystem implementation.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import uuid
@@ -35,7 +36,7 @@ class TransferJournalEntry:
 
     def as_record(self) -> dict[str, object]:
         return {
-            "version": 1,
+            "version": 2,
             "transaction_id": self.transaction_id,
             "phase": self.phase.value,
             "operation": self.operation.value,
@@ -134,6 +135,7 @@ class WorkspaceTransferJournal:
         if not self.path.exists():
             return
         latest: dict[str, TransferJournalEntry] = {}
+        expected_digest: str | None = None
         with self.path.open("rb") as handle:
             while True:
                 line = handle.readline()
@@ -145,6 +147,22 @@ class WorkspaceTransferJournal:
                     return
                 try:
                     raw = json.loads(line[:-1])
+                except json.JSONDecodeError as exc:
+                    raise TransferJournalCorruption("journal record is invalid") from exc
+                if raw.get("version") != 2:
+                    raise TransferJournalCorruption("unsupported journal version")
+                digest = raw.get("event_digest")
+                previous_digest = raw.get("previous_digest")
+                if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                    raise TransferJournalCorruption("journal event digest is invalid")
+                if previous_digest != expected_digest:
+                    raise TransferJournalCorruption("journal hash chain is broken")
+                unsigned = dict(raw)
+                unsigned["event_digest"] = None
+                encoded = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+                if hashlib.sha256(encoded).hexdigest() != digest:
+                    raise TransferJournalCorruption("journal event digest mismatch")
+                try:
                     result = TransferJournalEntry(
                         str(raw["transaction_id"]),
                         TransferJournalPhase(str(raw["phase"])),
@@ -153,10 +171,8 @@ class WorkspaceTransferJournal:
                         str(raw["source_workspace_id"]),
                         None if raw.get("destination_workspace_id") is None else str(raw["destination_workspace_id"]),
                     )
-                except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                except (KeyError, TypeError, ValueError) as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
-                if raw.get("version") != 1:
-                    raise TransferJournalCorruption("unsupported journal version")
                 previous = latest.get(result.transaction_id)
                 if previous is not None:
                     try:
@@ -170,6 +186,7 @@ class WorkspaceTransferJournal:
                 elif result.phase is not TransferJournalPhase.PREPARED:
                     raise TransferJournalCorruption("journal transaction does not begin with prepared")
                 latest[result.transaction_id] = result
+                expected_digest = digest
                 yield result
 
     @staticmethod
@@ -189,8 +206,31 @@ class WorkspaceTransferJournal:
             raise ValueError("transfer transaction identity mismatch")
 
     def _append(self, entry: TransferJournalEntry) -> None:
-        encoded = json.dumps(entry.as_record(), sort_keys=True, separators=(",", ":")).encode()
+        unsigned = entry.as_record()
+        unsigned["previous_digest"] = self._last_digest()
+        unsigned["event_digest"] = None
+        encoded = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
+        unsigned["event_digest"] = hashlib.sha256(encoded).hexdigest()
+        encoded = json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode()
         with self.path.open("ab") as handle:
             handle.write(encoded + b"\n")
             handle.flush()
             os.fsync(handle.fileno())
+
+    def _last_digest(self) -> str | None:
+        if not self.path.exists() or self.path.stat().st_size == 0:
+            return None
+        last: str | None = None
+        with self.path.open("rb") as handle:
+            for line in handle:
+                if not line.endswith(b"\n"):
+                    raise TransferJournalCorruption("journal contains a malformed non-tail record")
+                try:
+                    raw = json.loads(line[:-1])
+                except json.JSONDecodeError as exc:
+                    raise TransferJournalCorruption("journal record is invalid") from exc
+                digest = raw.get("event_digest")
+                if not isinstance(digest, str):
+                    raise TransferJournalCorruption("journal event digest is invalid")
+                last = digest
+        return last
