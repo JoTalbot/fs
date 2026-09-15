@@ -34,11 +34,13 @@ class FailClosedTransportGate:
         return self._principal
 
     def _fail(self, message: str) -> None:
+        """Fail closed without allowing provider close errors to mask the gate error."""
         self._closed = True
         try:
             self._transport.close()
-        finally:
-            raise TransportSecurityError(message)
+        except Exception:
+            pass
+        raise TransportSecurityError(message)
 
     def _close_after_provider_failure(self) -> None:
         """Invalidate and close the provider session after any transport error."""
