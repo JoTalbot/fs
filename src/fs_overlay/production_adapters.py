@@ -63,8 +63,11 @@ class ReferenceKeyLifecycleAdmission:
     def __init__(self, lifecycle: KeyLifecycle):
         self._lifecycle = lifecycle
         self._node_by_key: dict[str, str] = {}
+        self._terminal_keys: set[str] = set()
 
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
+        if key_id in self._terminal_keys:
+            return False
         if self._lifecycle.fingerprint_for(key_id) != fingerprint:
             return False
         if not self._lifecycle.usable_for_verification(key_id):
@@ -79,23 +82,34 @@ class ReferenceKeyLifecycleAdmission:
         if self._node_by_key.get(key_id) != node_id:
             raise ValueError("key is not admitted")
         self._lifecycle.retire(key_id)
+        self._terminal_keys.add(key_id)
 
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
         if self._node_by_key.get(key_id) == node_id:
             self._lifecycle.revoke(key_id)
+            self._terminal_keys.add(key_id)
 
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
         return (
-            self._node_by_key.get(key_id) == node_id
+            key_id not in self._terminal_keys
+            and self._node_by_key.get(key_id) == node_id
             and self._lifecycle.fingerprint_for(key_id) == fingerprint
             and self._lifecycle.usable_for_verification(key_id)
         )
 
     def can_sign(self, node_id: str, key_id: str) -> bool:
-        return self._node_by_key.get(key_id) == node_id and self._lifecycle.usable_for_signing(key_id)
+        return (
+            key_id not in self._terminal_keys
+            and self._node_by_key.get(key_id) == node_id
+            and self._lifecycle.usable_for_signing(key_id)
+        )
 
     def can_verify(self, node_id: str, key_id: str) -> bool:
-        return self._node_by_key.get(key_id) == node_id and self._lifecycle.usable_for_verification(key_id)
+        return (
+            key_id not in self._terminal_keys
+            and self._node_by_key.get(key_id) == node_id
+            and self._lifecycle.usable_for_verification(key_id)
+        )
 
 
 
