@@ -19,8 +19,11 @@ def test_explicit_retirement_preserves_verification_only() -> None:
     assert not lifecycle.usable_for_signing("k1")
     assert lifecycle.usable_for_verification("k1")
     lifecycle.retire("k1")
+    lifecycle.revoke("k1")
     with pytest.raises(ValueError, match="revoked key cannot be retired"):
-        lifecycle.revoke("missing")
+        lifecycle.retire("k1")
+    with pytest.raises(ValueError, match="key is not admitted"):
+        lifecycle.retire("missing")
 
 
 def test_revocation_is_terminal_for_key_use() -> None:
