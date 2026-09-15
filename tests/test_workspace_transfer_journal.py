@@ -1,3 +1,4 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -82,19 +83,7 @@ def test_journal_rejects_identity_change(tmp_path: Path) -> None:
     plan = _plan(tmp_path)
     journal = WorkspaceTransferJournal(tmp_path / "journal.log")
     transaction_id = journal.begin(plan)
-    conflicting = plan.__class__(
-        operation=plan.operation,
-        snapshot_id=plan.snapshot_id,
-        source_workspace_id=plan.source_workspace_id,
-        destination_workspace_id="other-destination",
-        source_path=plan.source_path,
-        destination_path=plan.destination_path,
-        source_preserved=plan.source_preserved,
-        destination_must_be_verified=plan.destination_must_be_verified,
-        destination_must_be_empty=plan.destination_must_be_empty,
-        reasons=plan.reasons,
-        ready=plan.ready,
-    )
+    conflicting = replace(plan, destination_workspace_id="other-destination")
     with pytest.raises(ValueError, match="transaction identity mismatch"):
         journal.mark(transaction_id, conflicting, TransferJournalPhase.MATERIALIZING)
 
