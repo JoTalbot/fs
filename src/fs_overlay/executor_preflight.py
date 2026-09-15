@@ -25,7 +25,7 @@ from .workspace_transfer_authority import (
     validate_policy_bound_transfer_authority,
 )
 from .workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase
-from .workspace_transfer_recovery import TransferRecoveryPlan
+from .workspace_transfer_recovery import TransferRecoveryEvidence, TransferRecoveryPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,20 +59,14 @@ def executor_preflight(
     claims: Mapping[str, object],
     signature: bytes,
     recovery: TransferRecoveryPlan | None = None,
+    recovery_evidence: TransferRecoveryEvidence | None = None,
     recovery_evidence_verifier: RecoveryEvidenceVerifier | None = None,
 ) -> ExecutorPreflightResult:
     """Require every executor security gate before any future mutation.
 
-    Ordering is deliberate and fail-closed:
-    trust root/identity -> node/key admission -> authenticated transport ->
-    policy -> authority provenance -> durable authority revocation ->
-    transaction/recovery. The transport provider remains responsible for
-    authenticated encryption and peer authentication; this function only binds
-    that session to the verified principal.
-
-    A recovery plan is accepted only when it has been produced by the dedicated
-    recovery preflight with independently verified evidence. A bare plan that
-    merely matches journal identifiers is never sufficient.
+    A recovery path is accepted only when the raw recovery evidence is passed
+    through ``recovery_preflight`` with an independent verifier. A caller cannot
+    bypass that gate by constructing a structurally matching recovery plan.
     """
     if not plan.ready:
         raise PermissionError("executor preflight requires a ready transfer plan")
@@ -142,17 +136,31 @@ def executor_preflight(
     if transaction.phase is not TransferJournalPhase.PREPARED:
         raise PermissionError("executor preflight requires a prepared transaction")
 
-    if recovery is not None:
-        if recovery_evidence_verifier is None:
-            raise PermissionError("recovery requires an independent evidence verifier")
-        raise PermissionError(
-            "recovery plan must be supplied through recovery_preflight with independently verified evidence"
+    verified_recovery = None
+    if recovery is not None or recovery_evidence is not None:
+        if recovery is None or recovery_evidence is None or recovery_evidence_verifier is None:
+            raise PermissionError(
+                "recovery requires evidence and an independent evidence verifier"
+            )
+        verified = recovery_preflight(
+            transaction,
+            recovery_evidence,
+            evidence_verifier=recovery_evidence_verifier,
         )
+        if (
+            recovery.transaction_id != verified.plan.transaction_id
+            or recovery.snapshot_id != verified.plan.snapshot_id
+            or recovery.operation is not verified.plan.operation
+            or recovery.decision is not verified.plan.decision
+            or recovery.reason != verified.plan.reason
+        ):
+            raise PermissionError("recovery plan does not match independently verified evidence")
+        verified_recovery = verified.plan
 
     return ExecutorPreflightResult(
         principal=principal,
         authority=authority,
         transport=transport_gate,
         transaction_id=transaction.transaction_id,
-        recovery=recovery,
+        recovery=verified_recovery,
     )
