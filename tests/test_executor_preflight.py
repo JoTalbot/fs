@@ -1,3 +1,6 @@
+from dataclasses import replace
+from pathlib import Path
+
 import pytest
 
 from fs_overlay.authority_policy import AuthorityConstraints, AuthorityPrincipal, PolicyAuthorization
@@ -5,7 +8,10 @@ from fs_overlay.authority_revocation import AuthorityRevocationRegistry
 from fs_overlay.executor_preflight import executor_preflight
 from fs_overlay.identity_verification import AuthenticatedPrincipal
 from fs_overlay.workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
-from fs_overlay.workspace_transfer_authority import TransferAuthority, TransferAuthorityScope
+from fs_overlay.workspace_transfer_authority import (
+    TransferAuthorityScope,
+    grant_authenticated_policy_bound_transfer_authority,
+)
 from fs_overlay.workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase
 
 
@@ -84,8 +90,8 @@ def plan():
         "snapshot-1",
         "source-1",
         "dest-1",
-        None,
-        None,
+        Path("/source"),
+        Path("/dest"),
     )
 
 
@@ -97,17 +103,19 @@ def policy():
     )
 
 
+def principal():
+    return AuthenticatedPrincipal(
+        "principal-1", "issuer-1", "node-1", "key-1", FINGERPRINT, "root-1", CLAIMS_DIGEST,
+    )
+
+
 def authority():
-    return TransferAuthority(
+    return grant_authenticated_policy_bound_transfer_authority(
+        plan(),
         transaction_id="tx-1",
-        snapshot_id="snapshot-1",
-        source_workspace_id="source-1",
-        destination_workspace_id="dest-1",
         scope=TransferAuthorityScope.MATERIALIZE,
-        principal_id="principal-1",
-        issuer_id="issuer-1",
-        authority_id="authority-1",
-        policy_digest="c" * 64,
+        authorization=policy(),
+        authenticated_principal=principal(),
     )
 
 
@@ -135,8 +143,30 @@ def test_unified_preflight_passes_all_gates(tmp_path):
     result = run(tmp_path)
     assert result.transaction_id == "tx-1"
     assert result.principal.principal_id == "principal-1"
-    assert result.authority.authority_id == "authority-1"
+    assert result.authority.authority_id
     assert result.transport.principal is result.principal
+
+
+def test_forged_policy_digest_blocks(tmp_path):
+    forged = replace(authority(), policy_digest="c" * 64)
+    with pytest.raises(PermissionError, match="policy provenance"):
+        run(tmp_path, authority=forged)
+
+
+def test_forged_authority_id_blocks(tmp_path):
+    forged = replace(authority(), authority_id="authority-forged")
+    with pytest.raises(PermissionError, match="identity provenance"):
+        run(tmp_path, authority=forged)
+
+
+def test_policy_principal_mismatch_blocks(tmp_path):
+    mismatched = PolicyAuthorization(
+        AuthorityPrincipal("other-principal", "issuer-1"),
+        AuthorityConstraints("dest-1", "snapshot-1"),
+        True,
+    )
+    with pytest.raises(PermissionError, match="principal does not match policy"):
+        run(tmp_path, policy=mismatched)
 
 
 def test_unknown_trust_root_blocks_before_verifier(tmp_path):
@@ -155,7 +185,7 @@ def test_transport_peer_mismatch_closes_before_authority_use(tmp_path):
 
 def test_revoked_authority_blocks(tmp_path):
     revocations = AuthorityRevocationRegistry(tmp_path / "revocations.jsonl")
-    revocations.revoke("authority-1", reason="test")
+    revocations.revoke(authority().authority_id, reason="test")
     with pytest.raises(PermissionError, match="revoked"):
         run(tmp_path, revocations=revocations)
 
