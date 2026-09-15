@@ -41,10 +41,12 @@ def test_key_admission_lifecycle_and_restart(tmp_path):
     assert store.can_verify("node-1", "key-1")
 
     store.retire_key("node-1", "key-1")
+    assert not store.admit_key("node-1", "key-1", fingerprint)
     restarted = DurableKeyAdmission(path)
     assert restarted.is_key_admitted("node-1", "key-1", fingerprint)
     assert not restarted.can_sign("node-1", "key-1")
     assert restarted.can_verify("node-1", "key-1")
+    assert not restarted.admit_key("node-1", "key-1", fingerprint)
 
     restarted.revoke_key("node-1", "key-1")
     restarted = DurableKeyAdmission(path)
