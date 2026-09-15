@@ -1,4 +1,4 @@
-"""Dependency-free local FS storage engine foundation."""
+"""Dependency-free local FS storage engine foundation.
 from __future__ import annotations
 
 import hashlib
@@ -22,8 +22,6 @@ def _canonical(value: object) -> bytes:
 def _fsync_directory(directory: str | Path) -> None:
     """Persist directory-entry changes where the platform exposes that contract."""
     if os.name == "nt":
-        # Windows does not expose the POSIX directory-fsync contract through the
-        # same file-descriptor API. File contents are still fsynced before replace.
         return
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
     fd = os.open(Path(directory), flags)
@@ -187,7 +185,10 @@ class ContentAddressedStore:
         return manifest.object_id
 
     def get_manifest(self, object_id: str) -> Manifest:
-        return Manifest.from_bytes((self.manifests / object_id).read_bytes())
+        manifest = Manifest.from_bytes((self.manifests / object_id).read_bytes())
+        if manifest.object_id != object_id:
+            raise ValueError("manifest identity verification failed")
+        return manifest
 
 
 class JournalCorruption(ValueError):
@@ -303,8 +304,6 @@ class LocalStorageEngine:
         self.root = Path(root)
         self.store = ContentAddressedStore(self.root)
         self.journal = AppendJournal(self.root / "journal.log")
-        # The journal is the durable source of truth for inventory state. Keeping
-        # inventory in a separate, non-replayed log loses committed objects after restart.
         self.inventory = Inventory(self.journal.path)
         self.chunker = DeterministicChunker(chunk_size)
 
