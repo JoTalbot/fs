@@ -63,24 +63,31 @@ class Transport:
         self.peer = peer
         self.authenticated = authenticated
         self.closed = False
+        self.calls = []
 
     def authenticate(self, peer_node):
+        self.calls.append("authenticate")
         self.peer = peer_node
         self.authenticated = True
 
     def send(self, peer_node, payload):
+        self.calls.append("send")
         assert peer_node == self.peer
 
     def receive(self):
+        self.calls.append("receive")
         return None
 
     def peer_node(self):
+        self.calls.append("peer_node")
         return self.peer
 
     def is_authenticated(self):
+        self.calls.append("is_authenticated")
         return self.authenticated
 
     def close(self):
+        self.calls.append("close")
         self.closed = True
 
 
@@ -196,20 +203,26 @@ def test_unauthenticated_transport_blocks_before_authority_use(tmp_path):
     assert transport.closed
 
 
-def test_revoked_authority_blocks(tmp_path):
+def test_revoked_authority_blocks_without_touching_transport(tmp_path):
+    transport = Transport()
     revocations = AuthorityRevocationRegistry(tmp_path / "revocations.jsonl")
     revocations.revoke(authority().authority_id, reason="test")
     with pytest.raises(PermissionError, match="revoked"):
-        run(tmp_path, revocations=revocations)
+        run(tmp_path, revocations=revocations, transport=transport)
+    assert transport.calls == []
+    assert not transport.closed
 
 
-def test_journal_mismatch_blocks(tmp_path):
+def test_journal_mismatch_blocks_without_touching_transport(tmp_path):
+    transport = Transport()
     bad_transaction = transaction().__class__(
         "tx-other", TransferJournalPhase.PREPARED, WorkspaceTransfer.MIGRATE,
         "snapshot-1", "source-1", "dest-1",
     )
     with pytest.raises(PermissionError, match="transaction"):
-        run(tmp_path, transaction=bad_transaction)
+        run(tmp_path, transaction=bad_transaction, transport=transport)
+    assert transport.calls == []
+    assert not transport.closed
 
 
 def test_non_prepared_transaction_blocks(tmp_path):
