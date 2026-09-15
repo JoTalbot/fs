@@ -67,6 +67,40 @@ class KeyAdmission(Protocol):
     def can_verify(self, node_id: str, key_id: str) -> bool: ...
 
 
+def validate_authenticated_principal_admission(
+    principal: AuthenticatedPrincipal,
+    *,
+    node_admission: NodeAdmission,
+    key_admission: KeyAdmission,
+) -> None:
+    """Fail closed unless authenticated node/key evidence is admitted.
+
+    This is a consistency gate, not an authentication mechanism. The caller
+    must obtain ``principal`` from an authoritative verifier. This helper only
+    checks that the verifier's node/key claims agree with authoritative node
+    admission, key admission, and verification lifecycle state. It never
+    infers trust from the presented fingerprint or from discovery/configuration.
+
+    Issuer and trust-root validation remain the responsibility of the principal
+    verifier/trust-root store. No authority or filesystem mutation is granted
+    by this function.
+    """
+    if not node_admission.is_admitted(principal.node_id, principal.key_fingerprint):
+        raise PermissionError(
+            "authenticated principal node is not admitted for its key fingerprint"
+        )
+
+    if not key_admission.is_key_admitted(
+        principal.node_id,
+        principal.key_id,
+        principal.key_fingerprint,
+    ):
+        raise PermissionError("authenticated principal key is not admitted for its node")
+
+    if not key_admission.can_verify(principal.node_id, principal.key_id):
+        raise PermissionError("authenticated principal key is not usable for verification")
+
+
 @runtime_checkable
 class TrustRootStore(Protocol):
     """Authoritative issuer trust-anchor lookup boundary."""
