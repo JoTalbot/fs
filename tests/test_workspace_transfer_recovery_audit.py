@@ -51,6 +51,20 @@ def test_audit_hash_chain_and_sequence_are_durable(tmp_path: Path) -> None:
     assert log.replay() == (first, second)
 
 
+def test_audit_reopen_replays_and_continues_hash_chain(tmp_path: Path) -> None:
+    path = tmp_path / "recovery-audit.log"
+    first_log = RecoveryAuditLog(path)
+    first = first_log.append(_plan(), TransferJournalPhase.MATERIALIZING)
+
+    reopened_log = RecoveryAuditLog(path)
+    assert reopened_log.replay() == (first,)
+
+    second = reopened_log.append(_plan(RecoveryDecision.ABORT_PROVEN), TransferJournalPhase.MATERIALIZING)
+    assert second.sequence == 2
+    assert second.previous_digest == first.event_digest
+    assert RecoveryAuditLog(path).replay() == (first, second)
+
+
 def test_audit_rejects_tampered_event(tmp_path: Path) -> None:
     path = tmp_path / "recovery-audit.log"
     log = RecoveryAuditLog(path)
