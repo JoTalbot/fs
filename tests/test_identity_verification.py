@@ -34,6 +34,14 @@ def _admissions(*, node_ok: bool = True, key_ok: bool = True, verify_ok: bool = 
     return Nodes(), Keys()
 
 
+def _trusted_roots() -> TrustRootStore:
+    class Roots:
+        def issuer_fingerprint(self, issuer_id: str) -> str | None:
+            return "c" * 64 if issuer_id == "issuer-1" else None
+
+    return Roots()
+
+
 def test_authenticated_principal_evidence_requires_complete_identity() -> None:
     evidence = _principal()
     assert evidence.node_id == "node-1"
@@ -88,6 +96,20 @@ def test_authenticated_principal_admission_gate_fails_closed(
         validate_authenticated_principal_admission(_principal(), node_admission=nodes, key_admission=keys)
 
 
+def test_composed_verification_path_requires_trust_roots() -> None:
+    class Verifier:
+        def verify(self, **kwargs) -> AuthenticatedPrincipal:
+            raise AssertionError("verifier must not run without authoritative trust roots")
+
+    nodes, keys = _admissions()
+    with pytest.raises(TypeError, match="trust_roots"):
+        verify_and_validate_authenticated_principal(
+            Verifier(), principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
+            key_id="key-1", key_fingerprint="a" * 64, claims=b"claims", signature=b"signature",
+            node_admission=nodes, key_admission=keys,
+        )
+
+
 def test_composed_verification_path_runs_admission_after_verifier() -> None:
     class Verifier:
         def verify(self, **kwargs) -> AuthenticatedPrincipal:
@@ -97,7 +119,7 @@ def test_composed_verification_path_runs_admission_after_verifier() -> None:
     result = verify_and_validate_authenticated_principal(
         Verifier(), principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
         key_id="key-1", key_fingerprint="a" * 64, claims=b"claims", signature=b"signature",
-        node_admission=nodes, key_admission=keys,
+        trust_roots=_trusted_roots(), node_admission=nodes, key_admission=keys,
     )
     assert result == _principal()
 
@@ -112,7 +134,7 @@ def test_composed_verification_path_rejects_after_verifier_on_admission_failure(
         verify_and_validate_authenticated_principal(
             Verifier(), principal_id="principal-1", issuer_id="issuer-1", node_id="node-1",
             key_id="key-1", key_fingerprint="a" * 64, claims=b"claims", signature=b"signature",
-            node_admission=nodes, key_admission=keys,
+            trust_roots=_trusted_roots(), node_admission=nodes, key_admission=keys,
         )
 
 
