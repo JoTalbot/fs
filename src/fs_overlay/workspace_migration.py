@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from .workspace import WorkspaceBinding, WorkspacePlan, plan_workspace
+from .workspace import WorkspaceBinding, plan_workspace
 from .workspace_state import WorkspaceState, WorkspaceStateStore
 from .workspace_registry import WorkspaceMode, WorkspaceRecord, WorkspaceRegistry
 
@@ -26,6 +26,8 @@ class WorkspaceTransferPlan:
 
     ``source_preserved`` is always true at the planning layer. A future
     destructive move must be a distinct, explicitly authorized operation.
+    ``destination_must_be_empty`` makes the conflict policy explicit before
+    any future materialization executor is allowed to write.
     """
 
     operation: WorkspaceTransfer
@@ -36,11 +38,26 @@ class WorkspaceTransferPlan:
     destination_path: Path | None
     source_preserved: bool = True
     destination_must_be_verified: bool = True
+    destination_must_be_empty: bool = True
     reasons: tuple[str, ...] = ()
 
     @property
     def ready(self) -> bool:
         return not self.reasons
+
+
+def _destination_conflicts(destination_plan: object, destination: WorkspaceBinding) -> str | None:
+    """Return a deterministic conflict reason without mutating the host."""
+    if getattr(destination_plan, "reasons", ()):
+        return None
+    path = Path(destination.host_path)
+    try:
+        next(path.iterdir())
+    except StopIteration:
+        return None
+    except OSError:
+        return "import_destination_contents_unreadable"
+    return "import_destination_must_be_empty"
 
 
 def plan_export(
@@ -76,6 +93,9 @@ def plan_import(
         reasons.append("import_destination_requires_ownership_or_delegation")
     if destination.read_only:
         reasons.append("import_destination_must_be_writable")
+    conflict = _destination_conflicts(destination_plan, destination)
+    if conflict:
+        reasons.append(conflict)
     return WorkspaceTransferPlan(
         WorkspaceTransfer.IMPORT,
         state.snapshot.snapshot_id,
