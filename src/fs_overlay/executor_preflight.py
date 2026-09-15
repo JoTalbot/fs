@@ -15,7 +15,6 @@ from .authority_revocation import AuthorityRevocationRegistry
 from .identity_preflight import identity_preflight
 from .identity_verification import AuthenticatedPrincipal, PrincipalVerifier, TrustRootStore
 from .production_adapters import AuthenticatedTransport, KeyAdmission, NodeAdmission
-from .recovery_preflight import RecoveryEvidenceVerifier, recovery_preflight
 from .transport_gate import FailClosedTransportGate
 from .workspace_migration import WorkspaceTransferPlan
 from .workspace_transfer_authority import (
@@ -25,7 +24,6 @@ from .workspace_transfer_authority import (
     validate_policy_bound_transfer_authority,
 )
 from .workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase
-from .workspace_transfer_recovery import TransferRecoveryEvidence, TransferRecoveryPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +34,6 @@ class ExecutorPreflightResult:
     authority: TransferAuthority
     transport: FailClosedTransportGate
     transaction_id: str
-    recovery: TransferRecoveryPlan | None = None
 
 
 def executor_preflight(
@@ -58,15 +55,14 @@ def executor_preflight(
     key_fingerprint: str,
     claims: Mapping[str, object],
     signature: bytes,
-    recovery: TransferRecoveryPlan | None = None,
-    recovery_evidence: TransferRecoveryEvidence | None = None,
-    recovery_evidence_verifier: RecoveryEvidenceVerifier | None = None,
 ) -> ExecutorPreflightResult:
-    """Require every executor security gate before any future mutation.
+    """Require every new-execution security gate before any future mutation.
 
-    A recovery path is accepted only when the raw recovery evidence is passed
-    through ``recovery_preflight`` with an independent verifier. A caller cannot
-    bypass that gate by constructing a structurally matching recovery plan.
+    Recovery is deliberately not an executor-preflight mode: crashed
+    transactions are already ``MATERIALIZING`` and therefore require the
+    separate ``recovery_preflight`` boundary with independently verified
+    evidence. Keeping the two paths separate prevents a caller from smuggling
+    an unverified recovery decision through normal execution admission.
     """
     if not plan.ready:
         raise PermissionError("executor preflight requires a ready transfer plan")
@@ -136,31 +132,9 @@ def executor_preflight(
     if transaction.phase is not TransferJournalPhase.PREPARED:
         raise PermissionError("executor preflight requires a prepared transaction")
 
-    verified_recovery = None
-    if recovery is not None or recovery_evidence is not None:
-        if recovery is None or recovery_evidence is None or recovery_evidence_verifier is None:
-            raise PermissionError(
-                "recovery requires evidence and an independent evidence verifier"
-            )
-        verified = recovery_preflight(
-            transaction,
-            recovery_evidence,
-            evidence_verifier=recovery_evidence_verifier,
-        )
-        if (
-            recovery.transaction_id != verified.plan.transaction_id
-            or recovery.snapshot_id != verified.plan.snapshot_id
-            or recovery.operation is not verified.plan.operation
-            or recovery.decision is not verified.plan.decision
-            or recovery.reason != verified.plan.reason
-        ):
-            raise PermissionError("recovery plan does not match independently verified evidence")
-        verified_recovery = verified.plan
-
     return ExecutorPreflightResult(
         principal=principal,
         authority=authority,
         transport=transport_gate,
         transaction_id=transaction.transaction_id,
-        recovery=verified_recovery,
     )
