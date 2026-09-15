@@ -2,12 +2,13 @@ from dataclasses import replace
 from pathlib import Path
 import hashlib
 import json
+import multiprocessing
 
 import pytest
 
 from fs_overlay.storage_engine import LocalStorageEngine
 from fs_overlay.workspace import WorkspaceBinding
-from fs_overlay.workspace_migration import plan_import
+from fs_overlay.workspace_migration import WorkspaceTransferPlan, plan_import
 from fs_overlay.workspace_state import WorkspaceStateStore
 from fs_overlay.workspace_transfer_journal import (
     TransferJournalCorruption,
@@ -30,6 +31,127 @@ def _plan(tmp_path: Path):
         state,
         WorkspaceBinding("destination", str(destination), owned_or_delegated=True),
     )
+
+
+def _concurrent_begin_worker(
+    journal_path: str,
+    plan: WorkspaceTransferPlan,
+    ready: multiprocessing.Event,
+    start: multiprocessing.Event,
+    results: multiprocessing.Queue,
+) -> None:
+    try:
+        journal = WorkspaceTransferJournal(journal_path, lock_timeout=5)
+        ready.set()
+        if not start.wait(5):
+            results.put((False, "start barrier timeout"))
+            return
+        results.put((True, journal.begin(plan)))
+    except Exception as exc:  # pragma: no cover - assertion below reports the failure
+        results.put((False, f"{type(exc).__name__}: {exc}"))
+
+
+def _concurrent_mark_worker(
+    journal_path: str,
+    transaction_id: str,
+    plan: WorkspaceTransferPlan,
+    ready: multiprocessing.Event,
+    start: multiprocessing.Event,
+    results: multiprocessing.Queue,
+) -> None:
+    try:
+        journal = WorkspaceTransferJournal(journal_path, lock_timeout=5)
+        ready.set()
+        if not start.wait(5):
+            results.put((False, "start barrier timeout"))
+            return
+        journal.mark(transaction_id, plan, TransferJournalPhase.MATERIALIZING)
+        results.put((True, "marked"))
+    except Exception as exc:
+        results.put((False, f"{type(exc).__name__}: {exc}"))
+
+
+def test_journal_concurrent_process_begins_preserve_hash_chain(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    path = tmp_path / "journal.log"
+    ctx = multiprocessing.get_context("spawn")
+    ready_a, ready_b = ctx.Event(), ctx.Event()
+    start = ctx.Event()
+    results = ctx.Queue()
+    processes = [
+        ctx.Process(
+            target=_concurrent_begin_worker,
+            args=(str(path), plan, ready_a, start, results),
+        ),
+        ctx.Process(
+            target=_concurrent_begin_worker,
+            args=(str(path), plan, ready_b, start, results),
+        ),
+    ]
+    for process in processes:
+        process.start()
+    try:
+        assert ready_a.wait(5)
+        assert ready_b.wait(5)
+        start.set()
+        outcomes = [results.get(timeout=10) for _ in processes]
+    finally:
+        for process in processes:
+            process.join(timeout=10)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+    assert all(process.exitcode == 0 for process in processes)
+    assert all(ok for ok, _ in outcomes), outcomes
+    transaction_ids = [value for _, value in outcomes]
+    assert len(set(transaction_ids)) == 2
+    entries = list(WorkspaceTransferJournal(path).replay())
+    assert len(entries) == 2
+    assert {entry.transaction_id for entry in entries} == set(transaction_ids)
+
+
+def test_journal_concurrent_process_marks_serialize_state_check(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    path = tmp_path / "journal.log"
+    transaction_id = WorkspaceTransferJournal(path).begin(plan)
+    ctx = multiprocessing.get_context("spawn")
+    ready_a, ready_b = ctx.Event(), ctx.Event()
+    start = ctx.Event()
+    results = ctx.Queue()
+    processes = [
+        ctx.Process(
+            target=_concurrent_mark_worker,
+            args=(str(path), transaction_id, plan, ready_a, start, results),
+        ),
+        ctx.Process(
+            target=_concurrent_mark_worker,
+            args=(str(path), transaction_id, plan, ready_b, start, results),
+        ),
+    ]
+    for process in processes:
+        process.start()
+    try:
+        assert ready_a.wait(5)
+        assert ready_b.wait(5)
+        start.set()
+        outcomes = [results.get(timeout=10) for _ in processes]
+    finally:
+        for process in processes:
+            process.join(timeout=10)
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
+    assert all(process.exitcode == 0 for process in processes)
+    successes = [ok for ok, _ in outcomes if ok]
+    failures = [value for ok, value in outcomes if not ok]
+    assert successes == [True]
+    assert len(failures) == 1
+    assert "invalid transfer journal transition" in failures[0]
+    entries = list(WorkspaceTransferJournal(path).replay())
+    assert [entry.phase for entry in entries] == [
+        TransferJournalPhase.PREPARED,
+        TransferJournalPhase.MATERIALIZING,
+    ]
 
 
 def test_journal_requires_ready_plan(tmp_path: Path) -> None:
