@@ -115,16 +115,18 @@ def verify_and_validate_authenticated_principal(
     signature: bytes,
     node_admission: NodeAdmission,
     key_admission: KeyAdmission,
-    trust_roots: TrustRootStore | None = None,
+    trust_roots: TrustRootStore,
 ) -> AuthenticatedPrincipal:
-    """Verify identity and enforce trust-root and node/key admission gates.
+    """Verify identity through the mandatory authoritative trust-root gate.
 
-    ``trust_roots`` is optional only for compatibility with the earlier
-    contract. Production callers must provide it; when supplied, an unknown
-    or malformed issuer trust anchor fails closed before the verifier runs.
+    This is the production-facing composed identity path. An authoritative
+    ``TrustRootStore`` is mandatory so callers cannot silently downgrade to a
+    verifier-only path. The trust root is checked before cryptographic identity
+    verification, followed by durable node/key admission. The store itself
+    remains an injected security authority and this module never implements
+    cryptography or persists key material.
     """
-    if trust_roots is not None:
-        require_trusted_issuer(issuer_id, trust_roots=trust_roots)
+    require_trusted_issuer(issuer_id, trust_roots=trust_roots)
     principal = verifier.verify(
         principal_id=principal_id,
         issuer_id=issuer_id,
