@@ -71,6 +71,7 @@ def executor_preflight(
         raise PermissionError("executor preflight requires a ready transfer plan")
 
     principal = identity_preflight(
+        principal_verifier,
         principal_id=principal_id,
         issuer_id=issuer_id,
         node_id=node_id,
@@ -79,12 +80,12 @@ def executor_preflight(
         claims=claims,
         signature=signature,
         trust_roots=trust_roots,
-        principal_verifier=principal_verifier,
         node_admission=node_admission,
         key_admission=key_admission,
     )
 
     transport_gate = FailClosedTransportGate(transport, principal)
+    transport_gate.validate_session()
 
     scope_workspace = (
         plan.destination_workspace_id
