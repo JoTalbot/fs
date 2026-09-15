@@ -44,6 +44,7 @@ def _evidence(entry, **overrides):
         "mutation_complete": False,
         "source_preserved": True,
         "rollback_safe": False,
+        "staging_absent": False,
     }
     values.update(overrides)
     return TransferRecoveryEvidence(**values)
@@ -58,9 +59,26 @@ def test_recovery_proves_commit_only_from_complete_matching_evidence(tmp_path: P
             destination_state=DestinationRecoveryState.MATCHES_SNAPSHOT,
             destination_verified=True,
             mutation_complete=True,
+            staging_absent=True,
         ),
     )
     assert plan.decision is RecoveryDecision.COMMIT_PROVEN
+
+
+def test_recovery_requires_staging_absence_for_commit_proof(tmp_path: Path) -> None:
+    entry = _candidate(tmp_path)
+    plan = reconcile_materializing_transaction(
+        entry,
+        _evidence(
+            entry,
+            destination_state=DestinationRecoveryState.MATCHES_SNAPSHOT,
+            destination_verified=True,
+            mutation_complete=True,
+            staging_absent=False,
+        ),
+    )
+    assert plan.decision is RecoveryDecision.MANUAL_REVIEW
+    assert "staging" in plan.reason
 
 
 def test_recovery_proves_abort_only_when_destination_absent_and_rollback_safe(tmp_path: Path) -> None:
@@ -93,6 +111,7 @@ def test_recovery_rejects_source_loss(tmp_path: Path) -> None:
                 destination_state=DestinationRecoveryState.MATCHES_SNAPSHOT,
                 destination_verified=True,
                 mutation_complete=True,
+                staging_absent=True,
                 source_preserved=False,
             ),
         )
