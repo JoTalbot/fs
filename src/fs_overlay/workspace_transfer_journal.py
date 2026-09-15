@@ -15,6 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Iterator
 
+from .durable_coordination import FileAdmissionCoordinator
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
@@ -64,24 +65,30 @@ class WorkspaceTransferJournal:
         TransferJournalPhase.ABORTED: frozenset(),
     }
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, *, lock_timeout: float = 5.0):
+        if lock_timeout < 0:
+            raise ValueError("lock_timeout must be non-negative")
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._coordinator = FileAdmissionCoordinator(
+            self.path.parent / ".journal-locks", timeout=lock_timeout
+        )
+        self._lock_resource = str(self.path.resolve())
 
     def begin(self, plan: WorkspaceTransferPlan) -> str:
         if not plan.ready:
             raise ValueError("cannot journal a transfer plan that is not ready")
         transaction_id = uuid.uuid4().hex
-        self._append(
-            TransferJournalEntry(
-                transaction_id,
-                TransferJournalPhase.PREPARED,
-                plan.operation,
-                plan.snapshot_id,
-                plan.source_workspace_id,
-                plan.destination_workspace_id,
-            )
+        entry = TransferJournalEntry(
+            transaction_id,
+            TransferJournalPhase.PREPARED,
+            plan.operation,
+            plan.snapshot_id,
+            plan.source_workspace_id,
+            plan.destination_workspace_id,
         )
+        with self._coordinator.acquire(self._lock_resource):
+            self._append_unlocked(entry)
         return transaction_id
 
     def mark(
@@ -99,28 +106,32 @@ class WorkspaceTransferJournal:
         except ValueError as exc:
             raise ValueError("unknown transfer journal phase") from exc
 
-        entries = list(self.replay())
-        current = next(
-            (entry for entry in reversed(entries) if entry.transaction_id == transaction_id),
-            None,
-        )
-        if current is None:
-            raise ValueError("unknown transfer transaction")
-        self._validate_identity(current, transaction_id, plan)
-        if next_phase not in self._TRANSITIONS[current.phase]:
-            raise ValueError(
-                f"invalid transfer journal transition: {current.phase.value} -> {next_phase.value}"
+        # The state check and append must be one critical section. Otherwise
+        # two processes can both observe PREPARED and both append the same
+        # transition, or both derive the same previous_digest.
+        with self._coordinator.acquire(self._lock_resource):
+            entries = list(self.replay())
+            current = next(
+                (entry for entry in reversed(entries) if entry.transaction_id == transaction_id),
+                None,
             )
-        self._append(
-            TransferJournalEntry(
-                transaction_id,
-                next_phase,
-                plan.operation,
-                plan.snapshot_id,
-                plan.source_workspace_id,
-                plan.destination_workspace_id,
+            if current is None:
+                raise ValueError("unknown transfer transaction")
+            self._validate_identity(current, transaction_id, plan)
+            if next_phase not in self._TRANSITIONS[current.phase]:
+                raise ValueError(
+                    f"invalid transfer journal transition: {current.phase.value} -> {next_phase.value}"
+                )
+            self._append_unlocked(
+                TransferJournalEntry(
+                    transaction_id,
+                    next_phase,
+                    plan.operation,
+                    plan.snapshot_id,
+                    plan.source_workspace_id,
+                    plan.destination_workspace_id,
+                )
             )
-        )
 
     def recovery_candidates(self) -> tuple[TransferJournalEntry, ...]:
         """Return transfers left in materializing state after a crash."""
@@ -205,7 +216,8 @@ class WorkspaceTransferJournal:
         ):
             raise ValueError("transfer transaction identity mismatch")
 
-    def _append(self, entry: TransferJournalEntry) -> None:
+    def _append_unlocked(self, entry: TransferJournalEntry) -> None:
+        """Append one record while the journal coordination lock is held."""
         unsigned = entry.as_record()
         unsigned["previous_digest"] = self._last_digest()
         unsigned["event_digest"] = None
