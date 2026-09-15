@@ -159,6 +159,12 @@ def test_forged_authority_id_blocks(tmp_path):
         run(tmp_path, authority=forged)
 
 
+def test_forged_source_preservation_blocks(tmp_path):
+    forged = replace(authority(), source_preserved=False)
+    with pytest.raises(PermissionError, match="preserve the source"):
+        run(tmp_path, authority=forged)
+
+
 def test_policy_principal_mismatch_blocks(tmp_path):
     mismatched = PolicyAuthorization(
         AuthorityPrincipal("other-principal", "issuer-1"),
