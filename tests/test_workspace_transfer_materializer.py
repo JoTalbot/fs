@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from fs_overlay.authority_revocation import AuthorityRevocationRegistry
 from fs_overlay.storage_engine import LocalStorageEngine
 from fs_overlay.workspace import WorkspaceBinding
 from fs_overlay.workspace_migration import plan_import
@@ -119,3 +120,36 @@ def test_materializer_preflight_rejects_terminal_transaction(tmp_path: Path) -> 
     )
     with pytest.raises(ValueError, match="not in a materializable journal state"):
         validate_materialization_preflight(plan, authority, journal)
+
+
+def test_materializer_preflight_rejects_revoked_authority(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    journal = WorkspaceTransferJournal(tmp_path / "journal.log")
+    transaction_id = journal.begin(plan)
+    authority = TransferAuthority(
+        transaction_id=transaction_id,
+        snapshot_id=plan.snapshot_id,
+        source_workspace_id=plan.source_workspace_id,
+        destination_workspace_id=plan.destination_workspace_id,
+        scope=TransferAuthorityScope.MATERIALIZE,
+        authority_id="authority-1",
+    )
+    revocations = AuthorityRevocationRegistry(tmp_path / "revocations.log")
+    revocations.revoke("authority-1", reason="cancelled")
+    with pytest.raises(PermissionError, match="revoked"):
+        validate_materialization_preflight(plan, authority, journal, revocations)
+
+
+def test_materializer_preflight_requires_provenance_for_revocation_check(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    journal = WorkspaceTransferJournal(tmp_path / "journal.log")
+    transaction_id = journal.begin(plan)
+    authority = grant_transfer_authority(
+        plan,
+        transaction_id=transaction_id,
+        scope=TransferAuthorityScope.MATERIALIZE,
+        approved=True,
+    )
+    revocations = AuthorityRevocationRegistry(tmp_path / "revocations.log")
+    with pytest.raises(PermissionError, match="authority provenance"):
+        validate_materialization_preflight(plan, authority, journal, revocations)
