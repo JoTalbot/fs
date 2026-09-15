@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `6c45532db1775c06a60cb23986cc6b6353c37066`
+- Latest implementation head: `f00e730681898ae013a8f60b74b971e400f2f6d9`
 - Latest status synchronization commit: pending (this update)
 - Updated: 2026-09-15
 
@@ -17,21 +17,20 @@
 - area: Phase 3 workspace migration/import/export planning
 - claimed_files: `src/fs_overlay/workspace_migration.py`, `tests/test_workspace_migration.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
 - goal: define deterministic, verified, non-destructive workspace transfer plans without granting host mutation authority
-- status: plan-only export/import/migration boundaries are implemented; export preserves source, import requires existing owned/delegated writable destination, migration requires distinct identities, and registry-driven migration requires managed destination mode
-- decision: logical snapshot transfer is separate from filesystem mutation; import has no invented host source path and all future execution must pass explicit preflight/authority checks
-- next_step: validate migration CI, then add destination conflict/preflight semantics before implementing any actual transfer executor
+- status: plan-only export/import/migration boundaries are implemented; export preserves source, import requires existing owned/delegated writable empty destination, migration requires distinct identities, and registry-driven migration requires managed destination mode
+- decision: logical snapshot transfer is separate from filesystem mutation; import has no invented host source path and now rejects non-empty destinations by default
+- next_step: validate the fresh conflict-preflight CI, fix any failures autonomously, then design authority-bearing executor/journal boundaries
 
 ## Latest work
 
-- `59a1fdb3f5f4c1f12cc33b19c2426816e4d6baac` — workspace-state cleanup before CI.
-- `96b2aa7842f7cf1b2020f4d703461db041c9dbca` — initial migration planning boundary.
-- `a9dfc0c20d65d5c57ee1765c2e7c21cb8df203b4` — corrected logical import source-path semantics.
-- `6c45532db1775c06a60cb23986cc6b6353c37066` — migration regression coverage and syntax correction.
-- `71e6bcdd4f0a1e108116d30c21ccc1b60c00e104` — durable migration step record.
+- `204a68f083394c9ea99c649e6880238ca8d7a2d3` — explicit destination conflict preflight and unused-import cleanup.
+- `f00e730681898ae013a8f60b74b971e400f2f6d9` — regression test for non-empty destination safe-stop.
+- `a2fe79a09f071f30d8cb53ae19add124053155da` — durable migration step record.
+- `6d6abbe8ae5dbc32917d3b7752076082a2a09701` — corrected migration step record.
 
 ## Validation boundary
 
-Run `426` for the prior workspace-state/status synchronization completed successfully across the observed Python and crypto matrix. The new migration commits have triggered a fresh CI run but its final result has not yet been observed. No migration CI pass is claimed. No local checkout/test runner is available in this session.
+Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. The new conflict-preflight commits have triggered a fresh CI run. Its final result has not yet been observed, so no pass is claimed for the latest head. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -45,7 +44,7 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Observe migration CI and correct any failures autonomously.
-2. Add destination conflict/preflight semantics with explicit verification and safe-stop behavior.
-3. Only then design an authority-bearing import/export executor with transactional journal boundaries.
-4. Continue snapshot/recovery, journal/crash qualification, and production blockers.
+1. Observe the fresh conflict-preflight CI and correct failures autonomously.
+2. If clean, define an authority-bearing import/export executor contract with explicit destination conflict policy.
+3. Add transactional journal/crash recovery boundaries before any destructive host mutation.
+4. Continue snapshot/recovery qualification and production blockers.
