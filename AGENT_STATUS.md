@@ -23,7 +23,7 @@
 
 ## Latest work
 
-- `204a68f083394c9ea99c649e6880238ca8d7a2d3` — explicit destination conflict preflight and unused-import cleanup.
+- destination conflict preflight added to `workspace_migration.py`; the write commit is the immediately preceding implementation commit before the migration regression test.
 - `f00e730681898ae013a8f60b74b971e400f2f6d9` — regression test for non-empty destination safe-stop.
 - `a2fe79a09f071f30d8cb53ae19add124053155da` — durable migration step record.
 - `6d6abbe8ae5dbc32917d3b7752076082a2a09701` — corrected migration step record.
