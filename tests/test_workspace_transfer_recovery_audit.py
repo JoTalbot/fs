@@ -1,3 +1,5 @@
+import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -60,15 +62,21 @@ def test_audit_rejects_tampered_event(tmp_path: Path) -> None:
         log.replay()
 
 
-def test_audit_rejects_broken_chain(tmp_path: Path) -> None:
+def test_audit_rejects_broken_chain_even_when_event_digest_is_repaired(tmp_path: Path) -> None:
     path = tmp_path / "recovery-audit.log"
     log = RecoveryAuditLog(path)
-    log.append(_plan(), TransferJournalPhase.MATERIALIZING)
-    log.append(_plan(RecoveryDecision.ABORT_PROVEN), TransferJournalPhase.MATERIALIZING)
+    first = log.append(_plan(), TransferJournalPhase.MATERIALIZING)
+    second = log.append(_plan(RecoveryDecision.ABORT_PROVEN), TransferJournalPhase.MATERIALIZING)
     lines = path.read_text().splitlines()
-    lines[1] = lines[1].replace('"previous_digest":"', '"previous_digest":"broken')
+    record = json.loads(lines[1])
+    record["previous_digest"] = "0" * 64
+    record["event_digest"] = ""
+    encoded = json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
+    record["event_digest"] = hashlib.sha256(encoded).hexdigest()
+    lines[1] = json.dumps(record, sort_keys=True, separators=(",", ":"))
     path.write_text("\n".join(lines) + "\n")
 
+    assert second.previous_digest == first.event_digest
     with pytest.raises(RecoveryAuditCorruption, match="hash chain"):
         log.replay()
 
