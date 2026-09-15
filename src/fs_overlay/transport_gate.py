@@ -40,12 +40,26 @@ class FailClosedTransportGate:
         finally:
             raise TransportSecurityError(message)
 
+    def _close_after_provider_failure(self) -> None:
+        """Invalidate and close the provider session after any transport error."""
+        self._closed = True
+        try:
+            self._transport.close()
+        except Exception:
+            pass
+
     def _require_session(self) -> None:
         if self._closed:
             raise TransportSecurityError("transport session is closed")
-        if not self._transport.is_authenticated():
+        try:
+            authenticated = self._transport.is_authenticated()
+            peer = self._transport.peer_node()
+        except Exception:
+            self._close_after_provider_failure()
+            raise TransportSecurityError("authenticated transport session state could not be validated")
+        if not authenticated:
             self._fail("authenticated transport session is not authenticated")
-        if self._transport.peer_node() != self._principal.node_id:
+        if peer != self._principal.node_id:
             self._fail("authenticated transport peer does not match principal node")
 
     def validate_session(self) -> None:
@@ -61,7 +75,7 @@ class FailClosedTransportGate:
         try:
             self._transport.send(self._principal.node_id, frame)
         except Exception:
-            self._closed = True
+            self._close_after_provider_failure()
             raise
         self._send_sequence = sequence
 
@@ -70,7 +84,7 @@ class FailClosedTransportGate:
         try:
             frame = self._transport.receive()
         except Exception:
-            self._closed = True
+            self._close_after_provider_failure()
             raise
         if frame is None:
             return None
