@@ -13,6 +13,8 @@ import json
 import os
 from pathlib import Path
 
+from .durable_coordination import FileAdmissionCoordinator
+
 
 @dataclass(frozen=True, slots=True)
 class RevocationRecord:
@@ -68,12 +70,29 @@ class RevocationRecord:
 
 
 class AuthorityRevocationRegistry:
-    """Append-only revocation registry with fail-closed restart/replay."""
+    """Append-only revocation registry with fail-closed restart/replay.
 
-    def __init__(self, path: str | Path):
+    All replay and mutation decisions are serialized through the same
+    cross-process OS lock. The registry therefore does not rely on a stale
+    in-memory view when another process revokes an authority concurrently.
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        coordination_timeout: float = 5.0,
+    ):
+        if coordination_timeout < 0:
+            raise ValueError("coordination_timeout must be non-negative")
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._records = self._replay()
+        self._coordinator = FileAdmissionCoordinator(
+            self.path.parent / ".revocation-locks",
+            timeout=coordination_timeout,
+        )
+        with self._coordinator.acquire(str(self.path.resolve())):
+            self._records = self._replay()
 
     def _replay(self) -> list[RevocationRecord]:
         if not self.path.exists():
@@ -94,27 +113,39 @@ class AuthorityRevocationRegistry:
                 records.append(record)
         return records
 
+    @staticmethod
+    def _is_revoked(records: list[RevocationRecord], authority_id: str) -> bool:
+        return any(item.authority_id == authority_id for item in records)
+
     def revoke(self, authority_id: str, *, reason: str) -> RevocationRecord:
         if not authority_id or not reason:
             raise ValueError("authority_id and reason are required")
-        if self.is_revoked(authority_id):
-            raise ValueError("authority is already revoked")
-        previous = self._records[-1].event_digest if self._records else "0" * 64
-        record = RevocationRecord.create(
-            sequence=len(self._records) + 1, authority_id=authority_id,
-            reason=reason, previous_digest=previous,
-        )
-        with self.path.open("a", encoding="utf-8") as handle:
-            handle.write(record.to_line() + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        self._records.append(record)
-        return record
+        with self._coordinator.acquire(str(self.path.resolve())):
+            # Refresh while holding the lock so independent registry instances
+            # cannot make decisions from an obsolete in-memory snapshot.
+            self._records = self._replay()
+            if self._is_revoked(self._records, authority_id):
+                raise ValueError("authority is already revoked")
+            previous = self._records[-1].event_digest if self._records else "0" * 64
+            record = RevocationRecord.create(
+                sequence=len(self._records) + 1, authority_id=authority_id,
+                reason=reason, previous_digest=previous,
+            )
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(record.to_line() + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            self._records.append(record)
+            return record
 
     def is_revoked(self, authority_id: str) -> bool:
         if not authority_id:
             raise ValueError("authority_id is required")
-        return any(item.authority_id == authority_id for item in self._records)
+        with self._coordinator.acquire(str(self.path.resolve())):
+            self._records = self._replay()
+            return self._is_revoked(self._records, authority_id)
 
     def records(self) -> tuple[RevocationRecord, ...]:
-        return tuple(self._records)
+        with self._coordinator.acquire(str(self.path.resolve())):
+            self._records = self._replay()
+            return tuple(self._records)
