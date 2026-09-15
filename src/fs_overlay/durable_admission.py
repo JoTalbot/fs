@@ -49,9 +49,8 @@ class NodeAdmissionRecord:
         if not _valid_digest(previous_digest) or not isinstance(revoked, bool):
             raise ValueError("invalid node admission record")
         record = cls(sequence, node_id, fingerprint.lower(), revoked, previous_digest.lower(), "")
-        return cls(*record.__dict__.values()) if False else cls(
-            record.sequence, record.node_id, record.fingerprint, record.revoked,
-            record.previous_digest, hashlib.sha256(record.canonical_bytes()).hexdigest())
+        return cls(record.sequence, record.node_id, record.fingerprint, record.revoked,
+                   record.previous_digest, hashlib.sha256(record.canonical_bytes()).hexdigest())
 
     def to_line(self) -> str:
         return json.dumps({"sequence": self.sequence, "node_id": self.node_id,
