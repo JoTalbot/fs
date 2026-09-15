@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `ecddbd6ccafab3d25b8ccf675f74918984d1543d`
+- Latest implementation head: `0dc854aff09f377f0b727b85823d8b8676a704b0`
 - Latest durable step record: pending
 - Updated: 2026-09-15
 
@@ -16,9 +16,9 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / recovery boundary
 - goal: make any future transfer executor depend on explicit authority plus durable, exact transaction state
-- status: strict journal state machine implemented; transaction identity continuity enforced; non-destructive materializer preflight/abort contract added; filesystem commit remains explicitly blocked
+- status: fixed the CI regression in transfer-journal identity test by using `dataclasses.replace`; fresh CI run 461 is queued
 - decision: materialization is permitted only when a ready plan, exact MATERIALIZE authority, and matching non-terminal journal transaction are all present; no capability detection or journal presence grants permission
-- next_step: validate fresh CI, then design crash-state reconciliation/rollback evidence before implementing host filesystem mutation
+- next_step: validate run 461; if green, design crash-state reconciliation/rollback evidence before implementing host filesystem mutation
 
 ## Latest work
 
@@ -26,10 +26,11 @@
 - `51a82437130e1562115a106f4bad7a8a9fddd390` — journal recovery regression coverage.
 - `1dbf61cc8ccbf36768df8e2fb2e670f066c2a256` — non-destructive materializer preflight contract.
 - `ecddbd6ccafab3d25b8ccf675f74918984d1543d` — materializer authority/safety regression coverage.
+- `0dc854aff09f377f0b727b85823d8b8676a704b0` — fix CI regression: use `dataclasses.replace` for conflicting plan construction.
 
 ## Validation boundary
 
-Run 449 (`34942329593`) completed successfully for the preceding authority documentation commit. Newer runs for the journal state-machine/materializer changes are still in progress and must be checked against the current head before a pass is claimed. No local checkout/test runner is available in this session.
+Run 461 (`34943898600`) targets the current head and is currently queued. Previous run 459 (`34943091614`) failed with the now-fixed `WorkspaceTransferPlan.ready` constructor misuse. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
