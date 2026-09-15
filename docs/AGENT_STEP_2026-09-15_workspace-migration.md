@@ -6,59 +6,66 @@ Repository: `JoTalbot/fs`
 
 ## Goal
 
-Advance Phase 3 from immutable workspace state to explicit migration/import/export planning without performing host filesystem mutation.
+Advance Phase 3 from immutable workspace state to explicit migration/import/export planning and a durable transaction-intent boundary without performing host filesystem mutation.
 
 ## Research
 
-Repository reconnaissance found no existing migration/import/export implementation to reuse. Existing `WorkspaceBinding`, `WorkspaceRegistry`, `WorkspaceStateStore`, `SnapshotStore`, and Merkle verification provide the required authority and state boundaries.
+Repository reconnaissance found no existing workspace transfer executor to reuse. Existing `WorkspaceBinding`, `WorkspaceRegistry`, `WorkspaceStateStore`, `SnapshotStore`, `MerkleDAG`, and the storage journal provide the required authority and durability primitives.
 
-Python filesystem documentation was checked before defining the boundary. Host filesystem replacement/move operations can overwrite existing destinations, so this step deliberately stops at a verified plan and does not invoke copy, replace, move, delete, or rollback operations.
+Filesystem replacement/move semantics can be destructive, so transfer remains split into a verified plan, durable intent journal, and a future authority-bearing materializer.
 
 ## Decision
 
 question -> sources -> findings -> decision -> consequence -> remaining uncertainty
 
-- question: how should workspace migration begin safely?
-- sources: existing FS workspace/state abstractions; current Python filesystem semantics.
-- findings: workspace identity and ownership are already explicit; filesystem mutation has destructive semantics and must not be conflated with logical state transfer.
-- decision: implement plan-only export/import/migrate contracts. Export preserves source. Import requires an existing, explicitly owned/delegated, writable destination and an empty destination. Migration requires distinct source/destination identities. Registered migration requires a managed destination.
-- consequence: callers receive deterministic readiness/reason codes before any future execution layer is allowed to mutate host state.
-- remaining uncertainty: actual materialization, overwrite/merge policy, rollback journal, and cross-host transfer protocol require a separate authority-bearing implementation and qualification step.
+- question: how should workspace migration become executable without silently gaining host authority?
+- sources: existing FS workspace/state abstractions and durable journal patterns.
+- findings: identity, ownership, destination conflict policy, and durable transaction state are separate concerns; none should be inferred from runtime capability.
+- decision: keep plan-only migration/import/export contracts, reject non-empty destinations by default, then add an append-only transfer journal with explicit `prepared`, caller-defined execution, and `committed` phases. Journal writes require a ready plan and are fsynced.
+- consequence: a future materializer has a durable intent boundary and can reconcile interrupted transactions without treating journal presence as permission to mutate a host path.
+- remaining uncertainty: actual materialization, authority grant, atomic filesystem commit, crash reconciliation, rollback, and cross-host transfer protocol still require separate implementation and qualification.
 
 ## Changes
 
-Added `src/fs_overlay/workspace_migration.py`:
+`src/fs_overlay/workspace_migration.py` now provides:
 
 - `WorkspaceTransfer` operation enum for export/import/migrate.
-- immutable `WorkspaceTransferPlan` with readiness, explicit non-destructive/source-preserved semantics, and `destination_must_be_empty` policy.
-- `plan_export()` validates source identity and admission.
-- `plan_import()` validates destination admission, ownership/delegation, writability, and empty-destination preflight.
-- `plan_migration()` composes export/import checks and rejects same-workspace migration.
-- `plan_registered_migration()` resolves source/destination through the registry and requires managed destination mode.
-- no function copies, moves, deletes, mounts, replaces, or changes permissions on host paths.
+- immutable `WorkspaceTransferPlan` with readiness, source-preserved semantics, and `destination_must_be_empty` policy.
+- source/destination admission, identity, ownership/delegation, writability, managed-mode, and empty-destination preflight.
+- no host filesystem mutation.
 
-Added regression coverage for a non-empty destination safe-stop. The migration tests now cover ready plans, identity mismatch, non-empty/read-only destinations, distinct migration identities, and registry managed-mode enforcement.
+Added `src/fs_overlay/workspace_transfer_journal.py`:
+
+- immutable `TransferJournalEntry` carrying transaction, operation, snapshot, and workspace identities.
+- `WorkspaceTransferJournal.begin()` refuses unready plans and records `prepared` intent durably.
+- `mark()` records explicit later phases without granting filesystem authority.
+- `replay()` accepts only a truncated final EOF record; malformed non-tail records fail closed.
+- journal writes flush and fsync before returning.
+
+Added `tests/test_workspace_transfer_journal.py` covering unready-plan rejection, round-trip phase replay, incomplete EOF tolerance, and malformed non-tail rejection.
 
 ## Validation boundary
 
-No local checkout/test runner is available. GitHub Actions remains authoritative. Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. The subsequent conflict-preflight commits have triggered a fresh CI run and require their own result before a pass is claimed.
+No local checkout/test runner is available. GitHub Actions remains authoritative. Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. Run 440 (`34941562752`) completed successfully for the status synchronization commit. The journal implementation/tests have triggered a fresh CI run and require its final result before a pass is claimed.
 
 ## Learning
 
 - `RULE`: logical transfer planning must not imply filesystem mutation authority.
-- `SECURITY`: destination ownership/delegation, writability, and conflict policy are explicit preconditions for import planning.
-- `ARCHITECTURE`: an import has no host source path; its source is a verified immutable snapshot, so the plan keeps `source_path=None` rather than inventing a filesystem claim.
-- `SAFETY`: defaulting to reject non-empty destinations avoids implicit overwrite/merge semantics until a future executor has explicit authority and rollback evidence.
+- `SECURITY`: destination ownership/delegation, writability, managed mode, and conflict policy are explicit preconditions.
+- `ARCHITECTURE`: an import has no host source path; its source is a verified immutable snapshot.
+- `SAFETY`: the journal records intent and evidence, never authority. Journal presence must never authorize source deletion or destination replacement.
+- `RECOVERY`: only an incomplete final EOF record may be treated as an interrupted append; malformed records before later data indicate corruption and must stop replay.
 
 ## Commits
 
 - `96b2aa7842f7cf1b2020f4d703461db041c9dbca` — initial plan-only migration boundary.
 - `a9dfc0c20d65d5c57ee1765c2e7c21cb8df203b4` — remove host-path claim from logical import source.
-- `b3119e62a4cdcd3fb34b25fe3e2ff43fda6e4ad8` — migration tests.
-- `6c45532db1775c06a60cb23986cc6b6353c37066` — correct migration regression tests.
-- `204a68f083394c9ea99c649e6880238c...` — explicit destination conflict preflight and unused-import cleanup.
-- `f00e730681898ae013a8f60b74b971e400f2f6d9` — regression test for non-empty destination safe-stop.
+- `6c45532db1775c06a60cb23986cc6b6353c37066` — migration regression coverage.
+- `204a68f083394c9ea99c649e688023238ca8d7a2d3` — destination conflict preflight and unused-import cleanup.
+- `f00e730681898ae013a8f60b74b971e400f2f6d9` — non-empty destination regression test.
+- `dec125383700fab1a33893b5156b6fdef2d7349e` — durable transfer journal boundary.
+- `5cf4b519687406b4f458c62f54b15e6a3f9244a7` — journal replay/corruption regression tests.
 
 ## Next
 
-Observe the fresh CI run. If clean, proceed to an authority-bearing transfer executor design with explicit destination conflict policy, transactional journal boundaries, crash recovery, and rollback evidence. Do not implement destructive host mutation before those controls exist.
+Observe the fresh CI run. If clean, define explicit authority grants and a materializer protocol, followed by crash-state reconciliation and rollback evidence. Do not implement destructive host mutation until those controls are qualified.
