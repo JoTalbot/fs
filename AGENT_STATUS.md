@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `5cf4b519687406b4f458c62f54b15e6a3f9244a7`
+- Latest implementation head: `a6cacd59a31d43088239b1a5560f57cdf6c14b68`
 - Latest status synchronization commit: pending (this update)
 - Updated: 2026-09-15
 
@@ -14,23 +14,23 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace transfer journal boundary
-- claimed_files: `src/fs_overlay/workspace_migration.py`, `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_migration.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
-- goal: establish deterministic preflight and durable transaction intent before any authority-bearing filesystem materialization
-- status: migration/import/export planning and destination conflict preflight are implemented; durable append-only transfer journal now records prepared/materializing/committed phases and fails closed on malformed non-tail records
-- decision: the journal is an intent/recovery boundary, not filesystem authority; it never copies, moves, deletes, replaces, mounts, or changes permissions
-- next_step: validate the new journal CI, then define explicit authority grant and materializer interfaces with crash-safe commit/rollback semantics
+- area: Phase 3 workspace transfer authority boundary
+- claimed_files: `src/fs_overlay/workspace_transfer_authority.py`, `tests/test_workspace_transfer_authority.py`, `docs/AGENT_STEP_2026-09-15_transfer-authority.md`, `AGENT_STATUS.md`
+- goal: establish explicit, auditable authority between a verified transfer plan and any future filesystem materializer
+- status: immutable authority contract implemented; explicit approval is required, authority is bound to transaction/snapshot/workspace identities, and scope is checked against transfer operation
+- decision: capability detection, path access, or ownership discovery never grants mutation authority implicitly; this step still performs no host filesystem mutation
+- next_step: validate the authority CI, then strengthen journal state-machine/transaction continuity before designing the materializer interface
 
 ## Latest work
 
-- `dec125383700fab1a33893b5156b6fdef2d7349e` — durable workspace transfer journal implementation.
-- `5cf4b519687406b4f458c62f54b15e6a3f9244a7` — journal replay and corruption regression tests.
-- `208a848c8301612253be7b8296dae1b0441ec131` — status synchronization for destination conflict preflight.
-- `f00e730681898ae013a8f60b74b971e400f2f6d9` — non-empty destination safe-stop regression test.
+- `0cdd69c74010fa16ad7a8451af07dbb805e58a4c` — explicit transfer authority contract.
+- `783bf12ca6688151da7963a164e07c07818048b2` — bind authority scope to transfer operation.
+- `e8652182f519fb0db64d2795cc584b1d27206883` — authority regression tests.
+- `a6cacd59a31d43088239b1a5560f57cdf6c14b68` — durable authority step record.
 
 ## Validation boundary
 
-Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. Run 440 (`34941562752`) also completed successfully for the status-only synchronization commit. The journal implementation/tests have triggered a fresh CI run; its final result has not yet been observed, so no pass is claimed for the latest implementation. No local checkout/test runner is available in this session.
+Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. Run 440 (`34941562752`) completed successfully. Fresh CI runs for the journal/authority changes are still being validated; no pass is claimed for the latest head until its jobs complete. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -44,7 +44,8 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Observe the fresh journal CI and correct failures autonomously.
-2. Define explicit authority grant and materializer interfaces without granting authority through capability detection.
-3. Add crash-state reconciliation and transactional rollback evidence before destructive host mutation.
-4. Continue snapshot/recovery qualification and production blockers.
+1. Observe fresh CI and correct failures autonomously.
+2. Strengthen transfer journal phase/state-machine validation and transaction identity continuity.
+3. Define materializer contract around explicit authority plus durable journal state.
+4. Add crash-state reconciliation and transactional rollback evidence before destructive host mutation.
+5. Continue snapshot/recovery qualification and production blockers.
