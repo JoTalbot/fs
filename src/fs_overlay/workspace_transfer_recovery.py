@@ -42,6 +42,7 @@ class TransferRecoveryEvidence:
     mutation_complete: bool
     source_preserved: bool
     rollback_safe: bool
+    staging_absent: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,13 +80,14 @@ def reconcile_materializing_transaction(
         evidence.destination_state is DestinationRecoveryState.MATCHES_SNAPSHOT
         and evidence.destination_verified
         and evidence.mutation_complete
+        and evidence.staging_absent
     ):
         return TransferRecoveryPlan(
             entry.transaction_id,
             entry.operation,
             entry.snapshot_id,
             RecoveryDecision.COMMIT_PROVEN,
-            "destination matches snapshot and mutation completion is independently evidenced",
+            "destination matches snapshot, mutation completion is evidenced, and staging is absent",
         )
 
     if evidence.destination_state is DestinationRecoveryState.ABSENT:
@@ -110,5 +112,5 @@ def reconcile_materializing_transaction(
         entry.operation,
         entry.snapshot_id,
         RecoveryDecision.MANUAL_REVIEW,
-        "recovery evidence is incomplete or conflicting",
+        "recovery evidence is incomplete, conflicting, or leaves residual staging state",
     )
