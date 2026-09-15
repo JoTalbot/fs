@@ -110,13 +110,15 @@ def test_recovery_rejects_identity_mismatch(tmp_path: Path) -> None:
 def test_recovery_does_not_accept_prepared_as_crash_candidate(tmp_path: Path) -> None:
     source = tmp_path / "source"
     source.mkdir()
+    destination = tmp_path / "destination"
+    destination.mkdir()
     engine = LocalStorageEngine(tmp_path / "storage")
     state = WorkspaceStateStore(tmp_path / "snapshots").create(
         WorkspaceBinding("source", str(source), owned_or_delegated=True), engine
     )
     plan = plan_import(
         state,
-        WorkspaceBinding("destination", str(tmp_path / "destination"), owned_or_delegated=True),
+        WorkspaceBinding("destination", str(destination), owned_or_delegated=True),
     )
     journal = WorkspaceTransferJournal(tmp_path / "journal.log")
     transaction_id = journal.begin(plan)
