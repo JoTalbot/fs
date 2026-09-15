@@ -62,6 +62,7 @@ def _authority_id(
     source_workspace_id: str,
     destination_workspace_id: str | None,
     scope: TransferAuthorityScope,
+    source_preserved: bool,
     principal_id: str,
     issuer_id: str,
     policy_digest: str,
@@ -73,6 +74,7 @@ def _authority_id(
         "source_workspace_id": source_workspace_id,
         "destination_workspace_id": destination_workspace_id,
         "scope": scope.value,
+        "source_preserved": source_preserved,
         "principal_id": principal_id,
         "issuer_id": issuer_id,
         "policy_digest": policy_digest,
@@ -88,13 +90,7 @@ def grant_transfer_authority(
     scope: TransferAuthorityScope,
     approved: bool,
 ) -> TransferAuthority:
-    """Create an explicit authority token; never infer authority from capability.
-
-    ``approved`` is intentionally supplied by the caller. A future policy layer
-    may derive this decision from an authenticated principal, but this primitive
-    must never turn path access, ownership discovery, or capability detection
-    into permission on its own.
-    """
+    """Create an explicit authority token; never infer authority from capability."""
     if not approved:
         raise PermissionError("transfer authority was not explicitly approved")
     if not plan.ready:
@@ -148,6 +144,7 @@ def grant_policy_bound_transfer_authority(
         source_workspace_id=base.source_workspace_id,
         destination_workspace_id=base.destination_workspace_id,
         scope=base.scope,
+        source_preserved=base.source_preserved,
         principal_id=authorization.principal.principal_id,
         issuer_id=authorization.principal.issuer_id,
         policy_digest=policy_digest,
@@ -196,6 +193,8 @@ def validate_policy_bound_transfer_authority(
     """Verify that authority provenance still represents this exact policy decision."""
     if not authority.policy_digest or not authority.authority_id:
         raise PermissionError("transfer authority has incomplete policy provenance")
+    if not authority.source_preserved:
+        raise PermissionError("transfer authority must preserve the source")
     if authority.principal_id != policy.principal.principal_id:
         raise PermissionError("transfer authority principal does not match policy")
     if authority.issuer_id != policy.principal.issuer_id:
@@ -213,6 +212,7 @@ def validate_policy_bound_transfer_authority(
         source_workspace_id=authority.source_workspace_id,
         destination_workspace_id=authority.destination_workspace_id,
         scope=authority.scope,
+        source_preserved=authority.source_preserved,
         principal_id=authority.principal_id,
         issuer_id=authority.issuer_id,
         policy_digest=authority.policy_digest,
