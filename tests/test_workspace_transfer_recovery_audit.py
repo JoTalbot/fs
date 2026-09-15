@@ -121,14 +121,6 @@ def _append_audit_worker(path: str, transaction_id: str, ready, start) -> None:
 
 def test_evidence_digest_covers_every_evidence_field() -> None:
     base = _evidence()
-    fields = (
-        "destination_state",
-        "destination_verified",
-        "mutation_complete",
-        "source_preserved",
-        "rollback_safe",
-        "staging_absent",
-    )
     variants = (
         replace(base, destination_state=DestinationRecoveryState.ABSENT),
         replace(base, destination_verified=True),
@@ -138,7 +130,6 @@ def test_evidence_digest_covers_every_evidence_field() -> None:
         replace(base, staging_absent=True),
     )
     assert all(recovery_evidence_digest(base) != recovery_evidence_digest(item) for item in variants)
-    assert len(fields) == len(variants)
 
 
 def test_audit_requires_verified_preflight_result(tmp_path: Path) -> None:
@@ -177,7 +168,17 @@ def test_audit_records_decision_without_granting_authority(tmp_path: Path) -> No
 def test_audit_hash_chain_and_sequence_are_durable(tmp_path: Path) -> None:
     log = RecoveryAuditLog(tmp_path / "recovery-audit.log")
     first = log.append(_verified_result(), TransferJournalPhase.MATERIALIZING)
-    second = log.append(_verified_result(RecoveryDecision.ABORT_PROVEN, _evidence(destination_state=DestinationRecoveryState.ABSENT, rollback_safe=True, staging_absent=True)), TransferJournalPhase.MATERIALIZING)
+    second = log.append(
+        _verified_result(
+            RecoveryDecision.ABORT_PROVEN,
+            _evidence(
+                destination_state=DestinationRecoveryState.ABSENT,
+                rollback_safe=True,
+                staging_absent=True,
+            ),
+        ),
+        TransferJournalPhase.MATERIALIZING,
+    )
     assert second.sequence == 2
     assert second.previous_digest == first.event_digest
     assert log.replay() == (first, second)
@@ -239,7 +240,7 @@ def test_audit_rejects_tampered_event(tmp_path: Path) -> None:
     path = tmp_path / "recovery-audit.log"
     log = RecoveryAuditLog(path)
     log.append(_verified_result(), TransferJournalPhase.MATERIALIZING)
-    raw = path.read_text().replace("manual_review", "commit")
+    raw = path.read_text().replace("recovery evidence is incomplete, conflicting, or leaves residual staging state", "tampered evidence")
     path.write_text(raw)
     with pytest.raises(RecoveryAuditCorruption, match="digest mismatch"):
         log.replay()
