@@ -58,6 +58,26 @@ class TrustRootStore(Protocol):
     def issuer_fingerprint(self, issuer_id: str) -> str | None: ...
 
 
+def require_trusted_issuer(issuer_id: str, *, trust_roots: TrustRootStore) -> str:
+    """Resolve an issuer through the authoritative trust-root boundary.
+
+    This is an admission check, not cryptographic verification. The returned
+    fingerprint is evidence that the issuer has an authoritative trust anchor;
+    the injected ``PrincipalVerifier`` remains responsible for signature
+    validation and binding the signed claims to the resulting principal.
+    """
+    fingerprint = trust_roots.issuer_fingerprint(issuer_id)
+    if fingerprint is None:
+        raise PermissionError("authenticated principal issuer is not trusted")
+    if len(fingerprint) != 64:
+        raise PermissionError("trusted issuer fingerprint is not a SHA-256 digest")
+    try:
+        int(fingerprint, 16)
+    except ValueError as exc:
+        raise PermissionError("trusted issuer fingerprint is not hexadecimal") from exc
+    return fingerprint
+
+
 @runtime_checkable
 class PrincipalVerifier(Protocol):
     """Audited verification boundary for signed principal claims.
