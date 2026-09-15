@@ -73,14 +73,33 @@ def test_quarantine_is_append_only_and_replay_preserves_evidence(tmp_path: Path)
     assert [record.reason for record in records] == ["unexpected hash", "still unexpected"]
 
 
-def test_quarantine_replay_fails_soft_for_corrupt_records(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "corrupt_record",
+    [
+        b'{"corrupt":true}',
+        b"not-json",
+    ],
+)
+def test_quarantine_replay_fails_closed_for_corrupt_records(tmp_path: Path, corrupt_record: bytes) -> None:
     path = tmp_path / "quarantine.log"
     ledger = QuarantineLedger(path)
-    record = ledger.quarantine("carrier-a", reason="bad hash")
+    ledger.quarantine("carrier-a", reason="bad hash")
     with path.open("ab") as handle:
-        body = b'{"corrupt":true}'
-        handle.write(f"{len(body) + 1:016x}".encode() + body + b"\n")
-    assert ledger.replay() == (record,)
+        handle.write(f"{len(corrupt_record) + 1:016x}".encode() + corrupt_record + b"\n")
+
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        ledger.replay()
+
+
+def test_quarantine_replay_rejects_truncated_frame(tmp_path: Path) -> None:
+    path = tmp_path / "quarantine.log"
+    ledger = QuarantineLedger(path)
+    ledger.quarantine("carrier-a", reason="bad hash")
+    with path.open("ab") as handle:
+        handle.write(b"0000000000000010")
+
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        ledger.replay()
 
 
 def test_recovery_state_never_reports_success_below_data_threshold() -> None:
