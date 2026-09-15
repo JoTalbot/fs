@@ -20,13 +20,26 @@ def test_authenticated_principal_evidence_requires_complete_identity() -> None:
 
 
 def test_authenticated_principal_rejects_malformed_fingerprints() -> None:
-    with pytest.raises(ValueError, match="SHA-256 fingerprints"):
+    with pytest.raises(ValueError, match="SHA-256"):
         AuthenticatedPrincipal(
             principal_id="principal-1",
             issuer_id="issuer-1",
             node_id="node-1",
             key_id="key-1",
             key_fingerprint="short",
+            trust_root_id="root-1",
+            claims_digest="b" * 64,
+        )
+
+
+def test_authenticated_principal_rejects_non_hex_digests() -> None:
+    with pytest.raises(ValueError, match="hexadecimal"):
+        AuthenticatedPrincipal(
+            principal_id="principal-1",
+            issuer_id="issuer-1",
+            node_id="node-1",
+            key_id="key-1",
+            key_fingerprint="g" * 64,
             trust_root_id="root-1",
             claims_digest="b" * 64,
         )
