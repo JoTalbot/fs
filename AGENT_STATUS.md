@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation/test head: `48e4876bffb20d82e54743bd15ac8c87ffc18ef7`
-- Latest durable step record: `docs/AGENT_STEP_2026-09-15_workspace-transfer-rollback-staging.md`
+- Latest implementation/test head: `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9`
+- Latest durable step record: `docs/AGENT_STEP_2026-09-15_workspace-transfer-recovery-matrix.md`
 - Updated: 2026-09-15
 
 ## Active step
@@ -16,9 +16,9 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, and auditable recovery decisions
-- status: rollback proof requires destination absence, staging absence, preserved source, and independent rollback verification; contradictory evidence such as mutation_complete with an absent destination is now fail-closed to manual review
+- status: recovery qualification now covers the mandatory commit/abort proof bits as a matrix; missing evidence and contradictory evidence remain fail-closed to manual review
 - decision: audit records document recovery decisions and proposed transitions only; they never grant authority or prove filesystem state. Recovery commit/abort proof requires complete evidence and never performs host mutation
-- next_step: continue qualification for ambiguous/conflicting destination evidence and journal recovery across reopen/replay, then verify the full recovery evidence matrix remains fail-closed
+- next_step: qualify the end-to-end crash path across journal reopen/replay, evidence-derived recovery decisions, and audit replay without allowing any layer to mutate or authorize the host filesystem
 
 ## Latest work
 
@@ -35,10 +35,12 @@
 - `8ba9636aea4a2a6dbb03915012b2139ded7c883e` — add regression proving residual staging blocks abort proof; CI 485 green.
 - `cab8ead337733ec991218a0863aafece68c12bed` — reject contradictory abort evidence when mutation completion is simultaneously claimed.
 - `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` — add regression for contradictory abort evidence; CI 489 and follow-up status validation CI 490 green.
+- `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9` — expand fail-closed recovery evidence matrix; CI 492 green across the configured matrix.
+- `b9d5e2978a2ef81398eba2114eacc7efd37185e9` — record the recovery evidence matrix qualification boundary and next end-to-end target.
 
 ## Validation boundary
 
-The contradictory-evidence hardening head `48e4876bffb20d82e54743bd15ac8c87ffc18ef7` passed CI 489 (`34948463962`). The follow-up status synchronization commit was validated by CI 490 (`34948483781`), with all 18 configured jobs successful across Ubuntu, Windows, and macOS Python 3.11/3.12/3.13 plus candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+Recovery evidence matrix head `6a2c0488c84e90ddb53f0c20cb240f3555ec13e9` passed CI 492 (`34949554522`) with all 18 configured jobs successful across Ubuntu, Windows, and macOS Python 3.11/3.12/3.13 plus candidate crypto-provider qualification jobs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
@@ -53,7 +55,7 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 ## Next phase
 
 1. Keep journal transitions and transaction identities fail-closed across reopen/replay.
-2. Expand qualification tests for unknown/conflicting destination evidence and contradictory recovery evidence.
-3. Verify audit history cannot be interpreted as mutation authority or filesystem proof.
-4. Qualify crash/recovery evidence boundaries and rollback-safe conditions before any executor implementation.
+2. Exercise the end-to-end crash chain: reopened MATERIALIZING journal candidate → recovery evidence → recovery decision → audit event/replay.
+3. Assert recovery decisions and audit records never mutate journal phase or grant transfer authority.
+4. Expand qualification for unknown/conflicting destination evidence and contradictory recovery evidence as needed.
 5. Only after crash/rollback qualification, consider a narrowly scoped host filesystem materializer.
