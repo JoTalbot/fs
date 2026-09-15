@@ -156,18 +156,14 @@ def grant_policy_bound_transfer_authority(
         policy_digest=policy_digest,
     )
     return TransferAuthority(
-        **{
-            **base.__dict__ if hasattr(base, "__dict__") else {
-                "transaction_id": base.transaction_id,
-                "snapshot_id": base.snapshot_id,
-                "source_workspace_id": base.source_workspace_id,
-                "destination_workspace_id": base.destination_workspace_id,
-                "scope": base.scope,
-                "source_preserved": base.source_preserved,
-            },
-            "principal_id": authorization.principal.principal_id,
-            "issuer_id": authorization.principal.issuer_id,
-            "policy_digest": policy_digest,
-            "authority_id": authority_id,
-        }
+        transaction_id=base.transaction_id,
+        snapshot_id=base.snapshot_id,
+        source_workspace_id=base.source_workspace_id,
+        destination_workspace_id=base.destination_workspace_id,
+        scope=base.scope,
+        source_preserved=base.source_preserved,
+        principal_id=authorization.principal.principal_id,
+        issuer_id=authorization.principal.issuer_id,
+        policy_digest=policy_digest,
+        authority_id=authority_id,
     )
