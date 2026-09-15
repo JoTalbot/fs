@@ -48,6 +48,10 @@ class FailClosedTransportGate:
         if self._transport.peer_node() != self._principal.node_id:
             self._fail("authenticated transport peer does not match principal node")
 
+    def validate_session(self) -> None:
+        """Validate the bound session immediately, without sending data."""
+        self._require_session()
+
     def send(self, payload: bytes) -> None:
         self._require_session()
         if not isinstance(payload, bytes):
