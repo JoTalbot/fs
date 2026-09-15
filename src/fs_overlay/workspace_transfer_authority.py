@@ -12,6 +12,7 @@ import hashlib
 import json
 
 from .authority_policy import PolicyAuthorization, validate_policy_authorization
+from .authority_revocation import AuthorityRevocationRegistry
 from .identity_verification import AuthenticatedPrincipal
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
@@ -194,3 +195,28 @@ def grant_authenticated_policy_bound_transfer_authority(
         scope=scope,
         authorization=authorization,
     )
+
+
+def validate_authenticated_transfer_authority(
+    authority: TransferAuthority,
+    *,
+    authenticated_principal: AuthenticatedPrincipal,
+    revocations: AuthorityRevocationRegistry,
+) -> None:
+    """Fail closed before authority use unless identity and revocation agree.
+
+    This helper does not authenticate the principal and does not conflate
+    principal/key revocation with revocation of one transfer authority. The
+    caller must supply independently verified identity evidence; the durable
+    authority registry remains the authoritative decision for this authority ID.
+    """
+    if not authority.authority_id:
+        raise PermissionError("transfer authority has no durable authority identity")
+    if not authority.principal_id or not authority.issuer_id:
+        raise PermissionError("transfer authority has incomplete identity provenance")
+    if authenticated_principal.principal_id != authority.principal_id:
+        raise PermissionError("authenticated principal does not match transfer authority")
+    if authenticated_principal.issuer_id != authority.issuer_id:
+        raise PermissionError("authenticated issuer does not match transfer authority")
+    if revocations.is_revoked(authority.authority_id):
+        raise PermissionError("transfer authority has been revoked")
