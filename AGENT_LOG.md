@@ -47,24 +47,6 @@ Learning:
 - [RULE] Process-local replay protection is not a substitute for the existing durable/cross-process coordination boundary.
 Next: Validate the full CI matrix for this hardening, then continue Phase 2 with the next explicit recovery invariant.
 
-## 2026-09-14 | current-agent | windows-coordination-fix
-Base: 339f867dac46126dfcd5e1333d8ab1ed37f9ccf1
-Area: cross-process durable admission coordination
-Goal: Fix the Windows-only race exposed by the transaction crash qualification CI run.
-Research:
-- CI #371 (`34853694239`) on Windows Python 3.13 failed in `test_coordinated_processes_refresh_stale_admission_state` with `PermissionError: [Errno 13] Permission denied` during the buffered `handle.flush()` used to prepare the lock file.
-- Python `msvcrt.locking` documentation -> the lock region may extend beyond EOF, so a pre-existing zero-length lock file does not require a buffered sentinel write before byte-range locking.
-Changes:
-- Replaced the Windows buffered sentinel-write path with `Path.touch(exist_ok=True)` followed by `r+b` open and direct byte-zero `msvcrt.locking`.
-- Preserved retained lock paths, automatic OS lock release after process crash, bounded timeout, and no stale-lock stealing.
-Validation:
-- CI #372 (`34853735052`): **18/18 jobs passed** across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider jobs.
-Result: implementation `010685c84c3f9eebc1f5a0cf8643919df454d970`; status `fc76867b6602f78fca476a311e937ce05a89d1cf`.
-Learning:
-- [FAILURE] Windows file coordination must not depend on a concurrent buffered mutation of the shared lock path.
-- [RULE] Keep the lock file as durable coordination metadata, but make acquisition itself an OS-level byte-range operation with no pre-lock buffered write.
-Next: Continue Phase 2 with remaining explicit journal/crash boundaries and deterministic multi-node fixtures.
-
 ## 2026-09-15 | current-agent | recovery-authority-audit
 Base: b6ee6fd1519cc454a944e7f3180e0913028e1456
 Area: cross-component recovery and authority boundaries
@@ -83,3 +65,22 @@ Learning:
 - [SECURITY] Recovery evidence can prove a prior outcome but must never mint authority or substitute for current identity/revocation checks.
 - [RULE] The reference materializer remains non-destructive until a separately qualified crash-safe host executor exists.
 Next: Continue provider-specific semantic qualification and add code only for a demonstrated contract gap; keep secrets and external provider credentials out of repository state.
+
+## 2026-09-15 | current-agent | key-lifecycle-terminal-admission
+Base: d8ddb66e3b6d0d7f53f245250a8d76bff0944a78
+Area: secure key lifecycle conformance
+Goal: Strengthen regression coverage for terminal key admission semantics and unknown-node revocation behavior.
+Research:
+- Re-read `key_lifecycle.py`, `production_adapters.py`, `tests/test_key_lifecycle.py`, `tests/test_adapter_conformance.py`, and `docs/ADAPTER_CONFORMANCE.md`.
+- Existing implementation already blocks re-admission after retirement/revocation; the missing evidence was explicit regression coverage for those terminal paths and for revocation requests that do not match an admitted node binding.
+Changes:
+- Added a regression proving a retired key cannot be re-admitted while remaining verification-capable and non-signing.
+- Added a regression proving an unknown-node revoke request does not accidentally revoke the key from another node.
+Validation:
+- CI #667 (`34994069526`) is pending for head `8d27a26cc07360269b035bfdca472a6863af3135`.
+- CI #664 (`34993046266`) for the preceding audit commit passed successfully.
+Result: test `8d27a26cc07360269b035bfdca472a6863af3135`; status sync `8ece186001f8639be336a60025783633e6599c61`.
+Learning:
+- [SECURITY] Terminal lifecycle semantics need explicit negative coverage, not only positive state assertions.
+- [RULE] A revocation operation must be scoped to the exact node/key binding and must not mutate unrelated authority when the requested binding is absent.
+Next: Validate CI #667; if green, continue with the next concrete provider-boundary gap.
