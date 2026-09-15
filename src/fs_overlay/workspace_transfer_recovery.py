@@ -91,20 +91,20 @@ def reconcile_materializing_transaction(
         )
 
     if evidence.destination_state is DestinationRecoveryState.ABSENT:
-        if evidence.rollback_safe:
+        if evidence.rollback_safe and evidence.staging_absent:
             return TransferRecoveryPlan(
                 entry.transaction_id,
                 entry.operation,
                 entry.snapshot_id,
                 RecoveryDecision.ABORT_PROVEN,
-                "destination is absent and rollback safety is independently evidenced",
+                "destination is absent, staging is absent, and rollback safety is independently evidenced",
             )
         return TransferRecoveryPlan(
             entry.transaction_id,
             entry.operation,
             entry.snapshot_id,
             RecoveryDecision.MANUAL_REVIEW,
-            "destination is absent but rollback safety is not evidenced",
+            "destination is absent but rollback safety or staging absence is not evidenced",
         )
 
     return TransferRecoveryPlan(
