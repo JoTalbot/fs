@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `f00e730681898ae013a8f60b74b971e400f2f6d9`
+- Latest implementation head: `5cf4b519687406b4f458c62f54b15e6a3f9244a7`
 - Latest status synchronization commit: pending (this update)
 - Updated: 2026-09-15
 
@@ -14,23 +14,23 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace migration/import/export planning
-- claimed_files: `src/fs_overlay/workspace_migration.py`, `tests/test_workspace_migration.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
-- goal: define deterministic, verified, non-destructive workspace transfer plans without granting host mutation authority
-- status: plan-only export/import/migration boundaries are implemented; export preserves source, import requires existing owned/delegated writable empty destination, migration requires distinct identities, and registry-driven migration requires managed destination mode
-- decision: logical snapshot transfer is separate from filesystem mutation; import has no invented host source path and now rejects non-empty destinations by default
-- next_step: validate the fresh conflict-preflight CI, fix any failures autonomously, then design authority-bearing executor/journal boundaries
+- area: Phase 3 workspace transfer journal boundary
+- claimed_files: `src/fs_overlay/workspace_migration.py`, `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_migration.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
+- goal: establish deterministic preflight and durable transaction intent before any authority-bearing filesystem materialization
+- status: migration/import/export planning and destination conflict preflight are implemented; durable append-only transfer journal now records prepared/materializing/committed phases and fails closed on malformed non-tail records
+- decision: the journal is an intent/recovery boundary, not filesystem authority; it never copies, moves, deletes, replaces, mounts, or changes permissions
+- next_step: validate the new journal CI, then define explicit authority grant and materializer interfaces with crash-safe commit/rollback semantics
 
 ## Latest work
 
-- destination conflict preflight added to `workspace_migration.py`; the write commit is the immediately preceding implementation commit before the migration regression test.
-- `f00e730681898ae013a8f60b74b971e400f2f6d9` — regression test for non-empty destination safe-stop.
-- `a2fe79a09f071f30d8cb53ae19add124053155da` — durable migration step record.
-- `6d6abbe8ae5dbc32917d3b7752076082a2a09701` — corrected migration step record.
+- `dec125383700fab1a33893b5156b6fdef2d7349e` — durable workspace transfer journal implementation.
+- `5cf4b519687406b4f458c62f54b15e6a3f9244a7` — journal replay and corruption regression tests.
+- `208a848c8301612253be7b8296dae1b0441ec131` — status synchronization for destination conflict preflight.
+- `f00e730681898ae013a8f60b74b971e400f2f6d9` — non-empty destination safe-stop regression test.
 
 ## Validation boundary
 
-Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. The new conflict-preflight commits have triggered a fresh CI run. Its final result has not yet been observed, so no pass is claimed for the latest head. No local checkout/test runner is available in this session.
+Run 432 (`34941144863`) completed successfully across the observed Python 3.11/3.12/3.13 and crypto-provider matrix. Run 440 (`34941562752`) also completed successfully for the status-only synchronization commit. The journal implementation/tests have triggered a fresh CI run; its final result has not yet been observed, so no pass is claimed for the latest implementation. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -44,7 +44,7 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Observe the fresh conflict-preflight CI and correct failures autonomously.
-2. If clean, define an authority-bearing import/export executor contract with explicit destination conflict policy.
-3. Add transactional journal/crash recovery boundaries before any destructive host mutation.
+1. Observe the fresh journal CI and correct failures autonomously.
+2. Define explicit authority grant and materializer interfaces without granting authority through capability detection.
+3. Add crash-state reconciliation and transactional rollback evidence before destructive host mutation.
 4. Continue snapshot/recovery qualification and production blockers.
