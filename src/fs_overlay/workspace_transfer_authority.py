@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import hashlib
+import json
 
+from .authority_policy import PolicyAuthorization, validate_policy_authorization
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
@@ -29,6 +32,51 @@ class TransferAuthority:
     destination_workspace_id: str | None
     scope: TransferAuthorityScope
     source_preserved: bool = True
+    principal_id: str | None = None
+    issuer_id: str | None = None
+    policy_digest: str | None = None
+    authority_id: str | None = None
+
+
+def _policy_digest(authorization: PolicyAuthorization) -> str:
+    """Return a deterministic non-secret digest of the policy decision inputs."""
+    canonical = {
+        "principal_id": authorization.principal.principal_id,
+        "issuer_id": authorization.principal.issuer_id,
+        "workspace_id": authorization.constraints.workspace_id,
+        "snapshot_id": authorization.constraints.snapshot_id,
+        "allow_source_delete": authorization.constraints.allow_source_delete,
+        "allow_network": authorization.constraints.allow_network,
+        "approved": authorization.approved,
+    }
+    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _authority_id(
+    *,
+    transaction_id: str,
+    snapshot_id: str,
+    source_workspace_id: str,
+    destination_workspace_id: str | None,
+    scope: TransferAuthorityScope,
+    principal_id: str,
+    issuer_id: str,
+    policy_digest: str,
+) -> str:
+    """Derive stable authority provenance without treating the digest as auth."""
+    canonical = {
+        "transaction_id": transaction_id,
+        "snapshot_id": snapshot_id,
+        "source_workspace_id": source_workspace_id,
+        "destination_workspace_id": destination_workspace_id,
+        "scope": scope.value,
+        "principal_id": principal_id,
+        "issuer_id": issuer_id,
+        "policy_digest": policy_digest,
+    }
+    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def grant_transfer_authority(
@@ -64,4 +112,62 @@ def grant_transfer_authority(
         destination_workspace_id=plan.destination_workspace_id,
         scope=scope,
         source_preserved=plan.source_preserved,
+    )
+
+
+def grant_policy_bound_transfer_authority(
+    plan: WorkspaceTransferPlan,
+    *,
+    transaction_id: str,
+    scope: TransferAuthorityScope,
+    authorization: PolicyAuthorization,
+) -> TransferAuthority:
+    """Issue authority only after exact policy authorization has been validated.
+
+    Principal and issuer are provenance claims supplied by the external control
+    plane. This function does not authenticate them, provide revocation, or grant
+    filesystem mutation capability. Those remain explicit future security gates.
+    """
+    workspace_id = (
+        plan.destination_workspace_id
+        if scope is TransferAuthorityScope.MATERIALIZE
+        else plan.source_workspace_id
+    )
+    validate_policy_authorization(
+        authorization,
+        workspace_id=workspace_id,
+        snapshot_id=plan.snapshot_id,
+    )
+    base = grant_transfer_authority(
+        plan,
+        transaction_id=transaction_id,
+        scope=scope,
+        approved=True,
+    )
+    policy_digest = _policy_digest(authorization)
+    authority_id = _authority_id(
+        transaction_id=base.transaction_id,
+        snapshot_id=base.snapshot_id,
+        source_workspace_id=base.source_workspace_id,
+        destination_workspace_id=base.destination_workspace_id,
+        scope=base.scope,
+        principal_id=authorization.principal.principal_id,
+        issuer_id=authorization.principal.issuer_id,
+        policy_digest=policy_digest,
+    )
+    return TransferAuthority(
+        **{
+            **base.__dict__ if hasattr(base, "__dict__") else {
+                "transaction_id": base.transaction_id,
+                "snapshot_id": base.snapshot_id,
+                "source_workspace_id": base.source_workspace_id,
+                "destination_workspace_id": base.destination_workspace_id,
+                "scope": base.scope,
+                "source_preserved": base.source_preserved,
+            },
+            "principal_id": authorization.principal.principal_id,
+            "issuer_id": authorization.principal.issuer_id,
+            "policy_digest": policy_digest,
+            "authority_id": authority_id,
+        }
     )
