@@ -232,17 +232,18 @@ class QuarantineLedger:
         with self.path.open("rb") as handle:
             for line in handle:
                 if len(line) < 17:
-                    continue
+                    raise ValueError("quarantine ledger corruption")
                 try:
                     size, body = int(line[:16], 16), line[16:-1]
                     if len(body) != size:
-                        continue
+                        raise ValueError("quarantine ledger corruption")
                     raw = json.loads(body)
-                    result.append(QuarantineRecord(str(raw["carrier_id"]), str(raw["reason"]),
-                                                   raw.get("observed_hash"), raw.get("expected_hash"),
-                                                   int(raw["timestamp_ns"]), str(raw["record_id"])))
-                except (ValueError, json.JSONDecodeError, KeyError, TypeError):
-                    continue
+                    record = QuarantineRecord(str(raw["carrier_id"]), str(raw["reason"]),
+                                               raw.get("observed_hash"), raw.get("expected_hash"),
+                                               int(raw["timestamp_ns"]), str(raw["record_id"]))
+                except (ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
+                    raise ValueError("quarantine ledger corruption") from exc
+                result.append(record)
         return tuple(result)
 
 
