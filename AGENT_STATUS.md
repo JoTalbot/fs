@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `091bdc1f076a37d868b33bae0965b22a50c12890`
+- Latest implementation head: `4d94cbd42fd05e33e18e58af7f2e7b28457eeef0`
 - Updated: 2026-09-15
 
 ## Active step
@@ -15,23 +15,23 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, authenticated identity, transport, journal, and recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, durable revocation, and an authenticated transport session
-- status: fixed the CI regressions caused by the expanded KeyAdmission lifecycle contract; identity test doubles now implement explicit retirement and production-adapter lifecycle expectations remain fail-closed for RETIRED/REVOKED keys. Executor ordering and transport close-error regressions remain in place.
+- status: repaired the CI regression by making the reference key lifecycle adapter terminal after retirement or revocation; the admission contract can no longer reactivate a terminal key. Identity test doubles now implement explicit retirement. Executor ordering and transport close-error regressions remain in place.
 - decision: policy, audit, identity, transport, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: validate the repaired main branch in GitHub Actions, then continue provider-boundary conformance and the AEAD boundary audit; review recovery/audit separation for remaining fail-open ordering gaps
+- next_step: validate the repaired head in GitHub Actions, then continue provider-boundary conformance and the AEAD boundary audit; review recovery/audit separation for remaining fail-open ordering gaps
 
 ## Latest work
 
-- `091bdc1f076a37d868b33bae0965b22a50c12890` — restore production-adapter lifecycle regression expectations after the KeyAdmission contract expansion.
+- `4d94cbd42fd05e33e18e58af7f2e7b28457eeef0` — make reference key lifecycle admission terminal after retirement or revocation.
+- `3e30f0e7cbf61e72b97cb8a5d909a62ba1425d9c` — refresh status after CI regression fixes.
+- `091bdc1f076a37d868b33bae0965b22a50c12890` — restore production-adapter lifecycle regression expectations.
 - `1f7a0e26856854f3240fc4661b8db1ba3593b713` — fix identity admission test double to implement explicit key retirement.
 - `9548abe92a106341aae1e2c0f1908707a11cc9da` — add executor gate-ordering regressions proving revoked authority and invalid journal state do not touch the transport provider.
 - `8f57d366a718c5ebf64d26e8bb6f4f093eac2512` — add transport regression proving provider close errors cannot mask the intended security failure.
 - `9498144c97d86824fc37583b05dab6fce6ad71e9` — qualify terminal reference key lifecycle admission.
-- `5f70d054cbb91d5d6586691ccd0b73f095360a15` — add durable node revocation regression coverage.
-- `2900a24c739797d7a12633a5349cec4da3caf67c` — reference key lifecycle admission respects terminal revocation.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. A prior CI failure was isolated to the KeyAdmission contract test doubles; the two corrective commits are now on `main`. Validation of the repaired head is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI run #632 on `3e30f0e7cbf61e72b97cb8a5d909a62ba1425d9c` exposed one real lifecycle regression across the supported Python/OS matrix: the reference adapter still re-admitted a RETIRED key. The crypto-provider jobs were successful. The defect is now fixed in `4d94cbd`; a fresh validation run is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
 
 ## Current V1 position
 
