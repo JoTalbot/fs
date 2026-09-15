@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `533d2ed21fc307b9fd942c7e9a3e01c5e1ce3ac9`
-- Latest status synchronization commit: `ef9eb8b471c02f77112f333292e83b82dcde95fa` + status sync pending
+- Latest implementation head: `59a1fdb3f5f4c1f12cc33b19c2426816e4d6baac`
+- Latest status synchronization commit: pending (this update)
 - Updated: 2026-09-15
 
 ## Active step
@@ -26,10 +26,11 @@
 - `f59cf8c7a2c3e37ab28ea8678434f99958e82537` — workspace content-addressed state implementation.
 - `533d2ed21fc307b9fd942c7e9a3e01c5e1ce3ac9` — workspace state regression tests.
 - `ef9eb8b471c02f77112f333292e83b82dcde95fa` — durable step record.
+- `59a1fdb3f5f4c1f12cc33b19c2426816e4d6baac` — remove unused import before CI validation.
 
 ## Validation boundary
 
-No local checkout/test runner is available in this session. Prior isolation/admission and registry validation had observed successful CI matrices. The workspace-state commits above still require their own GitHub Actions result before a new pass is claimed.
+GitHub Actions run `424` for the workspace-state test commit was observed in progress, with completed Ubuntu jobs passing and Windows/macOS jobs still running. Run `426` covers the subsequent status synchronization commit and was queued at last observation. No final CI pass is claimed yet. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -43,7 +44,7 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Observe CI for workspace-state commits.
+1. Observe CI for workspace-state commits and correction commit.
 2. Add explicit migration/import/export planning with source preservation and destination verification.
 3. Add workspace snapshot/recovery transitions only with explicit authority and rollback boundaries.
 4. Continue journal/crash qualification and production blockers.
