@@ -1,5 +1,6 @@
 import hashlib
 import json
+import multiprocessing
 from pathlib import Path
 
 import pytest
@@ -23,9 +24,9 @@ from fs_overlay.workspace_transfer_recovery_audit import (
 )
 
 
-def _plan(decision: RecoveryDecision = RecoveryDecision.MANUAL_REVIEW) -> TransferRecoveryPlan:
+def _plan(decision: RecoveryDecision = RecoveryDecision.MANUAL_REVIEW, transaction_id: str = "tx-1") -> TransferRecoveryPlan:
     return TransferRecoveryPlan(
-        transaction_id="tx-1",
+        transaction_id=transaction_id,
         operation=WorkspaceTransfer.IMPORT,
         snapshot_id="snapshot-1",
         decision=decision,
@@ -64,6 +65,13 @@ def _complete_commit_evidence(candidate) -> TransferRecoveryEvidence:
         rollback_safe=False,
         staging_absent=True,
     )
+
+
+def _append_audit_worker(path: str, transaction_id: str, ready, start) -> None:
+    log = RecoveryAuditLog(path)
+    ready.set()
+    start.wait(5)
+    log.append(_plan(transaction_id=transaction_id), TransferJournalPhase.MATERIALIZING)
 
 
 def test_audit_records_decision_without_granting_authority(tmp_path: Path) -> None:
@@ -128,6 +136,37 @@ def test_recovery_decision_and_audit_replay_remain_evidence_only_after_reopen(tm
     assert reopened_audit.replay()[0].decision is RecoveryDecision.COMMIT_PROVEN
     assert reopened_audit.replay()[0].proposed_transition is RecoveryAuditTransition.COMMIT
     assert tuple(reopened_journal.replay())[-1].phase is TransferJournalPhase.MATERIALIZING
+
+
+def test_audit_serializes_cross_process_appends(tmp_path: Path) -> None:
+    path = tmp_path / "recovery-audit.log"
+    ctx = multiprocessing.get_context("spawn")
+    start = ctx.Event()
+    ready_a = ctx.Event()
+    ready_b = ctx.Event()
+    processes = [
+        ctx.Process(target=_append_audit_worker, args=(str(path), "tx-a", ready_a, start)),
+        ctx.Process(target=_append_audit_worker, args=(str(path), "tx-b", ready_b, start)),
+    ]
+    for process in processes:
+        process.start()
+    try:
+        assert ready_a.wait(5)
+        assert ready_b.wait(5)
+        start.set()
+        for process in processes:
+            process.join(timeout=10)
+        assert all(process.exitcode == 0 for process in processes)
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=2)
+    events = RecoveryAuditLog(path).replay()
+    assert len(events) == 2
+    assert [event.sequence for event in events] == [1, 2]
+    assert {event.transaction_id for event in events} == {"tx-a", "tx-b"}
+    assert events[1].previous_digest == events[0].event_digest
 
 
 def test_audit_rejects_incomplete_tail_record(tmp_path: Path) -> None:
