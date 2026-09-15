@@ -4,7 +4,7 @@ This gate turns the current architecture into an evidence-based release checklis
 
 ## Required evidence
 
-- [x] CI green on every supported platform/runtime combination (latest validated run #331: 9/9 generic jobs plus 9/9 candidate crypto-provider jobs).
+- [x] CI green on every supported platform/runtime combination (latest validated candidate-provider matrix: CI #642).
 - [x] Independent federation conformance consumer passes.
 - [x] Independent admission conformance passes.
 - [x] Storage transaction crash/restart recovery passes.
@@ -33,7 +33,7 @@ Any one of the following blocks release:
 
 ## Current blocker
 
-The remaining V1 production-security blocker is concrete provider evidence. FS now has semantic AEAD provider qualification tests and a green candidate-provider matrix, but the repository does not falsely certify its non-cryptographic test double or candidate adapter as an audited production implementation.
+The remaining V1 production-security blocker is concrete provider evidence. FS has semantic AEAD provider qualification tests and a green candidate-provider matrix, but the repository does not falsely certify its non-cryptographic test double or candidate adapter as an audited production implementation.
 
 Production release additionally requires concrete secure key storage and authenticated/encrypted transport adapters with their own qualification evidence.
 
