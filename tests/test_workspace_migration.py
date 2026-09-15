@@ -44,7 +44,7 @@ def test_export_rejects_mismatched_source(tmp_path: Path) -> None:
     assert not plan.ready
 
 
-def test_import_requires_existing_managed_writable_destination(tmp_path: Path) -> None:
+def test_import_requires_existing_managed_writable_empty_destination(tmp_path: Path) -> None:
     state, _, _ = _state(tmp_path)
     destination = tmp_path / "destination"
     destination.mkdir()
@@ -54,8 +54,22 @@ def test_import_requires_existing_managed_writable_destination(tmp_path: Path) -
     )
     assert plan.operation is WorkspaceTransfer.IMPORT
     assert plan.ready
+    assert plan.destination_must_be_empty
     assert plan.source_path is None
     assert plan.destination_path == destination
+
+
+def test_import_rejects_non_empty_destination(tmp_path: Path) -> None:
+    state, _, _ = _state(tmp_path)
+    destination = tmp_path / "destination"
+    destination.mkdir()
+    (destination / "existing.txt").write_text("keep me")
+    plan = plan_import(
+        state,
+        WorkspaceBinding("destination", str(destination), owned_or_delegated=True),
+    )
+    assert "import_destination_must_be_empty" in plan.reasons
+    assert not plan.ready
 
 
 def test_import_rejects_read_only_destination(tmp_path: Path) -> None:
@@ -82,6 +96,7 @@ def test_migration_requires_distinct_workspaces_and_preserves_source(tmp_path: P
     assert plan.operation is WorkspaceTransfer.MIGRATE
     assert plan.ready
     assert plan.source_preserved
+    assert plan.destination_must_be_empty
     assert plan.source_path == Path(source.host_path)
     assert plan.destination_path == destination
 
