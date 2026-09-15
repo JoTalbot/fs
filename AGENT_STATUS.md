@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `36f3573a74974280e251bcea71b2ed10daf817a2`
+- Latest implementation head: `9548abe92a106341aae1e2c0f1908707a11cc9da`
 - Updated: 2026-09-15
 
 ## Active step
@@ -15,24 +15,24 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, authenticated identity, transport, journal, and recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, durable revocation, and an authenticated transport session
-- status: production-facing identity requires an authoritative trust-root provider; transport provider failures now invalidate and close the injected session; key admission now exposes explicit ACTIVE/RETIRED/REVOKED lifecycle semantics through the adapter contract and conformance harness
+- status: cross-component executor ordering now has explicit regression evidence that live authority revocation and journal validation fail before the transport provider is touched; transport security failures also remain visible when provider close() itself fails
 - decision: policy, audit, identity, transport, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: validate the expanded provider conformance and continue the AEAD boundary audit and cross-component fail-closed ordering review
+- next_step: continue provider-boundary conformance and the AEAD boundary audit, then review recovery/audit separation for any remaining fail-open ordering gaps
 
 ## Latest work
 
+- `9548abe92a106341aae1e2c0f1908707a11cc9da` — add executor gate-ordering regressions proving revoked authority and invalid journal state do not touch the transport provider.
+- `8f57d366a718c5ebf64d26e8bb6f4f093eac2512` — add transport regression proving provider close errors cannot mask the intended security failure.
+- `9498144c97d86824fc37583b05dab6fce6ad71e9` — qualify terminal reference key lifecycle admission.
+- `5f70d054cbb91d5d6586691ccd0b73f095360a15` — add durable node revocation regression coverage.
+- `2900a24c739797d7a12633a5349cec4da3caf67c` — reference key lifecycle admission respects terminal revocation.
+- `b5eee214e35c1bff77f74aa5b8056fd00c66c4ea` — make durable node revocation terminal across restart/admission.
+- `fa11861187e0ab7bad87fff2a7054ca62b98e6fe` — harden transport close-error handling.
 - `36f3573a74974280e251bcea71b2ed10daf817a2` — correct and expand explicit key retirement regression coverage.
-- `63be4f0a416e72c846c742d8e104496b91597f54` — extend adapter conformance across key lifecycle states.
-- `cf78952dba3c76c12e74f34eb62c083e95d82a3e` — expose explicit key retirement in the production admission contract.
-- `80b2fdd7f52adf2c02c0a3c0fec660af358e25c6` — add explicit key retirement lifecycle transition.
-- `0f3691b778cc9e686f097fd718c2e804ce4f51cf` — add fail-closed transport provider failure regressions.
-- `e1bc9fa444e6280e6bea4feef7b4e4f737dee263` — harden transport gate provider failure handling so failed sessions are invalidated and closed.
-- `b43a0751dafd0c95ae0d9ab9cee24510a8c1e2a0` — make production-facing composed identity verification require an authoritative trust-root provider and update regression coverage.
-- `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` — bind recovery-audit evidence to the exact verified recovery evidence and harden recovery-audit validation.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. The prior implementation head `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` passed CI run #603 with the supported Python and candidate-provider matrix (18/18 jobs). The current key-lifecycle and adapter-conformance commits have been pushed to `main`; CI validation is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. The prior implementation head `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` passed CI run #603 with the supported Python and candidate-provider matrix (18/18 jobs). The new transport and executor regression commits are pushed to `main`; no workflow run is published for the current head yet, so current CI status is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
 
 ## Current V1 position
 
