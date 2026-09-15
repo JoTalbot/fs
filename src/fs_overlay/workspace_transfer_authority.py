@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from .workspace_migration import WorkspaceTransferPlan
+from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
 class TransferAuthorityScope(str, Enum):
@@ -51,6 +51,10 @@ def grant_transfer_authority(
         raise ValueError("cannot grant authority for an unready transfer plan")
     if not transaction_id:
         raise ValueError("transaction_id is required")
+    if scope is TransferAuthorityScope.EXPORT and plan.operation is not WorkspaceTransfer.EXPORT:
+        raise ValueError("export authority requires an export plan")
+    if scope is TransferAuthorityScope.MATERIALIZE and plan.operation is WorkspaceTransfer.EXPORT:
+        raise ValueError("materialization authority requires an import or migration plan")
     if scope is TransferAuthorityScope.MATERIALIZE and plan.destination_path is None:
         raise ValueError("materialization authority requires a destination")
     return TransferAuthority(
