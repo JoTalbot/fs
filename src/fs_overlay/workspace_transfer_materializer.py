@@ -17,7 +17,6 @@ from .production_adapters import AuthenticatedTransport, KeyAdmission, NodeAdmis
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 from .workspace_transfer_authority import TransferAuthority, TransferAuthorityScope
 from .workspace_transfer_journal import TransferJournalEntry, TransferJournalPhase, WorkspaceTransferJournal
-from .workspace_transfer_recovery import TransferRecoveryPlan
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,9 +119,13 @@ def validate_materialization_executor_preflight(
     key_fingerprint: str,
     claims: Mapping[str, object],
     signature: bytes,
-    recovery: TransferRecoveryPlan | None = None,
 ) -> MaterializationPreflight:
-    """Canonical admission facade for a future materialization executor."""
+    """Canonical admission facade for a new materialization executor.
+
+    Crash recovery is intentionally excluded. A ``MATERIALIZING`` transaction
+    must use ``recovery_preflight`` with independently verified evidence rather
+    than the normal ``PREPARED`` execution path.
+    """
     from .executor_preflight import executor_preflight
 
     result = executor_preflight(
@@ -143,7 +146,6 @@ def validate_materialization_executor_preflight(
         key_fingerprint=key_fingerprint,
         claims=claims,
         signature=signature,
-        recovery=recovery,
     )
     return MaterializationPreflight(
         result.transaction_id,
