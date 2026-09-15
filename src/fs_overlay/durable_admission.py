@@ -237,7 +237,10 @@ class DurableKeyAdmission(KeyAdmission):
         if not node_id or not key_id or not _valid_digest(fingerprint): return False
         with self._lock.acquire(str(self.path.resolve())):
             self._records = self._replay(); current = self._current(node_id, key_id)
-            if current is not None and (current.fingerprint != fingerprint.lower() or current.status == "REVOKED"):
+            if current is not None and (
+                current.fingerprint != fingerprint.lower()
+                or current.status in {"RETIRED", "REVOKED"}
+            ):
                 return False
             self._append(node_id, key_id, fingerprint, "ACTIVE"); return True
 
