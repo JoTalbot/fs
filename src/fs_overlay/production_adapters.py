@@ -10,6 +10,7 @@ from .identity_verification import (
     TrustRootStore,
     require_trusted_issuer,
 )
+from .key_lifecycle import KeyLifecycle, KeyRecord
 
 
 @runtime_checkable
@@ -43,6 +44,47 @@ class KeyAdmission(Protocol):
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
     def can_sign(self, node_id: str, key_id: str) -> bool: ...
     def can_verify(self, node_id: str, key_id: str) -> bool: ...
+
+
+class ReferenceKeyLifecycleAdmission:
+    """Non-durable adapter that exposes ``KeyLifecycle`` as ``KeyAdmission``.
+
+    This adapter exists only to qualify the lifecycle semantics at the admission
+    boundary. It is deliberately not a production authority: persistence,
+    cross-process serialization, authenticated identity, and secure key storage
+    remain deployment responsibilities supplied through injected adapters.
+    """
+
+    def __init__(self, lifecycle: KeyLifecycle):
+        self._lifecycle = lifecycle
+        self._node_by_key: dict[str, str] = {}
+
+    def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
+        if self._lifecycle.fingerprint_for(key_id) != fingerprint:
+            return False
+        bound = self._node_by_key.get(key_id)
+        if bound is not None and bound != node_id:
+            return False
+        self._node_by_key[key_id] = node_id
+        return True
+
+    def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
+        if self._node_by_key.get(key_id) == node_id:
+            self._lifecycle.revoke(key_id)
+
+    def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
+        return (
+            self._node_by_key.get(key_id) == node_id
+            and self._lifecycle.fingerprint_for(key_id) == fingerprint
+            and self._lifecycle.usable_for_verification(key_id)
+        )
+
+    def can_sign(self, node_id: str, key_id: str) -> bool:
+        return self._node_by_key.get(key_id) == node_id and self._lifecycle.usable_for_signing(key_id)
+
+    def can_verify(self, node_id: str, key_id: str) -> bool:
+        return self._node_by_key.get(key_id) == node_id and self._lifecycle.usable_for_verification(key_id)
+
 
 
 def validate_authenticated_principal_admission(
