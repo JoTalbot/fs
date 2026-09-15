@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `b43a0751dafd0c95ae0d9ab9cee24510a8c1e2a0`
+- Latest implementation head: `0f3691b778cc9e686f097fd718c2e804ce4f51cf`
 - Updated: 2026-09-15
 
 ## Active step
@@ -15,21 +15,21 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, authenticated identity, transport, journal, and recovery boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, durable revocation, and an authenticated transport session
-- status: production-facing composed identity verification now requires an authoritative trust-root provider; trust-root admission runs before identity verification and node/key admission
+- status: production-facing identity requires an authoritative trust-root provider; transport provider failures now invalidate and close the injected session; regression coverage exercises state, send, and receive failure paths
 - decision: policy, audit, identity, transport, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: audit authenticated transport, secure key storage/lifecycle, AEAD provider, and cross-component fail-closed ordering/conformance evidence
+- next_step: audit secure key storage/lifecycle, AEAD provider boundaries, and cross-component fail-closed ordering/conformance evidence
 
 ## Latest work
 
+- `0f3691b778cc9e686f097fd718c2e804ce4f51cf` — add fail-closed transport provider failure regressions.
+- `e1bc9fa444e6280e6bea4feef7b4e4f737dee263` — harden transport gate provider failure handling so failed sessions are invalidated and closed.
 - `b43a0751dafd0c95ae0d9ab9cee24510a8c1e2a0` — make production-facing composed identity verification require an authoritative trust-root provider and update regression coverage.
 - `8a037397364b5cf1709da68e59ad2cd43942857e` — make production identity trust roots mandatory at the adapter boundary.
 - `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` — bind recovery-audit evidence to the exact verified recovery evidence and harden recovery-audit validation.
-- `5412d3a8a86dd7da771ddcba0a69f70bbfea549f` — document authority-bearing entrypoint audit and normal-execution/recovery separation.
-- `1bcd9a43057609e9be20d57dc90104ce40b93bc0` — add regression evidence that execution admission cannot bypass the authenticated transport peer gate.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. The previous implementation head `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` passed CI run #603 with the supported Python and candidate-provider matrix (18/18 jobs). The new trust-root hardening commits are pushed to `main`; their commit status is currently pending with no reported checks yet. FreeBSD native CI remains intentionally disabled and is outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. The prior implementation head `7b6bf41e129185bcdd33f232a1ab968454b6d7b9` passed CI run #603 with the supported Python and candidate-provider matrix (18/18 jobs). The current transport hardening commits have been pushed to `main`; CI validation is pending. FreeBSD native CI remains intentionally disabled and is outside the release gate.
 
 ## Current V1 position
 
@@ -41,9 +41,8 @@ Preserve fail-closed isolation, explicit authority, evidence-before-commit, no s
 
 ## Next phase
 
-1. Audit authenticated transport provider obligations and failure behavior; retain real authentication/encryption as an injected deployment responsibility.
-2. Audit secure key storage/lifecycle contracts, including ACTIVE/RETIRED/REVOKED semantics and secret-material handling, without implementing key storage in FS.
-3. Keep candidate AEAD qualification explicitly behavioral and non-production until an audited provider is supplied.
-4. Add cross-component conformance evidence for trust-root ordering, identity admission, live revocation, transport peer binding, and provider failure paths.
-5. Keep recovery and audit evidence separate from authority issuance and host filesystem capability.
-6. Only after the security-provider and recovery gates pass, consider a narrowly scoped host filesystem materializer.
+1. Audit secure key storage/lifecycle contracts, including ACTIVE/RETIRED/REVOKED semantics and secret-material handling, without implementing key storage in FS.
+2. Audit the candidate AEAD provider boundary and retain its qualification as behavioral/non-production evidence only.
+3. Add cross-component conformance evidence for trust-root ordering, identity admission, live revocation, transport peer binding, and provider failure paths.
+4. Keep recovery and audit evidence separate from authority issuance and host filesystem capability.
+5. Only after the security-provider and recovery gates pass, consider a narrowly scoped host filesystem materializer.
