@@ -30,75 +30,47 @@ class TrustRootRecord:
 
     def canonical_bytes(self) -> bytes:
         return json.dumps(
-            {
-                "sequence": self.sequence,
-                "issuer_id": self.issuer_id,
-                "fingerprint": self.fingerprint,
-                "revoked": self.revoked,
-                "previous_digest": self.previous_digest,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
+            {"sequence": self.sequence, "issuer_id": self.issuer_id,
+             "fingerprint": self.fingerprint, "revoked": self.revoked,
+             "previous_digest": self.previous_digest},
+            sort_keys=True, separators=(",", ":"),
         ).encode("utf-8")
 
     @classmethod
-    def create(
-        cls,
-        *,
-        sequence: int,
-        issuer_id: str,
-        fingerprint: str,
-        revoked: bool,
-        previous_digest: str,
-    ) -> "TrustRootRecord":
+    def create(cls, *, sequence: int, issuer_id: str, fingerprint: str,
+               revoked: bool, previous_digest: str) -> "TrustRootRecord":
         if sequence < 1 or not issuer_id or not _SHA256_RE.fullmatch(fingerprint):
             raise ValueError("invalid trust-root record")
         if not _SHA256_RE.fullmatch(previous_digest):
             raise ValueError("invalid trust-root previous digest")
+        if not isinstance(revoked, bool):
+            raise ValueError("revoked must be boolean")
         record = cls(sequence, issuer_id, fingerprint.lower(), revoked, previous_digest.lower(), "")
-        return cls(
-            record.sequence,
-            record.issuer_id,
-            record.fingerprint,
-            record.revoked,
-            record.previous_digest,
-            hashlib.sha256(record.canonical_bytes()).hexdigest(),
-        )
+        return cls(*record[:-1], hashlib.sha256(record.canonical_bytes()).hexdigest())
 
     def to_line(self) -> str:
         return json.dumps(
-            {
-                "sequence": self.sequence,
-                "issuer_id": self.issuer_id,
-                "fingerprint": self.fingerprint,
-                "revoked": self.revoked,
-                "previous_digest": self.previous_digest,
-                "event_digest": self.event_digest,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
+            {"sequence": self.sequence, "issuer_id": self.issuer_id,
+             "fingerprint": self.fingerprint, "revoked": self.revoked,
+             "previous_digest": self.previous_digest, "event_digest": self.event_digest},
+            sort_keys=True, separators=(",", ":"),
         )
 
     @classmethod
     def from_line(cls, line: str) -> "TrustRootRecord":
         try:
             data = json.loads(line)
-            if not isinstance(data, dict):
+            if not isinstance(data, dict) or not isinstance(data.get("revoked"), bool):
                 raise ValueError
-            record = cls(
-                int(data["sequence"]),
-                str(data["issuer_id"]),
-                str(data["fingerprint"]),
-                bool(data["revoked"]),
-                str(data["previous_digest"]),
-                str(data["event_digest"]),
-            )
+            record = cls(int(data["sequence"]), str(data["issuer_id"]),
+                         str(data["fingerprint"]), data["revoked"],
+                         str(data["previous_digest"]), str(data["event_digest"]))
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("malformed trust-root record") from exc
-        if not record.issuer_id or not _SHA256_RE.fullmatch(record.fingerprint):
-            raise ValueError("malformed trust-root fingerprint")
-        if not _SHA256_RE.fullmatch(record.previous_digest):
-            raise ValueError("malformed trust-root previous digest")
+        if (not record.issuer_id or not _SHA256_RE.fullmatch(record.fingerprint)
+                or not _SHA256_RE.fullmatch(record.previous_digest)
+                or not _SHA256_RE.fullmatch(record.event_digest)):
+            raise ValueError("malformed trust-root record")
         if record.event_digest != hashlib.sha256(record.canonical_bytes()).hexdigest():
             raise ValueError("trust-root event digest mismatch")
         return record
@@ -143,29 +115,25 @@ class DurableTrustRootStore(TrustRootStore):
                 fingerprint = None if record.revoked else record.fingerprint
         return fingerprint
 
-    def _append(self, *, issuer_id: str, fingerprint: str, revoked: bool) -> TrustRootRecord:
+    def _append_locked(self, *, issuer_id: str, fingerprint: str, revoked: bool) -> TrustRootRecord:
         if not issuer_id or not _SHA256_RE.fullmatch(fingerprint):
             raise ValueError("issuer_id and a SHA-256 fingerprint are required")
-        with self._coordinator.acquire(str(self.path.resolve())):
-            self._records = self._replay()
-            previous = self._records[-1].event_digest if self._records else "0" * 64
-            record = TrustRootRecord.create(
-                sequence=len(self._records) + 1,
-                issuer_id=issuer_id,
-                fingerprint=fingerprint,
-                revoked=revoked,
-                previous_digest=previous,
-            )
-            with self.path.open("a", encoding="utf-8") as handle:
-                handle.write(record.to_line() + "\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-            self._records.append(record)
-            return record
+        previous = self._records[-1].event_digest if self._records else "0" * 64
+        record = TrustRootRecord.create(sequence=len(self._records) + 1,
+                                        issuer_id=issuer_id, fingerprint=fingerprint,
+                                        revoked=revoked, previous_digest=previous)
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(record.to_line() + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        self._records.append(record)
+        return record
 
     def trust(self, issuer_id: str, fingerprint: str) -> TrustRootRecord:
         """Add or rotate an issuer trust root."""
-        return self._append(issuer_id=issuer_id, fingerprint=fingerprint, revoked=False)
+        with self._coordinator.acquire(str(self.path.resolve())):
+            self._records = self._replay()
+            return self._append_locked(issuer_id=issuer_id, fingerprint=fingerprint, revoked=False)
 
     def revoke(self, issuer_id: str) -> TrustRootRecord:
         """Revoke the currently trusted issuer; later trust() may rotate it."""
@@ -174,7 +142,7 @@ class DurableTrustRootStore(TrustRootStore):
             current = self._active(self._records, issuer_id)
             if current is None:
                 raise ValueError("issuer is not trusted")
-            return self._append(issuer_id=issuer_id, fingerprint=current, revoked=True)
+            return self._append_locked(issuer_id=issuer_id, fingerprint=current, revoked=True)
 
     def issuer_fingerprint(self, issuer_id: str) -> str | None:
         if not issuer_id:
