@@ -67,7 +67,7 @@ def test_policy_authorization_requires_exact_workspace_and_snapshot(tmp_path: Pa
 
 
 def test_policy_constraints_cannot_enable_source_deletion() -> None:
-    with pytest.raises(PermissionError, match="Source deletion"):
+    with pytest.raises(PermissionError, match="source deletion"):
         AuthorityConstraints("destination", "snapshot-1", allow_source_delete=True)
 
 
