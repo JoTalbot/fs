@@ -70,7 +70,7 @@ def test_audit_rejects_broken_chain_even_when_event_digest_is_repaired(tmp_path:
     lines = path.read_text().splitlines()
     record = json.loads(lines[1])
     record["previous_digest"] = "0" * 64
-    record["event_digest"] = ""
+    record["event_digest"] = None
     encoded = json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
     record["event_digest"] = hashlib.sha256(encoded).hexdigest()
     lines[1] = json.dumps(record, sort_keys=True, separators=(",", ":"))
