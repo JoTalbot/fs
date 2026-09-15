@@ -65,6 +65,17 @@ def test_audit_reopen_replays_and_continues_hash_chain(tmp_path: Path) -> None:
     assert RecoveryAuditLog(path).replay() == (first, second)
 
 
+def test_audit_rejects_incomplete_tail_record(tmp_path: Path) -> None:
+    path = tmp_path / "recovery-audit.log"
+    log = RecoveryAuditLog(path)
+    log.append(_plan(), TransferJournalPhase.MATERIALIZING)
+    with path.open("ab") as handle:
+        handle.write(b'{"version":1')
+
+    with pytest.raises(RecoveryAuditCorruption, match="incomplete record"):
+        log.replay()
+
+
 def test_audit_rejects_tampered_event(tmp_path: Path) -> None:
     path = tmp_path / "recovery-audit.log"
     log = RecoveryAuditLog(path)
