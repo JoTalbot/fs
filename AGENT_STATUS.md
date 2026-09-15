@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation head: `51a82437130e1562115a106f4bad7a8a9fddd390`
+- Latest implementation head: `2caa18cc54ca3a4a247ddc09a6ba349e8e92507e`
 - Latest durable step record: `5aacfb808f6dab18eae9379bc6d8ec2d9d9699a4`
 - Updated: 2026-09-15
 
@@ -14,22 +14,22 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- area: Phase 3 workspace transfer journal / recovery boundary
-- claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-15_workspace-migration.md`, `AGENT_STATUS.md`
-- goal: make transfer intent replayable and fail-closed before any future filesystem materialization
-- status: strict prepared/materializing/committed/aborted state machine implemented; transaction identity continuity enforced; unresolved materializing transactions exposed as recovery candidates
-- decision: journal state never grants filesystem authority; capability detection, path access, or journal presence cannot authorize mutation implicitly
-- next_step: validate fresh CI, then define a non-destructive materializer protocol bound to explicit TransferAuthority and journal state
+- area: Phase 3 workspace transfer journal / materializer boundary
+- goal: make any future transfer executor depend on explicit authority plus durable, exact transaction state
+- status: strict journal state machine implemented; transaction identity continuity enforced; non-destructive materializer preflight contract added
+- decision: materialization is permitted only when a ready plan, exact MATERIALIZE authority, and matching non-terminal journal transaction are all present; no capability detection or journal presence grants permission
+- next_step: validate fresh CI, then design crash-state reconciliation/rollback evidence before implementing host filesystem mutation
 
 ## Latest work
 
 - `1e1f239768f6300647d1b3d7b5fcdab2e1a7916a` — enforce transfer journal state machine and identity continuity.
 - `51a82437130e1562115a106f4bad7a8a9fddd390` — journal recovery regression coverage.
-- `5aacfb808f6dab18eae9379bc6d8ec2d9d9699a4` — durable step record update.
+- `1dbf61cc8ccbf36768df8e2fb2e670f066c2a256` — non-destructive materializer preflight contract.
+- `2caa18cc54ca3a4a247ddc09a6ba349e8e92507e` — materializer preflight regression coverage.
 
 ## Validation boundary
 
-Run 449 (`34942329593`) completed successfully for the preceding authority documentation commit. The state-machine commits triggered newer CI and must be checked by run/head before any pass is claimed. No local checkout/test runner is available in this session.
+Run 449 (`34942329593`) completed successfully for the preceding authority documentation commit. Runs for the journal state-machine/materializer changes are still in progress and must be checked against the current head before a pass is claimed. No local checkout/test runner is available in this session.
 
 ## Current V1 position
 
@@ -39,12 +39,12 @@ FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 ## Existing architecture boundary
 
-Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans and journal entries must not be presented as completed filesystem migration, recovery, or rollback.
+Preserve fail-closed isolation, explicit authority, evidence-before-commit, no secret material in repository state, and the distinction between capability detection and granted authority. Reuse `SnapshotStore`/`MerkleDAG` for immutable content-addressed workspace state. Workspace transfer plans, journal entries, and materializer preflight results must not be presented as completed filesystem migration, recovery, or rollback.
 
 ## Next phase
 
 1. Observe fresh CI and correct failures autonomously.
 2. Keep journal transitions and transaction identities fail-closed across reopen/replay.
-3. Define a non-destructive materializer contract around explicit authority and journal state.
-4. Add crash-state reconciliation and transactional rollback evidence before destructive host mutation.
-5. Continue snapshot/recovery qualification and production blockers.
+3. Revalidate plan/authority/journal immediately before any future mutation boundary.
+4. Add crash-state reconciliation and transactional rollback evidence.
+5. Only after qualification, consider a narrowly scoped host filesystem materializer.
