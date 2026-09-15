@@ -1,8 +1,18 @@
+import multiprocessing
 from pathlib import Path
 
 import pytest
 
 from fs_overlay.authority_revocation import AuthorityRevocationRegistry, RevocationRecord
+
+
+def _revoke_in_process(path: str, authority_id: str, result) -> None:
+    try:
+        registry = AuthorityRevocationRegistry(path, coordination_timeout=5)
+        record = registry.revoke(authority_id, reason="concurrent test")
+        result.put(("ok", record.sequence, record.authority_id))
+    except Exception as exc:  # pragma: no cover - surfaced through the queue
+        result.put(("error", type(exc).__name__, str(exc)))
 
 
 def test_revocation_is_durable_and_survives_reopen(tmp_path: Path) -> None:
@@ -58,3 +68,29 @@ def test_revocation_replay_rejects_sequence_discontinuity(tmp_path: Path) -> Non
     path.write_text(first.to_line() + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="sequence discontinuity"):
         AuthorityRevocationRegistry(path)
+
+
+def test_revocation_serializes_concurrent_writers(tmp_path: Path) -> None:
+    path = str(tmp_path / "revocations.log")
+    ctx = multiprocessing.get_context("spawn")
+    result = ctx.Queue()
+    processes = [
+        ctx.Process(target=_revoke_in_process, args=(path, f"authority-{index}", result))
+        for index in (1, 2)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(15)
+
+    assert all(process.exitcode == 0 for process in processes)
+    outcomes = [result.get(timeout=2) for _ in processes]
+    assert all(outcome[0] == "ok" for outcome in outcomes), outcomes
+    assert sorted(outcome[1] for outcome in outcomes) == [1, 2]
+
+    reopened = AuthorityRevocationRegistry(path)
+    assert [record.sequence for record in reopened.records()] == [1, 2]
+    assert {record.authority_id for record in reopened.records()} == {
+        "authority-1",
+        "authority-2",
+    }
