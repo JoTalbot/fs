@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from .authority_revocation import AuthorityRevocationRegistry
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 from .workspace_transfer_authority import TransferAuthority, TransferAuthorityScope
 from .workspace_transfer_journal import (
@@ -48,6 +49,7 @@ def validate_materialization_preflight(
     plan: WorkspaceTransferPlan,
     authority: TransferAuthority,
     journal: WorkspaceTransferJournal,
+    revocations: AuthorityRevocationRegistry | None = None,
 ) -> MaterializationPreflight:
     """Validate exact plan/authority/journal binding without touching the host FS."""
     if not plan.ready:
@@ -68,6 +70,11 @@ def validate_materialization_preflight(
         or authority.destination_workspace_id != plan.destination_workspace_id
     ):
         raise PermissionError("authority does not match transfer plan")
+    if revocations is not None:
+        if not authority.authority_id:
+            raise PermissionError("revocation check requires authority provenance")
+        if revocations.is_revoked(authority.authority_id):
+            raise PermissionError("transfer authority has been revoked")
 
     entries = list(journal.replay())
     current = next(
