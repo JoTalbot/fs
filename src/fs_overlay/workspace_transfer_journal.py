@@ -10,16 +10,24 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Iterator
 
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
+class TransferJournalPhase(str, Enum):
+    PREPARED = "prepared"
+    MATERIALIZING = "materializing"
+    COMMITTED = "committed"
+    ABORTED = "aborted"
+
+
 @dataclass(frozen=True, slots=True)
 class TransferJournalEntry:
     transaction_id: str
-    phase: str
+    phase: TransferJournalPhase
     operation: WorkspaceTransfer
     snapshot_id: str
     source_workspace_id: str
@@ -29,7 +37,7 @@ class TransferJournalEntry:
         return {
             "version": 1,
             "transaction_id": self.transaction_id,
-            "phase": self.phase,
+            "phase": self.phase.value,
             "operation": self.operation.value,
             "snapshot_id": self.snapshot_id,
             "source_workspace_id": self.source_workspace_id,
@@ -38,11 +46,22 @@ class TransferJournalEntry:
 
 
 class TransferJournalCorruption(ValueError):
-    """Raised when a non-tail journal record cannot be trusted."""
+    """Raised when a journal record cannot be trusted."""
 
 
 class WorkspaceTransferJournal:
     """Append-only transfer intent journal with fail-closed replay."""
+
+    _TRANSITIONS: dict[TransferJournalPhase, frozenset[TransferJournalPhase]] = {
+        TransferJournalPhase.PREPARED: frozenset(
+            {TransferJournalPhase.MATERIALIZING, TransferJournalPhase.ABORTED}
+        ),
+        TransferJournalPhase.MATERIALIZING: frozenset(
+            {TransferJournalPhase.COMMITTED, TransferJournalPhase.ABORTED}
+        ),
+        TransferJournalPhase.COMMITTED: frozenset(),
+        TransferJournalPhase.ABORTED: frozenset(),
+    }
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -55,7 +74,7 @@ class WorkspaceTransferJournal:
         self._append(
             TransferJournalEntry(
                 transaction_id,
-                "prepared",
+                TransferJournalPhase.PREPARED,
                 plan.operation,
                 plan.snapshot_id,
                 plan.source_workspace_id,
@@ -64,15 +83,37 @@ class WorkspaceTransferJournal:
         )
         return transaction_id
 
-    def mark(self, transaction_id: str, plan: WorkspaceTransferPlan, phase: str) -> None:
-        if not transaction_id or not phase:
-            raise ValueError("transaction_id and phase are required")
+    def mark(
+        self,
+        transaction_id: str,
+        plan: WorkspaceTransferPlan,
+        phase: TransferJournalPhase | str,
+    ) -> None:
+        if not transaction_id:
+            raise ValueError("transaction_id is required")
         if not plan.ready:
             raise ValueError("cannot advance an unready transfer plan")
+        try:
+            next_phase = TransferJournalPhase(phase)
+        except ValueError as exc:
+            raise ValueError("unknown transfer journal phase") from exc
+
+        entries = list(self.replay())
+        current = next(
+            (entry for entry in reversed(entries) if entry.transaction_id == transaction_id),
+            None,
+        )
+        if current is None:
+            raise ValueError("unknown transfer transaction")
+        self._validate_identity(current, transaction_id, plan)
+        if next_phase not in self._TRANSITIONS[current.phase]:
+            raise ValueError(
+                f"invalid transfer journal transition: {current.phase.value} -> {next_phase.value}"
+            )
         self._append(
             TransferJournalEntry(
                 transaction_id,
-                phase,
+                next_phase,
                 plan.operation,
                 plan.snapshot_id,
                 plan.source_workspace_id,
@@ -80,9 +121,19 @@ class WorkspaceTransferJournal:
             )
         )
 
+    def recovery_candidates(self) -> tuple[TransferJournalEntry, ...]:
+        """Return transfers left in materializing state after a crash."""
+        latest: dict[str, TransferJournalEntry] = {}
+        for entry in self.replay():
+            latest[entry.transaction_id] = entry
+        return tuple(
+            entry for entry in latest.values() if entry.phase is TransferJournalPhase.MATERIALIZING
+        )
+
     def replay(self) -> Iterator[TransferJournalEntry]:
         if not self.path.exists():
             return
+        latest: dict[str, TransferJournalEntry] = {}
         with self.path.open("rb") as handle:
             while True:
                 line = handle.readline()
@@ -96,7 +147,7 @@ class WorkspaceTransferJournal:
                     raw = json.loads(line[:-1])
                     result = TransferJournalEntry(
                         str(raw["transaction_id"]),
-                        str(raw["phase"]),
+                        TransferJournalPhase(str(raw["phase"])),
                         WorkspaceTransfer(str(raw["operation"])),
                         str(raw["snapshot_id"]),
                         str(raw["source_workspace_id"]),
@@ -106,7 +157,36 @@ class WorkspaceTransferJournal:
                     raise TransferJournalCorruption("journal record is invalid") from exc
                 if raw.get("version") != 1:
                     raise TransferJournalCorruption("unsupported journal version")
+                previous = latest.get(result.transaction_id)
+                if previous is not None:
+                    try:
+                        self._validate_identity(previous, result.transaction_id, result)
+                    except ValueError as exc:
+                        raise TransferJournalCorruption("journal transaction identity changed") from exc
+                    if result.phase not in self._TRANSITIONS[previous.phase]:
+                        raise TransferJournalCorruption(
+                            f"invalid journal transition: {previous.phase.value} -> {result.phase.value}"
+                        )
+                elif result.phase is not TransferJournalPhase.PREPARED:
+                    raise TransferJournalCorruption("journal transaction does not begin with prepared")
+                latest[result.transaction_id] = result
                 yield result
+
+    @staticmethod
+    def _validate_identity(
+        current: TransferJournalEntry,
+        transaction_id: str,
+        plan_or_entry: WorkspaceTransferPlan | TransferJournalEntry,
+    ) -> None:
+        if current.transaction_id != transaction_id:
+            raise ValueError("transaction identity mismatch")
+        if (
+            current.operation != plan_or_entry.operation
+            or current.snapshot_id != plan_or_entry.snapshot_id
+            or current.source_workspace_id != plan_or_entry.source_workspace_id
+            or current.destination_workspace_id != plan_or_entry.destination_workspace_id
+        ):
+            raise ValueError("transfer transaction identity mismatch")
 
     def _append(self, entry: TransferJournalEntry) -> None:
         encoded = json.dumps(entry.as_record(), sort_keys=True, separators=(",", ":")).encode()
