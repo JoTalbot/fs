@@ -9,13 +9,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 
 from .workspace_migration import WorkspaceTransfer
-from .workspace_transfer_recovery import RecoveryDecision, TransferRecoveryPlan
 from .workspace_transfer_journal import TransferJournalPhase
+from .workspace_transfer_recovery import RecoveryDecision, TransferRecoveryPlan
 
 
 class RecoveryAuditTransition(str, Enum):
@@ -107,9 +107,8 @@ class RecoveryAuditLog:
             raise ValueError("recovery audit requires transaction and snapshot identity")
         events = tuple(self.replay())
         previous = events[-1] if events else None
-        sequence = previous.sequence + 1 if previous else 1
         event = RecoveryAuditEvent(
-            sequence=sequence,
+            sequence=previous.sequence + 1 if previous else 1,
             transaction_id=plan.transaction_id,
             snapshot_id=plan.snapshot_id,
             operation=plan.operation,
@@ -121,7 +120,7 @@ class RecoveryAuditLog:
             previous_digest=previous.event_digest if previous else None,
             event_digest="",
         )
-        event = RecoveryAuditEvent(**{**event.__dict__, "event_digest": _event_digest(event)})
+        event = replace(event, event_digest=_event_digest(event))
         self._append(event)
         return event
 
@@ -154,6 +153,12 @@ class RecoveryAuditLog:
                     raise RecoveryAuditCorruption("unsupported audit version")
                 if event.phase_before is not TransferJournalPhase.MATERIALIZING:
                     raise RecoveryAuditCorruption("audit event is not tied to materializing recovery")
+                if event.proposed_transition is RecoveryAuditTransition.COMMIT and event.decision is not RecoveryDecision.COMMIT_PROVEN:
+                    raise RecoveryAuditCorruption("audit transition conflicts with decision")
+                if event.proposed_transition is RecoveryAuditTransition.ABORT and event.decision is not RecoveryDecision.ABORT_PROVEN:
+                    raise RecoveryAuditCorruption("audit transition conflicts with decision")
+                if event.proposed_transition is RecoveryAuditTransition.MANUAL_REVIEW and event.decision is not RecoveryDecision.MANUAL_REVIEW:
+                    raise RecoveryAuditCorruption("audit transition conflicts with decision")
                 if event.sequence != len(result) + 1:
                     raise RecoveryAuditCorruption("audit sequence is discontinuous")
                 expected_previous = result[-1].event_digest if result else None
