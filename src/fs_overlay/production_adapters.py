@@ -17,23 +17,15 @@ class SecureKeyStore(Protocol):
     """Opaque key-material storage boundary for a production signer."""
 
     def load(self, key_id: str) -> bytes: ...
-
     def store(self, key_id: str, key_material: bytes) -> None: ...
-
     def contains(self, key_id: str) -> bool: ...
 
 
 @runtime_checkable
 class AuthenticatedTransport(Protocol):
-    """Authenticated/encrypted transport boundary for federation traffic.
-
-    Authentication is an explicit lifecycle transition. Implementations must
-    establish and verify the peer identity before accepting federation payloads;
-    callers must be able to observe that authenticated state and the bound peer.
-    """
+    """Authenticated/encrypted transport boundary for federation traffic."""
 
     def authenticate(self, peer_node: str) -> None: ...
-
     def send(self, peer_node: str, payload: bytes) -> None: ...
     def receive(self) -> bytes | None: ...
     def peer_node(self) -> str | None: ...
@@ -46,9 +38,7 @@ class NodeAdmission(Protocol):
     """Authoritative node-admission boundary, separate from discovery."""
 
     def admit(self, node_id: str, public_key_fingerprint: str) -> bool: ...
-
     def revoke(self, node_id: str, reason: str = "") -> None: ...
-
     def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool: ...
 
 
@@ -57,13 +47,9 @@ class KeyAdmission(Protocol):
     """Authoritative node/key binding and lifecycle admission boundary."""
 
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
-
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None: ...
-
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool: ...
-
     def can_sign(self, node_id: str, key_id: str) -> bool: ...
-
     def can_verify(self, node_id: str, key_id: str) -> bool: ...
 
 
@@ -75,28 +61,19 @@ def validate_authenticated_principal_admission(
 ) -> None:
     """Fail closed unless authenticated node/key evidence is admitted.
 
-    This is a consistency gate, not an authentication mechanism. The caller
-    must obtain ``principal`` from an authoritative verifier. This helper only
-    checks that the verifier's node/key claims agree with authoritative node
-    admission, key admission, and verification lifecycle state. It never
-    infers trust from the presented fingerprint or from discovery/configuration.
-
-    Issuer and trust-root validation remain the responsibility of the principal
-    verifier/trust-root store. No authority or filesystem mutation is granted
-    by this function.
+    This is a consistency gate, not authentication. The principal must come
+    from an authoritative verifier. Issuer and trust-root validation remain
+    verifier/trust-store responsibilities, and this function grants no host
+    authority or filesystem mutation.
     """
     if not node_admission.is_admitted(principal.node_id, principal.key_fingerprint):
         raise PermissionError(
             "authenticated principal node is not admitted for its key fingerprint"
         )
-
     if not key_admission.is_key_admitted(
-        principal.node_id,
-        principal.key_id,
-        principal.key_fingerprint,
+        principal.node_id, principal.key_id, principal.key_fingerprint
     ):
         raise PermissionError("authenticated principal key is not admitted for its node")
-
     if not key_admission.can_verify(principal.node_id, principal.key_id):
         raise PermissionError("authenticated principal key is not usable for verification")
 
@@ -128,6 +105,40 @@ class PrincipalVerifier(Protocol):
         claims: bytes,
         signature: bytes,
     ) -> AuthenticatedPrincipal: ...
+
+
+def verify_and_validate_authenticated_principal(
+    verifier: PrincipalVerifier,
+    *,
+    principal_id: str,
+    issuer_id: str,
+    node_id: str,
+    key_id: str,
+    key_fingerprint: str,
+    claims: bytes,
+    signature: bytes,
+    node_admission: NodeAdmission,
+    key_admission: KeyAdmission,
+) -> AuthenticatedPrincipal:
+    """Verify signed identity and immediately enforce admission consistency.
+
+    Cryptographic proof, trusted issuer/root validation, and claim binding are
+    performed only by the injected audited verifier. This composition makes
+    the authoritative node/key gate part of the normal verification path.
+    """
+    principal = verifier.verify(
+        principal_id=principal_id,
+        issuer_id=issuer_id,
+        node_id=node_id,
+        key_id=key_id,
+        key_fingerprint=key_fingerprint,
+        claims=claims,
+        signature=signature,
+    )
+    validate_authenticated_principal_admission(
+        principal, node_admission=node_admission, key_admission=key_admission
+    )
+    return principal
 
 
 @runtime_checkable
