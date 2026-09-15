@@ -46,7 +46,8 @@ class TrustRootRecord:
         if not isinstance(revoked, bool):
             raise ValueError("revoked must be boolean")
         record = cls(sequence, issuer_id, fingerprint.lower(), revoked, previous_digest.lower(), "")
-        return cls(*record[:-1], hashlib.sha256(record.canonical_bytes()).hexdigest())
+        return cls(record.sequence, record.issuer_id, record.fingerprint, record.revoked,
+                   record.previous_digest, hashlib.sha256(record.canonical_bytes()).hexdigest())
 
     def to_line(self) -> str:
         return json.dumps(
