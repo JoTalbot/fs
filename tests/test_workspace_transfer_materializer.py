@@ -82,6 +82,15 @@ def test_materializer_preflight_rejects_wrong_scope(tmp_path: Path) -> None:
         validate_materialization_preflight(plan, authority, journal)
 
 
+def test_materializer_preflight_rejects_non_authority_decision(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    journal = WorkspaceTransferJournal(tmp_path / "journal.log")
+    transaction_id = journal.begin(plan)
+    fake_decision = object()
+    with pytest.raises(PermissionError, match="issued transfer authority"):
+        validate_materialization_preflight(plan, fake_decision, journal)  # type: ignore[arg-type]
+
+
 def test_materializer_preflight_rejects_authority_identity_mismatch(tmp_path: Path) -> None:
     plan = _plan(tmp_path)
     journal = WorkspaceTransferJournal(tmp_path / "journal.log")
