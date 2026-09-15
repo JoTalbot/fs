@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from pathlib import Path
 
+from .durable_coordination import FileAdmissionCoordinator
 from .workspace_migration import WorkspaceTransfer
 from .workspace_transfer_journal import TransferJournalPhase
 from .workspace_transfer_recovery import RecoveryDecision, TransferRecoveryPlan
@@ -94,35 +95,45 @@ def _transition(decision: RecoveryDecision) -> RecoveryAuditTransition:
 
 
 class RecoveryAuditLog:
-    """Durable, append-only recovery decision log with hash-chain replay."""
+    """Durable, append-only recovery decision log with hash-chain replay.
+
+    Every append serializes replay, sequence allocation, hash-chain linkage,
+    and the durable write under the same cross-process lock. Replay itself is
+    deliberately lock-free so readers never hold the writer lock while doing
+    potentially long validation.
+    """
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._coordinator = FileAdmissionCoordinator(
+            self.path.parent / ".recovery-audit-locks"
+        )
 
     def append(self, plan: TransferRecoveryPlan, phase_before: TransferJournalPhase) -> RecoveryAuditEvent:
         if phase_before is not TransferJournalPhase.MATERIALIZING:
             raise ValueError("recovery audit requires a materializing phase")
         if not plan.transaction_id or not plan.snapshot_id:
             raise ValueError("recovery audit requires transaction and snapshot identity")
-        events = tuple(self.replay())
-        previous = events[-1] if events else None
-        event = RecoveryAuditEvent(
-            sequence=previous.sequence + 1 if previous else 1,
-            transaction_id=plan.transaction_id,
-            snapshot_id=plan.snapshot_id,
-            operation=plan.operation,
-            phase_before=phase_before,
-            decision=plan.decision,
-            proposed_transition=_transition(plan.decision),
-            reason=plan.reason,
-            evidence_digest=_evidence_digest(plan),
-            previous_digest=previous.event_digest if previous else None,
-            event_digest="",
-        )
-        event = replace(event, event_digest=_event_digest(event))
-        self._append(event)
-        return event
+        with self._coordinator.acquire(f"recovery-audit:{self.path.resolve()}"):
+            events = tuple(self.replay())
+            previous = events[-1] if events else None
+            event = RecoveryAuditEvent(
+                sequence=previous.sequence + 1 if previous else 1,
+                transaction_id=plan.transaction_id,
+                snapshot_id=plan.snapshot_id,
+                operation=plan.operation,
+                phase_before=phase_before,
+                decision=plan.decision,
+                proposed_transition=_transition(plan.decision),
+                reason=plan.reason,
+                evidence_digest=_evidence_digest(plan),
+                previous_digest=previous.event_digest if previous else None,
+                event_digest="",
+            )
+            event = replace(event, event_digest=_event_digest(event))
+            self._append(event)
+            return event
 
     def replay(self) -> tuple[RecoveryAuditEvent, ...]:
         if not self.path.exists():
