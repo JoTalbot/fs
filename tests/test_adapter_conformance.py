@@ -66,33 +66,42 @@ class MemoryTransport:
 class MemoryKeyAdmission:
     def __init__(self) -> None:
         self._keys: dict[tuple[str, str], str] = {}
-        self._revoked: set[tuple[str, str]] = set()
+        self._status: dict[tuple[str, str], str] = {}
 
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
         if not node_id or not key_id or not fingerprint:
             return False
         key = (node_id, key_id)
-        if key in self._revoked:
-            return False
         previous = self._keys.get(key)
         if previous is not None and previous != fingerprint:
             return False
+        if self._status.get(key) == "REVOKED":
+            return False
         self._keys[key] = fingerprint
+        self._status[key] = "ACTIVE"
         return True
+
+    def retire_key(self, node_id: str, key_id: str) -> None:
+        key = (node_id, key_id)
+        if key not in self._keys or self._status.get(key) == "REVOKED":
+            raise ValueError("key is not active")
+        self._status[key] = "RETIRED"
 
     def revoke_key(self, node_id: str, key_id: str, reason: str = "") -> None:
         key = (node_id, key_id)
-        self._keys.pop(key, None)
-        self._revoked.add(key)
+        if key not in self._keys:
+            raise ValueError("key is not admitted")
+        self._status[key] = "REVOKED"
 
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-        return (node_id, key_id) not in self._revoked and self._keys.get((node_id, key_id)) == fingerprint
+        key = (node_id, key_id)
+        return self._keys.get(key) == fingerprint and self._status.get(key) != "REVOKED"
 
     def can_sign(self, node_id: str, key_id: str) -> bool:
-        return (node_id, key_id) in self._keys and (node_id, key_id) not in self._revoked
+        return self._status.get((node_id, key_id)) == "ACTIVE"
 
     def can_verify(self, node_id: str, key_id: str) -> bool:
-        return self.can_sign(node_id, key_id)
+        return self._status.get((node_id, key_id)) in {"ACTIVE", "RETIRED"}
 
 
 class MemoryCoordinator:
@@ -184,6 +193,10 @@ def test_key_admission_rejects_fingerprint_change_and_revocation() -> None:
     assert not admission.admit_key("node-a", "k1", "fp-b")
     assert not admission.is_key_admitted("node-a", "k1", "fp-b")
     assert admission.can_sign("node-a", "k1")
+    assert admission.can_verify("node-a", "k1")
+    admission.retire_key("node-a", "k1")
+    assert admission.is_key_admitted("node-a", "k1", "fp-a")
+    assert not admission.can_sign("node-a", "k1")
     assert admission.can_verify("node-a", "k1")
     admission.revoke_key("node-a", "k1", "test")
     assert not admission.can_sign("node-a", "k1")
