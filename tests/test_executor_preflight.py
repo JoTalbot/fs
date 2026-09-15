@@ -155,7 +155,7 @@ def test_transport_peer_mismatch_closes_before_authority_use(tmp_path):
 
 def test_revoked_authority_blocks(tmp_path):
     revocations = AuthorityRevocationRegistry(tmp_path / "revocations.jsonl")
-    revocations.revoke("authority-1", "test")
+    revocations.revoke("authority-1", reason="test")
     with pytest.raises(PermissionError, match="revoked"):
         run(tmp_path, revocations=revocations)
 
