@@ -14,9 +14,10 @@ from enum import Enum
 from pathlib import Path
 
 from .durable_coordination import FileAdmissionCoordinator
+from .recovery_preflight import RecoveryPreflightResult
 from .workspace_migration import WorkspaceTransfer
 from .workspace_transfer_journal import TransferJournalPhase
-from .workspace_transfer_recovery import RecoveryDecision, TransferRecoveryPlan
+from .workspace_transfer_recovery import RecoveryDecision, recovery_evidence_digest
 
 
 class RecoveryAuditTransition(str, Enum):
@@ -69,17 +70,6 @@ def _canonical(payload: dict[str, object]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _evidence_digest(plan: TransferRecoveryPlan) -> str:
-    payload = {
-        "transaction_id": plan.transaction_id,
-        "snapshot_id": plan.snapshot_id,
-        "operation": plan.operation.value,
-        "decision": plan.decision.value,
-        "reason": plan.reason,
-    }
-    return hashlib.sha256(_canonical(payload)).hexdigest()
-
-
 def _event_digest(event: RecoveryAuditEvent) -> str:
     payload = event.as_record().copy()
     payload["event_digest"] = None
@@ -94,8 +84,16 @@ def _transition(decision: RecoveryDecision) -> RecoveryAuditTransition:
     }[decision]
 
 
+def _valid_digest(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
 class RecoveryAuditLog:
     """Durable, append-only recovery decision log with hash-chain replay.
+
+    Appends require a :class:`RecoveryPreflightResult`, so the audit event is
+    bound to the exact evidence digest calculated after independent evidence
+    verification. A reconciliation plan alone is intentionally insufficient.
 
     Every append serializes replay, sequence allocation, hash-chain linkage,
     and the durable write under the same cross-process lock. Replay itself is
@@ -110,24 +108,38 @@ class RecoveryAuditLog:
             self.path.parent / ".recovery-audit-locks"
         )
 
-    def append(self, plan: TransferRecoveryPlan, phase_before: TransferJournalPhase) -> RecoveryAuditEvent:
+    def append(
+        self,
+        result: RecoveryPreflightResult,
+        phase_before: TransferJournalPhase,
+    ) -> RecoveryAuditEvent:
+        """Append a recovery decision only after verified evidence preflight."""
         if phase_before is not TransferJournalPhase.MATERIALIZING:
             raise ValueError("recovery audit requires a materializing phase")
-        if not plan.transaction_id or not plan.snapshot_id:
-            raise ValueError("recovery audit requires transaction and snapshot identity")
+        if result.transaction.phase is not TransferJournalPhase.MATERIALIZING:
+            raise ValueError("recovery audit requires a materializing transaction")
+        if result.plan.transaction_id != result.transaction.transaction_id:
+            raise ValueError("recovery audit result transaction mismatch")
+        if result.plan.snapshot_id != result.transaction.snapshot_id:
+            raise ValueError("recovery audit result snapshot mismatch")
+        expected_evidence_digest = result.evidence_digest
+        if expected_evidence_digest != recovery_evidence_digest(result.evidence):
+            raise ValueError("recovery audit evidence digest mismatch")
+        if not _valid_digest(expected_evidence_digest):
+            raise ValueError("recovery audit requires a SHA-256 evidence digest")
         with self._coordinator.acquire(f"recovery-audit:{self.path.resolve()}"):
             events = tuple(self.replay())
             previous = events[-1] if events else None
             event = RecoveryAuditEvent(
                 sequence=previous.sequence + 1 if previous else 1,
-                transaction_id=plan.transaction_id,
-                snapshot_id=plan.snapshot_id,
-                operation=plan.operation,
+                transaction_id=result.transaction.transaction_id,
+                snapshot_id=result.transaction.snapshot_id,
+                operation=result.plan.operation,
                 phase_before=phase_before,
-                decision=plan.decision,
-                proposed_transition=_transition(plan.decision),
-                reason=plan.reason,
-                evidence_digest=_evidence_digest(plan),
+                decision=result.plan.decision,
+                proposed_transition=_transition(result.plan.decision),
+                reason=result.plan.reason,
+                evidence_digest=expected_evidence_digest,
                 previous_digest=previous.event_digest if previous else None,
                 event_digest="",
             )
@@ -164,6 +176,12 @@ class RecoveryAuditLog:
                     raise RecoveryAuditCorruption("unsupported audit version")
                 if event.phase_before is not TransferJournalPhase.MATERIALIZING:
                     raise RecoveryAuditCorruption("audit event is not tied to materializing recovery")
+                if not _valid_digest(event.evidence_digest):
+                    raise RecoveryAuditCorruption("audit evidence digest is not valid SHA-256")
+                if event.previous_digest is not None and not _valid_digest(event.previous_digest):
+                    raise RecoveryAuditCorruption("audit previous digest is not valid SHA-256")
+                if not _valid_digest(event.event_digest):
+                    raise RecoveryAuditCorruption("audit event digest is not valid SHA-256")
                 if event.proposed_transition is RecoveryAuditTransition.COMMIT and event.decision is not RecoveryDecision.COMMIT_PROVEN:
                     raise RecoveryAuditCorruption("audit transition conflicts with decision")
                 if event.proposed_transition is RecoveryAuditTransition.ABORT and event.decision is not RecoveryDecision.ABORT_PROVEN:
