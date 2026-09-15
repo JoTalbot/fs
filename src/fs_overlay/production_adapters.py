@@ -67,6 +67,8 @@ class ReferenceKeyLifecycleAdmission:
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
         if self._lifecycle.fingerprint_for(key_id) != fingerprint:
             return False
+        if not self._lifecycle.usable_for_verification(key_id):
+            return False
         bound = self._node_by_key.get(key_id)
         if bound is not None and bound != node_id:
             return False
