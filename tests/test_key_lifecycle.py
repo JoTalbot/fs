@@ -1,6 +1,7 @@
 import pytest
 
 from fs_overlay.key_lifecycle import KeyLifecycle, KeyRecord
+from fs_overlay.production_adapters import KeyAdmission, ReferenceKeyLifecycleAdmission
 
 
 def test_rotation_retires_previous_active_key() -> None:
@@ -52,3 +53,36 @@ def test_legacy_usable_alias_still_means_signing() -> None:
     lifecycle.rotate(KeyRecord("k2", "fp2"))
     assert not lifecycle.usable("k1")
     assert lifecycle.usable("k2")
+
+
+def test_reference_lifecycle_adapter_is_a_key_admission_boundary() -> None:
+    lifecycle = KeyLifecycle([KeyRecord("k1", "fp1")])
+    adapter = ReferenceKeyLifecycleAdmission(lifecycle)
+    assert isinstance(adapter, KeyAdmission)
+    assert adapter.admit_key("node-1", "k1", "fp1")
+    assert adapter.is_key_admitted("node-1", "k1", "fp1")
+    assert adapter.can_sign("node-1", "k1")
+    assert adapter.can_verify("node-1", "k1")
+
+
+def test_reference_lifecycle_adapter_rejects_wrong_fingerprint_and_node() -> None:
+    lifecycle = KeyLifecycle([KeyRecord("k1", "fp1")])
+    adapter = ReferenceKeyLifecycleAdmission(lifecycle)
+    assert not adapter.admit_key("node-1", "k1", "wrong")
+    assert adapter.admit_key("node-1", "k1", "fp1")
+    assert not adapter.admit_key("node-2", "k1", "fp1")
+    assert not adapter.is_key_admitted("node-2", "k1", "fp1")
+
+
+def test_reference_lifecycle_adapter_maps_rotation_and_revocation_fail_closed() -> None:
+    lifecycle = KeyLifecycle([KeyRecord("k1", "fp1")])
+    adapter = ReferenceKeyLifecycleAdmission(lifecycle)
+    assert adapter.admit_key("node-1", "k1", "fp1")
+    lifecycle.rotate(KeyRecord("k2", "fp2"))
+    assert not adapter.can_sign("node-1", "k1")
+    assert adapter.can_verify("node-1", "k1")
+    assert adapter.admit_key("node-1", "k2", "fp2")
+    assert adapter.can_sign("node-1", "k2")
+    adapter.revoke_key("node-1", "k2", "incident")
+    assert not adapter.can_sign("node-1", "k2")
+    assert not adapter.can_verify("node-1", "k2")
