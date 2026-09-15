@@ -52,6 +52,8 @@ def validate_materialization_preflight(
     """Validate exact plan/authority/journal binding without touching the host FS."""
     if not plan.ready:
         raise ValueError("materialization requires a ready transfer plan")
+    if not isinstance(authority, TransferAuthority):
+        raise PermissionError("materialization requires an issued transfer authority")
     if authority.scope is not TransferAuthorityScope.MATERIALIZE:
         raise PermissionError("materialization requires materialize authority")
     if plan.operation is WorkspaceTransfer.EXPORT:
