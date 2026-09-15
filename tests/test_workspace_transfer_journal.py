@@ -1,5 +1,7 @@
 from dataclasses import replace
 from pathlib import Path
+import hashlib
+import json
 
 import pytest
 
@@ -60,6 +62,52 @@ def test_journal_round_trip_and_explicit_phases(tmp_path: Path) -> None:
     assert journal.recovery_candidates() == ()
 
 
+def test_journal_hash_chain_is_durable_and_reopen_safe(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    transaction_id = journal.begin(plan)
+    journal.mark(transaction_id, plan, TransferJournalPhase.MATERIALIZING)
+    first = list(journal.replay())
+    assert len(first) == 2
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert records[0]["previous_digest"] is None
+    assert records[1]["previous_digest"] == records[0]["event_digest"]
+    assert all(len(record["event_digest"]) == 64 for record in records)
+    reopened = WorkspaceTransferJournal(path)
+    assert list(reopened.replay()) == first
+    assert reopened.recovery_candidates()[0].transaction_id == transaction_id
+
+
+def test_journal_rejects_tampered_event_even_when_json_remains_valid(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(plan)
+    raw = path.read_text().replace('"phase":"prepared"', '"phase":"aborted"')
+    path.write_text(raw)
+    with pytest.raises(TransferJournalCorruption, match="digest mismatch"):
+        list(journal.replay())
+
+
+def test_journal_rejects_broken_chain_even_with_repaired_digest(tmp_path: Path) -> None:
+    plan = _plan(tmp_path)
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    transaction_id = journal.begin(plan)
+    journal.mark(transaction_id, plan, TransferJournalPhase.MATERIALIZING)
+    lines = path.read_text().splitlines()
+    record = json.loads(lines[1])
+    record["previous_digest"] = "0" * 64
+    record["event_digest"] = None
+    encoded = json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
+    record["event_digest"] = hashlib.sha256(encoded).hexdigest()
+    lines[1] = json.dumps(record, sort_keys=True, separators=(",", ":"))
+    path.write_text("\n".join(lines) + "\n")
+    with pytest.raises(TransferJournalCorruption, match="hash chain"):
+        list(journal.replay())
+
+
 def test_journal_rejects_invalid_transition_and_terminal_advance(tmp_path: Path) -> None:
     plan = _plan(tmp_path)
     journal = WorkspaceTransferJournal(tmp_path / "journal.log")
@@ -99,19 +147,14 @@ def test_journal_reopen_can_continue_valid_transaction(tmp_path: Path) -> None:
     assert reopened.recovery_candidates() == ()
 
 
-def test_journal_replay_rejects_invalid_transition_and_identity(tmp_path: Path) -> None:
+def test_journal_replay_rejects_unsupported_legacy_record(tmp_path: Path) -> None:
     plan = _plan(tmp_path)
     path = tmp_path / "journal.log"
     journal = WorkspaceTransferJournal(path)
-    transaction_id = journal.begin(plan)
-    with path.open("ab") as handle:
-        handle.write(
-            ("{\"version\":1,\"transaction_id\":\"%s\",\"phase\":\"committed\","
-             "\"operation\":\"import\",\"snapshot_id\":\"%s\","
-             "\"source_workspace_id\":\"source\",\"destination_workspace_id\":\"%s\"}\n"
-             % (transaction_id, plan.snapshot_id, plan.destination_workspace_id)).encode()
-        )
-    with pytest.raises(TransferJournalCorruption, match="invalid journal transition"):
+    journal.begin(plan)
+    raw = path.read_text().replace('"version":2', '"version":1')
+    path.write_text(raw)
+    with pytest.raises(TransferJournalCorruption, match="unsupported journal version"):
         list(journal.replay())
 
 
@@ -121,7 +164,7 @@ def test_journal_ignores_only_incomplete_eof_tail(tmp_path: Path) -> None:
     journal = WorkspaceTransferJournal(path)
     journal.begin(plan)
     with path.open("ab") as handle:
-        handle.write(b'{"version":1,"phase":"incomplete"')
+        handle.write(b'{"version":2,"phase":"incomplete"')
     assert len(list(journal.replay())) == 1
 
 
@@ -132,6 +175,6 @@ def test_journal_rejects_malformed_non_tail_record(tmp_path: Path) -> None:
     journal.begin(plan)
     with path.open("ab") as handle:
         handle.write(b'{bad\n')
-        handle.write(b'{"version":1}\n')
+        handle.write(b'{"version":2}\n')
     with pytest.raises(TransferJournalCorruption):
         list(journal.replay())
