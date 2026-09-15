@@ -1,4 +1,4 @@
-"""Dependency-free local FS storage engine foundation.
+"""Dependency-free local FS storage engine foundation."""
 from __future__ import annotations
 
 import hashlib
