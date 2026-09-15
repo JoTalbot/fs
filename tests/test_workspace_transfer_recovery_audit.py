@@ -36,12 +36,12 @@ class _VerifiedEvidence:
         return True
 
 
-def _entry(transaction_id: str = "tx-1") -> TransferJournalEntry:
+def _entry(transaction_id: str = "tx-1", snapshot_id: str = "snapshot-1") -> TransferJournalEntry:
     return TransferJournalEntry(
         transaction_id,
         TransferJournalPhase.MATERIALIZING,
         WorkspaceTransfer.IMPORT,
-        "snapshot-1",
+        snapshot_id,
         "source",
         "destination",
     )
@@ -50,6 +50,7 @@ def _entry(transaction_id: str = "tx-1") -> TransferJournalEntry:
 def _evidence(
     *,
     transaction_id: str = "tx-1",
+    snapshot_id: str = "snapshot-1",
     destination_state: DestinationRecoveryState = DestinationRecoveryState.UNKNOWN,
     destination_verified: bool = False,
     mutation_complete: bool = False,
@@ -59,7 +60,7 @@ def _evidence(
 ) -> TransferRecoveryEvidence:
     return TransferRecoveryEvidence(
         transaction_id=transaction_id,
-        snapshot_id="snapshot-1",
+        snapshot_id=snapshot_id,
         destination_state=destination_state,
         destination_verified=destination_verified,
         mutation_complete=mutation_complete,
@@ -105,6 +106,7 @@ def _materializing_candidate(tmp_path: Path):
 def _complete_commit_evidence(candidate) -> TransferRecoveryEvidence:
     return _evidence(
         transaction_id=candidate.transaction_id,
+        snapshot_id=candidate.snapshot_id,
         destination_state=DestinationRecoveryState.MATCHES_SNAPSHOT,
         destination_verified=True,
         mutation_complete=True,
