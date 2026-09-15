@@ -9,7 +9,12 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
-from .identity_verification import AuthenticatedPrincipal
+from .identity_verification import (
+    AuthenticatedPrincipal,
+    PrincipalVerifier,
+    TrustRootStore,
+    require_trusted_issuer,
+)
 
 
 @runtime_checkable
@@ -78,35 +83,6 @@ def validate_authenticated_principal_admission(
         raise PermissionError("authenticated principal key is not usable for verification")
 
 
-@runtime_checkable
-class TrustRootStore(Protocol):
-    """Authoritative issuer trust-anchor lookup boundary."""
-
-    def issuer_fingerprint(self, issuer_id: str) -> str | None: ...
-
-
-@runtime_checkable
-class PrincipalVerifier(Protocol):
-    """Audited verification boundary for signed principal claims.
-
-    Implementations must fail closed unless the issuer is trusted, the claimed
-    node/key binding is admitted, the key is usable for verification, the
-    signature is valid, and the signed claims bind all returned identity fields.
-    """
-
-    def verify(
-        self,
-        *,
-        principal_id: str,
-        issuer_id: str,
-        node_id: str,
-        key_id: str,
-        key_fingerprint: str,
-        claims: bytes,
-        signature: bytes,
-    ) -> AuthenticatedPrincipal: ...
-
-
 def verify_and_validate_authenticated_principal(
     verifier: PrincipalVerifier,
     *,
@@ -117,15 +93,18 @@ def verify_and_validate_authenticated_principal(
     key_fingerprint: str,
     claims: bytes,
     signature: bytes,
+    trust_roots: TrustRootStore,
     node_admission: NodeAdmission,
     key_admission: KeyAdmission,
 ) -> AuthenticatedPrincipal:
-    """Verify signed identity and immediately enforce admission consistency.
+    """Verify signed identity and enforce trust-root and admission gates.
 
-    Cryptographic proof, trusted issuer/root validation, and claim binding are
-    performed only by the injected audited verifier. This composition makes
-    the authoritative node/key gate part of the normal verification path.
+    The trust-root lookup and node/key checks are deliberately separate from
+    cryptographic verification. The injected verifier remains responsible for
+    signature validity and exact signed-claim binding. No part of this path
+    grants host authority or enables filesystem mutation.
     """
+    require_trusted_issuer(issuer_id, trust_roots=trust_roots)
     principal = verifier.verify(
         principal_id=principal_id,
         issuer_id=issuer_id,
