@@ -7,6 +7,8 @@ before applying any recovery decision.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import dataclass
 from enum import Enum
 
@@ -54,6 +56,27 @@ class TransferRecoveryPlan:
     snapshot_id: str
     decision: RecoveryDecision
     reason: str
+
+
+def recovery_evidence_digest(evidence: TransferRecoveryEvidence) -> str:
+    """Return a deterministic SHA-256 digest of the complete recovery evidence.
+
+    The digest deliberately covers every evidence field so an audit event binds
+    to the exact evidence that was independently verified, rather than merely to
+    the later reconciliation decision.
+    """
+    payload = {
+        "transaction_id": evidence.transaction_id,
+        "snapshot_id": evidence.snapshot_id,
+        "destination_state": evidence.destination_state.value,
+        "destination_verified": evidence.destination_verified,
+        "mutation_complete": evidence.mutation_complete,
+        "source_preserved": evidence.source_preserved,
+        "rollback_safe": evidence.rollback_safe,
+        "staging_absent": evidence.staging_absent,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def reconcile_materializing_transaction(
