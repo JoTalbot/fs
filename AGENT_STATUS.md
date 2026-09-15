@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest implementation/test head: `ed35d70098cb0b04532c7440a997575277d6908d`
+- Latest implementation/test head: `cd9f3a5937bbc6e996e8288f723353c13791c574`
 - Latest durable step record: `docs/AGENT_STEP_2026-09-15_identity-verification.md`
 - Updated: 2026-09-15
 
@@ -16,9 +16,9 @@
 - machine_id: `GitHub connector`
 - area: Phase 3 workspace transfer materializer / authority, policy, revocation, and authenticated identity boundary
 - goal: make any future transfer executor depend on explicit authority, durable transaction state, independently verified recovery evidence, auditable recovery decisions, policy constraints, authenticated identity, and durable revocation
-- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is a separate durable fail-closed registry with cross-process serialization and restart-safe reads; authenticated principal/trust-root/verifier contracts are defined and authenticated provenance is bound to policy authority
+- status: crash/recovery/audit qualification is end-to-end evidence-only; policy-bound authority issuance carries immutable provenance; revocation is a separate durable fail-closed registry with cross-process serialization and restart-safe reads; authenticated principal/trust-root/verifier contracts are defined, identity evidence is bound to policy authority, and SHA-256 digest fields are now validated for strict hexadecimal encoding
 - decision: policy, audit, identity, and revocation evidence never grant host authority implicitly; source deletion remains prohibited; host filesystem mutation remains disabled
-- next_step: qualify concrete trust/key verification and authenticated transport lifecycle boundaries, then bind authenticated identity to revocation decisions
+- next_step: qualify authoritative trust/key verification against node admission and key lifecycle, then bind authenticated identity to durable revocation decisions
 
 ## Latest work
 
@@ -36,10 +36,12 @@
 - `46dc5ccf44818143b541da4dc71b0849229f376c` — define authenticated principal/trust-root/verifier contracts and bind authenticated provenance to policy-bound authority issuance.
 - `ed35d70098cb0b04532c7440a997575277d6908d` — qualify authenticated provenance binding with mismatch and success regression coverage.
 - `44b7b8b6236a22d052ae9ef1a59363b50f3a6601` — record the authenticated identity verification qualification boundary.
+- `2dcd8279b5ef74bba2d3f3a8489a4b5219f27488` — harden authenticated identity digest validation.
+- `cd9f3a5937bbc6e996e8288f723353c13791c574` — qualify strict authenticated identity digest encoding and reject non-hex SHA-256 evidence.
 
 ## Validation boundary
 
-GitHub Actions run `#516` (`34955600185`) for the revocation implementation is green. Run `#517` (`34955618776`) for concurrent revocation writers was previously green across all 18 configured jobs. The workflow run for the authenticated-provenance implementation commit is still progressing: completed macOS Python 3.11 and macOS candidate-crypto lanes are green, with other matrix lanes queued/in progress. The subsequent documentation/status commits may trigger separate validation runs. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
+GitHub Actions run `#517` (`34955618776`) for concurrent revocation writers is green across all 18 configured jobs. The latest push run `#531` (`34956947277`) for `cd9f3a5937bbc6e996e8288f723353c13791c574` is queued across the 18-job Python/crypto-provider matrix; it has not yet produced a conclusion. No local checkout/test runner is available in this session, so GitHub Actions remains authoritative. No host filesystem mutation is implemented.
 
 ## Current V1 position
 
