@@ -101,12 +101,16 @@ class DurableNodeAdmission(NodeAdmission):
                 out.append(r)
         return out
 
+    def _current_record(self, node_id: str) -> NodeAdmissionRecord | None:
+        current = None
+        for record in self._records:
+            if record.node_id == node_id:
+                current = record
+        return current
+
     def _current(self, node_id: str) -> str | None:
-        fp = None
-        for r in self._records:
-            if r.node_id == node_id:
-                fp = None if r.revoked else r.fingerprint
-        return fp
+        record = self._current_record(node_id)
+        return None if record is None or record.revoked else record.fingerprint
 
     def _append(self, node_id: str, fingerprint: str, revoked: bool) -> None:
         r = NodeAdmissionRecord.create(sequence=len(self._records) + 1, node_id=node_id,
@@ -121,9 +125,12 @@ class DurableNodeAdmission(NodeAdmission):
             return False
         with self._lock.acquire(str(self.path.resolve())):
             self._records = self._replay()
-            current = self._current(node_id)
-            if current is not None and current != public_key_fingerprint.lower():
-                return False
+            current_record = self._current_record(node_id)
+            if current_record is not None:
+                if current_record.revoked:
+                    return False
+                if current_record.fingerprint != public_key_fingerprint.lower():
+                    return False
             self._append(node_id, public_key_fingerprint, False)
             return True
 
