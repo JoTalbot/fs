@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import os
-import tempfile
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Protocol
+from typing import Iterator, Protocol
 
 
 class CarrierAdapter(Protocol):
@@ -19,55 +19,112 @@ class CarrierAdapter(Protocol):
 
 
 class LocalDirectoryCarrier:
-    """Safe reference carrier restricted to one explicitly configured root."""
+    """POSIX carrier using stable directory descriptors and no-follow traversal.
+
+    Windows is intentionally unsupported until a native reparse-point-safe
+    multi-component implementation exists; silently falling back to pathname
+    operations would recreate the isolation race this adapter is meant to close.
+    """
     name = "local-directory"
 
     def __init__(self, root: str | Path):
+        if os.name == "nt":
+            raise NotImplementedError("race-resistant LocalDirectoryCarrier is not implemented on Windows")
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        self._root_fd = os.open(self.root, flags)
 
-    def _resolve(self, relative_name: str) -> Path:
-        if not relative_name or Path(relative_name).is_absolute():
-            raise ValueError("carrier name must be a non-empty relative path")
-        candidate = (self.root / relative_name).resolve()
-        if candidate != self.root and self.root not in candidate.parents:
-            raise ValueError("carrier path escapes configured root")
-        return candidate
-
-    def put(self, relative_name: str, data: bytes) -> str:
-        target = self._resolve(relative_name)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
-        try:
-            with os.fdopen(fd, "wb") as handle:
-                handle.write(data)
-                handle.flush()
-                os.fsync(handle.fileno())
-            os.replace(temporary, target)
-            self._fsync_directory(target.parent)
-        finally:
-            if os.path.exists(temporary):
-                os.unlink(temporary)
-        return str(target.relative_to(self.root))
+    def __del__(self) -> None:
+        fd = getattr(self, "_root_fd", None)
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            self._root_fd = None
 
     @staticmethod
-    def _fsync_directory(directory: Path) -> None:
-        if os.name == "nt":
-            return
-        fd = os.open(directory, os.O_RDONLY)
+    def _parts(relative_name: str) -> tuple[str, ...]:
+        if not isinstance(relative_name, str) or not relative_name or relative_name.startswith("/"):
+            raise ValueError("carrier name must be a non-empty relative path")
+        parts = tuple(relative_name.split("/"))
+        if any(part in {"", ".", ".."} for part in parts):
+            raise ValueError("carrier name must not contain empty, '.' or '..' components")
+        return parts
+
+    @contextmanager
+    def _parent_fd(self, relative_name: str) -> Iterator[tuple[int, str]]:
+        parts = self._parts(relative_name)
+        fd = os.dup(self._root_fd)
         try:
-            os.fsync(fd)
+            for part in parts[:-1]:
+                try:
+                    next_fd = os.open(
+                        part,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                        dir_fd=fd,
+                    )
+                except FileNotFoundError:
+                    os.mkdir(part, mode=0o700, dir_fd=fd)
+                    next_fd = os.open(
+                        part,
+                        os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                        dir_fd=fd,
+                    )
+                os.close(fd)
+                fd = next_fd
+            yield fd, parts[-1]
         finally:
             os.close(fd)
 
+    @staticmethod
+    def _fsync_directory_fd(fd: int) -> None:
+        os.fsync(fd)
+
+    @staticmethod
+    def _new_temp_name() -> str:
+        return f".carrier-tmp-{os.urandom(16).hex()}"
+
+    def put(self, relative_name: str, data: bytes) -> str:
+        with self._parent_fd(relative_name) as (parent_fd, leaf):
+            temporary = self._new_temp_name()
+            temp_fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=parent_fd)
+            try:
+                with os.fdopen(temp_fd, "wb") as handle:
+                    handle.write(data)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temporary, leaf, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+                self._fsync_directory_fd(parent_fd)
+            finally:
+                try:
+                    os.unlink(temporary, dir_fd=parent_fd)
+                except FileNotFoundError:
+                    pass
+        return relative_name
+
     def get(self, relative_name: str) -> bytes:
-        return self._resolve(relative_name).read_bytes()
+        with self._parent_fd(relative_name) as (parent_fd, leaf):
+            fd = os.open(leaf, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0), dir_fd=parent_fd)
+            try:
+                with os.fdopen(fd, "rb") as handle:
+                    return handle.read()
+            except Exception:
+                raise
 
     def delete(self, relative_name: str) -> None:
-        target = self._resolve(relative_name)
-        if target.exists():
-            target.unlink()
-            self._fsync_directory(target.parent)
+        with self._parent_fd(relative_name) as (parent_fd, leaf):
+            try:
+                os.unlink(leaf, dir_fd=parent_fd)
+            except FileNotFoundError:
+                return
+            self._fsync_directory_fd(parent_fd)
 
     def contains(self, relative_name: str) -> bool:
-        return self._resolve(relative_name).is_file()
+        with self._parent_fd(relative_name) as (parent_fd, leaf):
+            try:
+                stat_result = os.stat(leaf, dir_fd=parent_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                return False
+            return stat_result.st_mode & 0o170000 == 0o100000
