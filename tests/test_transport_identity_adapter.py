@@ -1,4 +1,6 @@
+import json
 import socket
+import struct
 import threading
 
 import pytest
@@ -38,6 +40,29 @@ def test_framed_localhost_request() -> None:
     response = LocalhostTransport().request(port, {"operation": "ping"})
     thread.join(timeout=2)
     assert response == {"ok": True}
+
+
+def test_recv_message_rejects_duplicate_json_keys() -> None:
+    left, right = socket.socketpair()
+    try:
+        payload = b'{"operation":"ping","operation":"execute"}'
+        left.sendall(struct.pack("!I", len(payload)) + payload)
+        with pytest.raises(ValueError, match="duplicate JSON object key"):
+            recv_message(right)
+    finally:
+        left.close()
+        right.close()
+
+
+def test_recv_message_accepts_nested_unique_json_objects() -> None:
+    left, right = socket.socketpair()
+    try:
+        payload = json.dumps({"operation": "execute", "args": {"mode": "safe"}}).encode("utf-8")
+        left.sendall(struct.pack("!I", len(payload)) + payload)
+        assert recv_message(right) == {"operation": "execute", "args": {"mode": "safe"}}
+    finally:
+        left.close()
+        right.close()
 
 
 def test_native_adapter_requires_admission() -> None:
