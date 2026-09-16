@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2a7e26e06d05643ebd03b0357f5437de50bf4ae4`
+- Latest repository head: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`
 - Latest validated implementation: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`
 - Updated: 2026-09-16
 
@@ -12,7 +12,7 @@
 - started_at: `2026-09-16T14:57:00Z`
 - base_commit: `2971a0fb39245c9226c1715674787d86063607e9`
 - area: snapshot deserialization schema integrity
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `docs/AGENT_STEP_2026-09-16_snapshot-schema-recon.md`, `AGENT_STATUS.md`
+- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed persisted snapshots from being coerced into authoritative snapshot state before identity and Merkle verification
 - status: VALIDATING
 - repository_research: `Snapshot.from_bytes()` validated object IDs and final identity/Merkle root, but coerced snapshot_id/generation/created_ns and did not enforce exact top-level fields or metadata types. `SnapshotStore.get()` separately validates the path key.
@@ -21,9 +21,10 @@
 - decision: harden only `Snapshot.from_bytes()` with exact envelope/type/range validation, canonical SHA-256 identifiers, metadata validation, and no identity/Merkle semantic changes; add rejection-path regressions.
 - implementation: `4e90eedc7608f5541051ce5eda9a18ceafe9d5eb`
 - regression_tests: `2a7e26e06d05643ebd03b0357f5437de50bf4ae4`
-- validation: GitHub Actions CI run `35112228074` is queued; all 18 jobs are currently queued. No green result is claimed yet.
-- result: not yet validated.
-- next_step: observe CI `35112228074`; if green, record the validated head and close this boundary. If red, inspect the exact failing job/log before any further source changes.
+- followup_test_alignment: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`
+- validation: CI `35112228074` failed across Python matrix jobs because the existing regression expected `snapshot identity verification failed` for an uppercase persisted object ID, while strict parser validation correctly rejected it earlier as `invalid snapshot object id`. The failure is test expectation drift, not a source failure. The regression expectation was aligned with the new strict boundary in `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`.
+- result: pending revalidation on the follow-up CI run.
+- next_step: observe the CI run for `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`; if green, record validated head and close this boundary. If red, inspect exact failing job/log before source changes.
 
 ## Closed boundaries
 - manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
