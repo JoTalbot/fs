@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `6fea1864be14bc67f77400607aca5abfa127ecf9`
-- Latest validated implementation: `d98f7b0365f0b8f5696dda37e67cccb2d933af29`
+- Latest repository head: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`
+- Latest validated implementation: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`
 - Updated: 2026-09-16
 
 ## Active step
@@ -18,18 +18,24 @@
 - base_commit: `6fea1864be14bc67f77400607aca5abfa127ecf9`
 - area: durable workspace transfer journal schema integrity
 - claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-16_transfer-journal-schema-recon.md`, `AGENT_STATUS.md`
-- goal: determine and, if reproducible, close malformed persisted transfer-journal records that can be coerced into authoritative state instead of being rejected fail-closed
-- status: CLAIMED / RESEARCHED
-- research: current replay parser validates the hash chain and digest before constructing `TransferJournalEntry`, but coerces persisted identity fields with `str(...)`, accepts boolean-as-integer version values through Python equality, and does not reject unexpected record fields. This mirrors the previously hardened revocation-record schema boundary and can collapse malformed durable input into a valid in-memory journal identity.
-- external_research: OWASP Transaction Authorization guidance requires transaction state transitions and significant transaction data to be protected from modification and checked again at execution; OWASP Authorization guidance requires default-deny and server-side enforcement. RFC 8259/RFC 8785 style canonical JSON work and the repository's revocation hardening establish strict type/schema validation before interpreting durable security state.
-- skill_discovery: external authorization/security-audit skills were inspected as methodology only. No external skill should override `fs-agent-core`; no narrower skill was found that materially replaces the repository-local durable-journal workflow.
-- decision: treat persisted transfer-journal records as an exact schema boundary. If the malformed-type/extra-field acceptance is confirmed by a regression, harden replay to reject schema violations before constructing authoritative entries and preserve the existing hash-chain verification.
-- evidence: current `workspace_transfer_journal.py` and `tests/test_workspace_transfer_journal.py` were re-read from `main`; exact parser weakness is visible in the current code. Fresh external sources: OWASP Transaction Authorization, OWASP Authorization, NIST least privilege/security controls, and current Agent Skill security/authorization references.
+- goal: close malformed persisted transfer-journal records that could be coerced into authoritative state instead of being rejected fail-closed
+- status: HANDED_OFF
+- research: replay previously validated the hash chain/digest but coerced persisted identity fields with `str(...)`, accepted boolean-as-integer version values through Python equality, and did not reject unexpected record fields. This could normalize malformed durable data into a valid in-memory transaction identity.
+- external_research: OWASP Transaction Authorization guidance requires controlled transaction state transitions, protection of significant transaction data, and a final execution authorization check. OWASP Authorization guidance requires server-side default-deny enforcement. NIST least-privilege guidance supports explicit bounded authority. JSON canonicalization/integrity does not replace semantic schema validation.
+- skill_discovery: external authorization/security-audit skills were inspected as methodology only. No external skill should override `fs-agent-core`; no narrower skill materially replaces the repository-local durable-journal workflow.
+- decision: treat the transfer journal as an exact durable schema and reject malformed types or unexpected fields before constructing authoritative entries while preserving digest/hash-chain verification.
+- changes: `workspace_transfer_journal.py` now enforces the exact record field set, strict scalar types, non-empty identity strings, destination null-or-string semantics, and 64-hex digest formats. `tests/test_workspace_transfer_journal.py` adds digest-valid regressions for boolean version coercion, integer transaction-id coercion, and unexpected fields. Recon is recorded in `docs/AGENT_STEP_2026-09-16_transfer-journal-schema-recon.md`.
+- validation: CI run `35110171327` / run number `751` for implementation `c51a7315cd832517d1f58c1b9196dde86f14dd3c` completed all 18 configured Python and candidate crypto-provider jobs successfully. This is repository semantic/CI evidence only, not production qualification.
+- evidence: implementation commit `efd46b027ab0366c83c3cd536095a043a0d93f39`; regression commit `c51a7315cd832517d1f58c1b9196dde86f14dd3c`; CI `35110171327` all 18 jobs passed; status synchronization follows in this commit.
 - blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle including destruction evidence, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
-- next_step: implement the smallest strict replay-schema hardening and targeted regressions, then validate through GitHub Actions.
+- next_step: perform fresh repository/internet/skill reconnaissance for another non-overlapping production boundary; do not repeat closed journal schema, lifecycle, transport re-authentication, trust-root, revocation-race, path-isolation, dependency-review, or OSV topics.
 
 ## Latest work
 
+- `c51a7315cd832517d1f58c1b9196dde86f14dd3c` — strict transfer-journal schema regressions; CI `35110171327` passed all 18 configured jobs.
+- `efd46b027ab0366c83c3cd536095a043a0d93f39` — strict transfer-journal replay schema hardening.
+- `67d6c0254989f26e12103f741b70520ea74c9faa` — transfer-journal schema reconnaissance.
+- `8d2ced5cd580661afbc55b96f381960c5540e2f0` — claimed the durable journal schema step.
 - `6fea1864be14bc67f77400607aca5abfa127ecf9` — key destruction/zeroization provider-boundary reconnaissance; no current code defect found.
 - `6e93183d0f425bb5f59d59766ee9f8a90085af77` — authenticated/encrypted transport provider-boundary reconnaissance; no current code defect found.
 - `cdc87f1e0a874610abf4962d72e32004e53bc327` — revocation/execution-race reconnaissance; no current code defect found.
@@ -39,7 +45,7 @@
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35107370479` is positive validation evidence for corrected implementation head `d98f7b0365f0b8f5696dda37e67cccb2d933af29`; all 18 configured Python and candidate crypto-provider jobs completed successfully. The earlier run `35107179255` is retained as negative evidence for the initial implementation. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35110171327` is positive validation evidence for implementation head `c51a7315cd832517d1f58c1b9196dde86f14dd3c`; all 18 configured Python and candidate crypto-provider jobs completed successfully. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 The Dependency Review workflow was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This is retained as negative environment evidence; the unsupported workflow was removed from main.
 
