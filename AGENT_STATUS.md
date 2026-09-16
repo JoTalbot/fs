@@ -2,36 +2,38 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head before validation: `65300b40d9920dd37e22650c6689968e53231577`
-- Latest validated implementation: `c8f3ecc16c1a66ba9b83a888b787c0f6b3bd9456`
+- Latest repository head before validation: `ebcf0583599ea29da105ee8c04837ea5d33e9805`
+- Latest validated implementation: `bb2f83de9352d0c2262dede5e93c6eaa053dfe55`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T22:00:00Z`
-- base_commit: `8b9fbc17885f7abf859d5bc44d544e916265f874`
-- area: production key-destruction qualification evidence
-- claimed_files: `docs/PRODUCTION_PROVIDER_RUNBOOK.md`, `docs/AGENT_STEP_2026-09-16_key-destruction-provider-qualification.md`, `AGENT_STATUS.md`
-- goal: make deployment qualification explicitly require evidence for destruction/zeroization of private and symmetric key material without inventing a generic destruction implementation in FS core
+- base_commit: `e93a0dc465ffd41753122e7e92bd4d965867e251`
+- area: release artifact provenance and SBOM qualification
+- claimed_files: `.github/workflows/release-provenance.yml`, `docs/AGENT_STEP_2026-09-16_release-provenance-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: establish a controlled release-shaped build path that binds exact Python artifacts to SHA-256 evidence, reproducible CycloneDX SBOM data, and GitHub artifact attestations without claiming production security certification
 - status: VALIDATING
-- repository_research: existing key-destruction reconnaissance concluded that `KeyLifecycle` is an authorization/lifecycle contract and does not own plaintext key material; `SecureKeyStore` is an injected provider boundary. Existing production qualification documentation did not explicitly enumerate destruction/zeroization, retained copies, or provider-side completion evidence in the runbook.
-- external_research: NIST SP 800-57 Part 1 Rev. 5 defines key destruction as removal of all traces of keying material; OWASP Key Management guidance treats destruction/zeroization as a lifecycle requirement and emphasizes protected key-management mechanisms.
-- external_skill: inspected current external security-review skills as methodology only. No external executable skill was adopted or granted authority over `fs-agent-core`.
-- decision: do not add a generic `DESTROYED` state or memory-zeroization implementation to the reference lifecycle. Add explicit production-provider evidence requirements instead.
-- change: `docs/PRODUCTION_PROVIDER_RUNBOOK.md` now requires destruction/zeroization behavior, treatment of backups/replicas/caches, metadata retention, and evidence that the authoritative provider or cryptographic module performs destruction. `RETIRED`/`REVOKED` are explicitly not treated as destruction evidence.
-- documentation record: `docs/AGENT_STEP_2026-09-16_key-destruction-provider-qualification.md`
-- next_step: observe CI for head `65300b40d9920dd37e22650c6689968e53231577`; if successful, synchronize status as HANDED_OFF and continue only with a fresh non-overlapping production-boundary question.
+- repository_research: existing CI covered source tests and candidate crypto-provider semantics but had no release artifact build/provenance workflow. `pyproject.toml` defines `fs-overlay` 0.1.0 with setuptools PEP 517 metadata and no mandatory runtime dependencies.
+- external_research: GitHub artifact attestations bind artifacts to workflow/repository/commit/event provenance and require verification for security value. `actions/attest` supports provenance and SBOM attestations. CycloneDX Python 7.3.1 supports reproducible environment SBOM generation.
+- external_skill: no separate external release skill was adopted; repository `fs-agent-core` remains authoritative.
+- decision: implement a release-only/manual provenance workflow rather than adding provenance to ordinary test CI. Keep production-security certification blocked until actual artifact verification and provider/security evidence exist.
+- change: `.github/workflows/release-provenance.yml` builds sdist/wheel, creates SHA-256 manifest, generates a reproducible validated CycloneDX SBOM from an isolated target environment, uploads release evidence, and creates provenance/SBOM attestations. All GitHub Actions are pinned to immutable SHAs.
+- implementation commits: `08086148aa813fa133ea41ace1bced2612f641e4`, followed by pin correction `5674db6e791b58fcc8a870c790a2df30c8810983`.
+- documentation record: `docs/AGENT_STEP_2026-09-16_release-provenance-recon.md` at `ebcf0583599ea29da105ee8c04837ea5d33e9805`.
+- next_step: execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event, then inspect build artifacts and attestation/SBOM verification evidence. Do not mark the release gate complete before observed verification.
 
 ## Completed step
 - durable federation admission replay schema: implementation `8ec5d67205400608746a163e344836e457b53f9f`, regression `c8f3ecc16c1a66ba9b83a888b787c0f6b3bd9456`, CI `35147076850` completed successfully.
 
 ## Current boundary
-- Closed boundaries include carrier TOCTOU isolation, durable quarantine parsing, directory durability, content-store read purity, transaction recovery, snapshot publication, manifest immutability, transaction commit-marker binding, bootstrap durability, trust-root parsing, journal parsing, manifest/snapshot/transfer/transport parsing, Genesis request/exception boundaries, event/audit schema integrity, federation envelope/quarantine integrity, admission/execution authority, recovery audit integrity, replay concurrency, federation replay sequence type validation, and the key-destruction provider qualification documentation boundary addressed in this step.
-- Transport re-authentication, trust-root binding, and revocation/execution race already have reconnaissance records and remain provider/deployment evidence boundaries rather than demonstrated core defects.
+- Closed boundaries include carrier TOCTOU isolation, durable quarantine parsing, directory durability, content-store read purity, transaction recovery, snapshot publication, manifest immutability, transaction commit-marker binding, bootstrap durability, trust-root parsing, journal parsing, manifest/snapshot/transfer/transport parsing, Genesis request/exception boundaries, event/audit schema integrity, federation envelope/quarantine integrity, admission/execution authority, recovery audit integrity, replay concurrency, federation replay sequence type validation, key-destruction provider qualification documentation, and CI action pinning.
+- Release artifact provenance is now implemented but not yet execution-validated.
+- Transport re-authentication, trust-root binding, and revocation/execution race remain provider/deployment evidence boundaries rather than demonstrated core defects.
 
 ## V1 blocker
-V1 remains blocked by concrete audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, authoritative trust/revocation infrastructure, target-specific recovery, independent security review, and release/supply-chain evidence.
+V1 remains blocked by concrete audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport, authoritative trust/revocation infrastructure, target-specific recovery, independent security review, and release/supply-chain verification evidence.
 
 ## Validation boundary
 GitHub Actions is authoritative because no local test runner is available. Never claim tests or security properties not actually observed. FreeBSD native CI remains intentionally disabled and outside the release gate.
