@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `98df891dcf7c81e23f59a5219f0c88f8954974b9`
+- Latest repository head: `68cf111d647f297492e97fc3c7235e95001e7514`
 - Latest validated implementation: `9a13fd0878c6c19e44a14378d51c8778fe52e827`
 - Updated: 2026-09-16
 
@@ -21,6 +21,7 @@
 - decision: the current carrier has a concrete TOCTOU isolation gap if an attacker can mutate carrier descendants concurrently. Do not patch it with another `resolve()`/`commonpath()` check. Design a platform-aware fail-closed carrier primitive: stable directory descriptors and no-follow traversal on POSIX, `openat2` semantics where available on Linux, and a dedicated reparse-point-aware path on Windows or an explicitly narrowed contract if equivalent enforcement cannot be established.
 - recon: `353ec5ead62c22e7cc53c5a98d760b945a007565`; platform-research extension `98df891dcf7c81e23f59a5219f0c88f8954974b9`.
 - implementation: none yet; no carrier runtime change has been made.
+- skill_learning: `68cf111d647f297492e97fc3c7235e95001e7514` added the durable TOCTOU isolation rule to `fs-agent-core`.
 - validation: no new runtime test was claimed; the current finding is from repository inspection and current platform/security documentation.
 - result: a real isolation boundary gap is recorded without manufacturing a false portable fix.
 - durable_learning: `[SECURITY] Canonical-path containment is not TOCTOU-safe. Filesystem isolation boundaries require stable handle/dirfd-based or kernel-enforced no-follow operations, and platform-specific limitations must be explicit rather than hidden behind Path.resolve().`
