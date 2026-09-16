@@ -72,7 +72,7 @@ def test_coordinator_wraps_admission_and_journal_write(tmp_path) -> None:
             return Guard()
 
     coordinator = RecordingCoordinator()
-    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
+    state = DurableFederationState(path=tmp_path / "events.journal", coordinator=coordinator)
     assert state.accept(message(1, "m1"))
     assert coordinator.resources == ["federation-events"]
     assert coordinator.entered == 1
@@ -101,7 +101,7 @@ def test_coordinator_context_is_released_when_admission_fails(tmp_path) -> None:
             return Guard()
 
     coordinator = RecordingCoordinator()
-    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
+    state = DurableFederationState(path=tmp_path / "events.journal", coordinator=coordinator)
     assert not state.accept(message(-1, "invalid"))
     assert coordinator.entered == 1
     assert coordinator.exited == 1
@@ -234,7 +234,7 @@ def test_malformed_durable_admission_details_fail_closed(tmp_path) -> None:
     """A federation admission event with non-object details is durable corruption."""
     path = tmp_path / "events.journal"
     state = DurableFederationState(path)
-    state.events.emit("federation.accepted", details=[])
+    state.events.emit("federation.accepted", details=["malformed"])
 
     try:
         DurableFederationState(path)
