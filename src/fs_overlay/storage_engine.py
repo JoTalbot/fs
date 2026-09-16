@@ -199,6 +199,8 @@ class JournalCorruption(ValueError):
 
 class AppendJournal:
     """Length-prefixed JSON journal; only an incomplete EOF tail is ignored on replay."""
+    _RECORD_FIELDS = frozenset({"version", "operation", "payload"})
+
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -237,46 +239,108 @@ class AppendJournal:
                     record = json.loads(body)
                 except json.JSONDecodeError as exc:
                     raise JournalCorruption("journal contains malformed JSON") from exc
-                if not isinstance(record, dict) or record.get("version") != FORMAT_VERSION:
-                    raise JournalCorruption("journal record is invalid")
+                if not isinstance(record, dict) or set(record) != self._RECORD_FIELDS:
+                    raise JournalCorruption("journal record schema is invalid")
+                if type(record["version"]) is not int or record["version"] != FORMAT_VERSION:
+                    raise JournalCorruption("journal record version is invalid")
+                if not isinstance(record["operation"], str) or not record["operation"]:
+                    raise JournalCorruption("journal operation is invalid")
+                if not isinstance(record["payload"], dict):
+                    raise JournalCorruption("journal payload is invalid")
                 yield record
 
 
 class Inventory:
+    _HEX_ID_LENGTH = 64
+    _OPERATIONS = frozenset({"transaction_begin", "transaction_commit", "transaction_abort", "commit", "delete"})
+
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.records: dict[str, ObjectRecord] = {}
         self.load()
 
+    @classmethod
+    def _require_nonempty_string(cls, value: object, field: str) -> str:
+        if not isinstance(value, str) or not value:
+            raise JournalCorruption(f"journal {field} must be a non-empty string")
+        return value
+
+    @classmethod
+    def _require_object_id(cls, value: object) -> str:
+        if (
+            not isinstance(value, str)
+            or len(value) != cls._HEX_ID_LENGTH
+            or any(char not in "0123456789abcdef" for char in value)
+        ):
+            raise JournalCorruption("journal object_id is invalid")
+        return value
+
+    @classmethod
+    def _validate_payload(cls, operation: str, payload: dict[str, object]) -> None:
+        if operation not in cls._OPERATIONS:
+            raise JournalCorruption("journal operation is invalid")
+        if operation in {"transaction_begin", "transaction_abort"}:
+            if set(payload) != {"transaction_id"}:
+                raise JournalCorruption("journal transaction payload schema is invalid")
+            cls._require_nonempty_string(payload["transaction_id"], "transaction_id")
+            return
+        if operation == "transaction_commit":
+            if set(payload) != {"transaction_id", "object_ids"}:
+                raise JournalCorruption("journal transaction commit schema is invalid")
+            cls._require_nonempty_string(payload["transaction_id"], "transaction_id")
+            object_ids = payload["object_ids"]
+            if not isinstance(object_ids, list):
+                raise JournalCorruption("journal object_ids must be a list")
+            for object_id in object_ids:
+                cls._require_object_id(object_id)
+            return
+        if operation == "delete":
+            if set(payload) != {"object_id"}:
+                raise JournalCorruption("journal delete payload schema is invalid")
+            cls._require_object_id(payload["object_id"])
+            return
+        allowed = {"object_id", "size", "manifest_path", "transaction_id"}
+        if set(payload) - allowed or not {"object_id", "size", "manifest_path"}.issubset(payload):
+            raise JournalCorruption("journal commit payload schema is invalid")
+        cls._require_object_id(payload["object_id"])
+        if type(payload["size"]) is not int or payload["size"] < 0:
+            raise JournalCorruption("journal size must be a non-negative integer")
+        manifest_path = cls._require_nonempty_string(payload["manifest_path"], "manifest_path")
+        if manifest_path != payload["object_id"]:
+            raise JournalCorruption("journal manifest_path does not match object_id")
+        if "transaction_id" in payload:
+            cls._require_nonempty_string(payload["transaction_id"], "transaction_id")
+
     def load(self) -> None:
         self.records.clear()
         pending: dict[str, list[dict[str, object]]] = {}
         for record in AppendJournal(self.path).replay():
-            payload = record["payload"]
             operation = record["operation"]
+            payload = record["payload"]
+            self._validate_payload(operation, payload)
             if operation == "transaction_begin":
-                pending[str(payload["transaction_id"])] = []
+                pending[payload["transaction_id"]] = []
                 continue
             if operation == "transaction_commit":
-                transaction_id = str(payload["transaction_id"])
+                transaction_id = payload["transaction_id"]
                 for staged in pending.pop(transaction_id, []):
                     self._apply_commit(staged)
                 continue
             if operation == "transaction_abort":
-                pending.pop(str(payload["transaction_id"]), None)
+                pending.pop(payload["transaction_id"], None)
                 continue
             if operation == "commit":
                 transaction_id = payload.get("transaction_id")
                 if transaction_id is not None:
-                    pending.setdefault(str(transaction_id), []).append(payload)
+                    pending.setdefault(transaction_id, []).append(payload)
                 else:
                     self._apply_commit(payload)
             elif operation == "delete":
-                self.records.pop(str(payload["object_id"]), None)
+                self.records.pop(payload["object_id"], None)
 
     def _apply_commit(self, payload: dict[str, object]) -> None:
-        oid = str(payload["object_id"])
-        self.records[oid] = ObjectRecord(oid, int(payload["size"]), str(payload["manifest_path"]))
+        oid = payload["object_id"]
+        self.records[oid] = ObjectRecord(oid, payload["size"], payload["manifest_path"])
 
 
 class MerkleDAG:
