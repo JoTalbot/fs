@@ -7,13 +7,23 @@ provides no authentication or filesystem mutation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import hashlib
 import json
 import os
 from pathlib import Path
 
 from .durable_coordination import FileAdmissionCoordinator
+
+
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous JSON objects before schema or integrity validation."""
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +64,7 @@ class RevocationRecord:
     @classmethod
     def from_line(cls, line: str) -> "RevocationRecord":
         try:
-            data = json.loads(line)
+            data = json.loads(line, object_pairs_hook=_reject_duplicate_object_keys)
             if not isinstance(data, dict):
                 raise ValueError
             if set(data) != {
