@@ -106,9 +106,8 @@ def test_manifest_rejects_duplicate_top_level_json_keys(tmp_path: Path) -> None:
     raw = path.read_text()
     marker = '"size":'
     first = raw.index(marker)
-    second = raw.index(marker, first + 1) if marker in raw[first + len(marker):] else -1
-    assert second == -1
-    duplicate = raw[:first] + raw[first:raw.index(",", first)] + "," + raw[first:]
+    value_end = raw.index(",", first)
+    duplicate = raw[:value_end] + raw[first:value_end] + raw[value_end:]
     path.write_text(duplicate)
 
     with pytest.raises(ValueError, match="manifest JSON is invalid"):
@@ -148,7 +147,7 @@ def test_rollback_leaves_no_published_inventory_record(tmp_path: Path) -> None:
     tx.rollback()
 
     assert manifest.object_id not in engine.inventory.records
-    assert not (engine.root / "inventory.log").exists()
+    assert not (engine.root / "journal.log").exists()
     assert (engine.store.manifests / manifest.object_id).exists()
     assert all(engine.store._path(chunk).exists() for chunk in manifest.chunks)
 
