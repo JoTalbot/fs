@@ -20,6 +20,9 @@ from .storage_engine import MerkleDAG, _canonical
 
 
 _OBJECT_ID_RE = re.compile(r"^[0-9a-f]{64}$")
+_QUARANTINE_FIELDS = {
+    "carrier_id", "reason", "observed_hash", "expected_hash", "timestamp_ns", "record_id"
+}
 
 
 def _validate_object_id(object_id: object) -> str:
@@ -282,9 +285,27 @@ class QuarantineLedger:
                     if len(body) != size:
                         raise ValueError("quarantine ledger corruption")
                     raw = json.loads(body)
-                    record = QuarantineRecord(str(raw["carrier_id"]), str(raw["reason"]),
-                                               raw.get("observed_hash"), raw.get("expected_hash"),
-                                               int(raw["timestamp_ns"]), str(raw["record_id"]))
+                    if not isinstance(raw, dict) or set(raw) != _QUARANTINE_FIELDS:
+                        raise ValueError("quarantine ledger corruption")
+                    carrier_id = raw["carrier_id"]
+                    reason = raw["reason"]
+                    observed_hash = raw["observed_hash"]
+                    expected_hash = raw["expected_hash"]
+                    timestamp_ns = raw["timestamp_ns"]
+                    record_id = raw["record_id"]
+                    if not isinstance(carrier_id, str) or not isinstance(reason, str):
+                        raise ValueError("quarantine ledger corruption")
+                    if observed_hash is not None and not isinstance(observed_hash, str):
+                        raise ValueError("quarantine ledger corruption")
+                    if expected_hash is not None and not isinstance(expected_hash, str):
+                        raise ValueError("quarantine ledger corruption")
+                    if type(timestamp_ns) is not int or timestamp_ns < 0:
+                        raise ValueError("quarantine ledger corruption")
+                    if not isinstance(record_id, str):
+                        raise ValueError("quarantine ledger corruption")
+                    record = QuarantineRecord(
+                        carrier_id, reason, observed_hash, expected_hash, timestamp_ns, record_id
+                    )
                 except (ValueError, json.JSONDecodeError, KeyError, TypeError) as exc:
                     raise ValueError("quarantine ledger corruption") from exc
                 result.append(record)
