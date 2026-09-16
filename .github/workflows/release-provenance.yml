@@ -76,3 +76,56 @@ jobs:
         with:
           subject-path: 'dist/*.whl'
           sbom-path: 'dist/fs-sbom.cdx.json'
+
+      - name: Verify release attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          verify_with_retry() {
+            local label="$1"
+            shift
+            for attempt in $(seq 1 10); do
+              if "$@"; then
+                echo "${label}: verified"
+                return 0
+              fi
+              if [ "$attempt" -lt 10 ]; then
+                echo "${label}: attestation not yet visible, retry ${attempt}/9" >&2
+                sleep 10
+              fi
+            done
+            echo "${label}: verification failed after 10 attempts" >&2
+            return 1
+          }
+
+          mapfile -t wheels < <(printf '%s\n' dist/*.whl)
+          mapfile -t sdists < <(printf '%s\n' dist/*.tar.gz)
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+
+          signer_workflow="${GITHUB_REPOSITORY}/.github/workflows/release-provenance.yml"
+
+          verify_with_retry "wheel provenance" \
+            gh attestation verify "${wheels[0]}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "${signer_workflow}" \
+              --source-ref "${GITHUB_REF}" \
+              --deny-self-hosted-runners
+
+          verify_with_retry "sdist provenance" \
+            gh attestation verify "${sdists[0]}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "${signer_workflow}" \
+              --source-ref "${GITHUB_REF}" \
+              --deny-self-hosted-runners
+
+          verify_with_retry "wheel CycloneDX SBOM" \
+            gh attestation verify "${wheels[0]}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --signer-workflow "${signer_workflow}" \
+              --source-ref "${GITHUB_REF}" \
+              --deny-self-hosted-runners \
+              --predicate-type 'https://cyclonedx.org/bom'
