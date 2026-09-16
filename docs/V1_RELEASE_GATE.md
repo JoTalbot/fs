@@ -4,7 +4,7 @@ This gate turns the current architecture into an evidence-based release checklis
 
 ## Required evidence
 
-- [x] CI green on every supported platform/runtime combination (latest validated candidate-provider matrix: CI #677, run `35098613033`, implementation head `a68fe13bc761ab42b7757d769440e6a7314d368d`).
+- [x] CI green on every supported platform/runtime combination (latest observed ordinary CI run `35159594918`, 18/18 configured jobs successful; implementation validated at `3570c55d57f744c563689975713e8fc43b09a172` and subsequent documentation heads also validated).
 - [x] Independent federation conformance consumer passes.
 - [x] Independent admission conformance passes.
 - [x] Storage transaction crash/restart recovery passes.
@@ -18,6 +18,8 @@ This gate turns the current architecture into an evidence-based release checklis
 - [x] Compatibility/version policy is documented.
 - [x] Minimal federation E2E lifecycle is reproducible from a clean environment.
 - [x] Two-node recovery scenario is reproducible.
+- [x] Release provenance workflow is implemented with pre-attestation artifact/SBOM validation and mandatory provenance/SBOM verification.
+- [ ] Release provenance workflow has completed an observed execution with verified wheel/sdist attestations and verified CycloneDX SBOM evidence.
 
 ## Release blockers
 
@@ -30,13 +32,14 @@ Any one of the following blocks release:
 5. Cryptography is described as confidential when it only provides integrity.
 6. CI or conformance evidence is missing for a supported target.
 7. A recovery or reconciliation operation is non-deterministic without an explicit reason.
+8. Release artifacts lack observed, cryptographically verified provenance/SBOM evidence.
 
 ## Current blocker
 
 The remaining V1 production-security blocker is concrete provider evidence. FS has semantic AEAD provider qualification tests and a green candidate-provider matrix, but the repository does not falsely certify its non-cryptographic test double or candidate adapter as an audited production implementation.
 
-Production release additionally requires concrete secure key storage and authenticated/encrypted transport adapters with their own qualification evidence.
+Production release additionally requires concrete secure key storage and authenticated/encrypted transport adapters with their own qualification evidence. The release workflow is implemented, but its actual execution and resulting attestation evidence remain unobserved.
 
 ## Evidence principle
 
-A feature is not considered production-ready merely because its implementation exists. V1 requires executable evidence, independent conformance where practical, and explicit failure behavior.
+A feature is not considered production-ready merely because its implementation exists. V1 requires executable evidence, independent conformance where practical, explicit failure behavior, and observed release provenance verification.
