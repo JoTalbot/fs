@@ -62,3 +62,15 @@ def test_snapshot_rejects_noncanonical_object_ids_when_reading(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="snapshot identity verification failed"):
         store.get(valid.snapshot_id)
+
+
+@pytest.mark.parametrize("snapshot_id", ["../outside", "../../etc/passwd", "/etc/passwd", "C:\\\\outside"])
+def test_snapshot_rejects_noncanonical_ids_before_path_lookup(tmp_path: Path, snapshot_id: str) -> None:
+    store = SnapshotStore(tmp_path / "snapshots")
+    outside = tmp_path / "outside"
+    outside.write_bytes(b"must remain inaccessible")
+
+    with pytest.raises(ValueError, match="invalid snapshot id"):
+        store.get(snapshot_id)
+
+    assert outside.read_bytes() == b"must remain inaccessible"
