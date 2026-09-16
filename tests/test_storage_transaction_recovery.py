@@ -294,3 +294,27 @@ def test_journal_rejects_malformed_transaction_commit_payload(tmp_path: Path) ->
     })
     with pytest.raises(JournalCorruption, match="object_id"):
         LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_duplicate_top_level_field_before_schema_validation(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    body = b'{"operation":"delete","payload":{"object_id":"' + b"0" * 64 + b'"},"version":1,"version":1}'
+    with engine.journal.path.open("ab") as handle:
+        handle.write(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(JournalCorruption, match="malformed JSON"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_duplicate_nested_payload_field_before_inventory_mutation(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    object_id = "0" * 64
+    body = (
+        b'{"operation":"delete","payload":{"object_id":"' + object_id.encode()
+        + b'","object_id":"' + object_id.encode() + b'"},"version":1}'
+    )
+    with engine.journal.path.open("ab") as handle:
+        handle.write(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(JournalCorruption, match="malformed JSON"):
+        LocalStorageEngine(tmp_path)
