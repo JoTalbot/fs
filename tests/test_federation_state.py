@@ -72,7 +72,7 @@ def test_coordinator_wraps_admission_and_journal_write(tmp_path) -> None:
             return Guard()
 
     coordinator = RecordingCoordinator()
-    state = DurableFederationState(path=tmp_path / "events.journal", coordinator=coordinator)
+    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
     assert state.accept(message(1, "m1"))
     assert coordinator.resources == ["federation-events"]
     assert coordinator.entered == 1
@@ -101,7 +101,7 @@ def test_coordinator_context_is_released_when_admission_fails(tmp_path) -> None:
             return Guard()
 
     coordinator = RecordingCoordinator()
-    state = DurableFederationState(path=tmp_path / "events.journal", coordinator=coordinator)
+    state = DurableFederationState(tmp_path / "events.journal", coordinator=coordinator)
     assert not state.accept(message(-1, "invalid"))
     assert coordinator.entered == 1
     assert coordinator.exited == 1
