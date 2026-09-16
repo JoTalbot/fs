@@ -2,29 +2,26 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `090919e0fc0561312f5691cfeaa38e13243358d7`
+- Latest repository head: `09b221d612d01c6e5d6dc55e83c3c219dcfab27e`
 - Latest validated implementation: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T14:57:00Z`
-- base_commit: `2971a0fb39245c9226c1715674787d86063607e9`
-- area: snapshot deserialization schema integrity
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-schema-recon.md`, `AGENT_STATUS.md`
-- goal: prevent malformed persisted snapshots from being coerced into authoritative snapshot state before identity and Merkle verification
-- status: CLOSED
-- repository_research: `Snapshot.from_bytes()` now validates the persisted envelope before constructing authoritative state: exact top-level fields, exact scalar/list/dict types, nonnegative generation/timestamp constraints, canonical lowercase SHA-256 identifiers, and metadata string keys/values. Identity and Merkle verification semantics remain unchanged after schema validation.
-- external_research: OWASP Input Validation recommends syntactic and semantic validation, exact types/ranges, and rejection of unexpected content; the decision is to enforce that boundary at persisted snapshot deserialization rather than rely on coercion.
-- skill_discovery: canonical `fs-agent-core` inspected. No additional external skill with a materially better fit was identified during this reconnaissance.
-- decision: harden only `Snapshot.from_bytes()` with exact envelope/type/range validation, canonical SHA-256 identifiers, metadata validation, and no identity/Merkle semantic changes; add rejection-path regressions.
-- implementation: `4e90eedc7608f5541051ce5eda9a18ceafe9d5eb`
-- regression_tests: `2a7e26e06d05643ebd03b0357f5437de50bf4ae4`
-- followup_test_alignment: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`
-- validation: CI run `35112519148` (run 770) for `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0` completed successfully. All 18 configured Python/crypto-provider jobs passed. The earlier CI `35112228074` failure was limited to an outdated test expectation; no source failure was observed.
-- result: snapshot persisted-schema boundary validated across the configured CI matrix.
-- next_step: proceed to the next fresh reconnaissance boundary; do not reopen snapshot schema work without a newly observed defect.
+- started_at: `2026-09-16T15:04:00Z`
+- base_commit: `09b221d612d01c6e5d6dc55e83c3c219dcfab27e`
+- area: durable trust-root record schema integrity
+- claimed_files: `src/fs_overlay/trust_roots.py`, `tests/test_trust_roots.py`, `docs/AGENT_STEP_2026-09-16_trust-root-record-schema-recon.md`, `AGENT_STATUS.md`
+- goal: prevent malformed persisted trust-root records from being coerced into authoritative trust-root state before digest and hash-chain validation
+- status: IMPLEMENTING
+- repository_research: `TrustRootRecord.from_line()` validates the final digest and replay chain but currently coerces persisted `sequence`, identity, and digest fields with `int()`/`str()`, and does not reject unexpected fields before record construction. `DurableTrustRootStore._replay()` then treats the parsed record as authoritative trust-root state.
+- external_research: OWASP input-validation guidance recommends early syntactic/semantic validation, strong types/ranges, schema validation, and rejection of unexpected content. NIST SP 800-57 identifies trust anchors as foundational key-management material whose authenticity and integrity are security-critical assumptions.
+- skill_discovery: canonical `fs-agent-core` inspected; no additional external skill with a materially better fit was identified.
+- decision: harden only `TrustRootRecord.from_line()` with exact persisted field/type validation, reject bool-as-integer sequence values, validate canonical SHA-256 fields and semantic ranges before digest/hash-chain use, and preserve existing trust-root authority and replay semantics.
+- reconnaissance: `docs/AGENT_STEP_2026-09-16_trust-root-record-schema-recon.md`, commit `09b221d612d01c6e5d6dc55e83c3c219dcfab27e`
+- validation: pending implementation and GitHub Actions validation; no local runner is available.
+- next_step: reread `src/fs_overlay/trust_roots.py` and `tests/test_trust_roots.py` at current blob SHAs, implement strict persisted schema parsing, add deterministic negative regressions, then observe the full configured CI matrix.
 
 ## Closed boundaries
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
