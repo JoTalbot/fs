@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `e6eeba1d9aa39603a733465757fefedd5a2e09ea`
+- Latest repository head: `2a30ddef33440f2aab5bab1df943faf37d9de2bb`
 - Latest validated implementation: `d98f7b0365f0b8f5696dda37e67cccb2d933af29`
 - Updated: 2026-09-16
 
@@ -15,21 +15,22 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T14:15:00Z`
-- base_commit: `98ca71af4cfa9093a8639f554b2097df30db77ee`
-- area: secure key-store overwrite semantics
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `src/fs_overlay/production_adapters.py`, `src/fs_overlay/adapter_conformance.py`, `tests/test_adapter_conformance.py`, `docs/AGENT_STEP_2026-09-16_secure-key-store-overwrite-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: prevent silent replacement of key material under an existing key ID at the SecureKeyStore qualification boundary while preserving explicit key rotation semantics
-- status: COMMITTED. Corrected head `d98f7b0365f0b8f5696dda37e67cccb2d933af29` completed the dedicated CI matrix `35107370479` successfully across all 18 configured jobs.
-- research: current SecureKeyStore is an injected boundary whose prior contract did not define overwrite behavior. The reusable conformance harness previously checked empty IDs/material and round-trip behavior but permitted a provider to overwrite an existing key ID. Federation documentation treats key-ID reuse with different identity as security-sensitive and not something that may happen silently. NIST SP 800-57 emphasizes protection and management of cryptographic keying material; OWASP recommends protected key storage and controlled rotation. External security-review skill guidance treats secret handling and unsafe rotation assumptions as security-review surfaces.
-- decision: qualify `store()` as create-only for an existing key ID: a second store under the same ID must fail closed rather than silently replace material. Key rotation remains represented by explicit lifecycle/key IDs and is not implemented as a hidden overwrite mechanism. This is a semantic adapter contract, not production secure-storage certification.
-- evidence: implementation commits `81036be292341e8e3d93ef3a8b22e73170c399a5`, `da312fe43a65fa5d1831b2248ec40c2ae852411d`, `e0609f077dd6a671b0449d9fb3153a1f32881730`; fixture correction `d98f7b0365f0b8f5696dda37e67cccb2d933af29`; research `436e4721f4ce055a6863717d74c1fb50f851632a`; skill learning `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`; log `cb8d7917a80e084f3d6256c27692640e24a6c0a4`; validation run `35107370479`.
-- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
+- base_commit: `e6eeba1d9aa39603a733465757fefedd5a2e09ea`
+- area: authenticated identity / trust-root provider boundary
+- claimed_files: `AGENT_STATUS.md`, `src/fs_overlay/identity_verification.py`, `src/fs_overlay/identity_preflight.py`, `src/fs_overlay/production_adapters.py`, `tests/test_identity_verification.py`, `docs/IDENTITY_VERIFICATION_BOUNDARY.md`, `docs/PRODUCTION_REFERENCE_PROFILE.md`, `docs/AGENT_STEP_2026-09-16_trust-root-binding-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- goal: determine whether the trust-root-to-principal binding has a reproducible repository-level fail-open gap without inventing deployment-specific trust infrastructure
+- status: HANDED_OFF. Reconnaissance found no reproducible fail-open defect and no code change was justified.
+- research: `TrustRootStore` performs authoritative issuer admission; `PrincipalVerifier` is explicitly responsible for cryptographic verification and binding signed claims to the trust-root context; node/key admission is a separate authoritative gate. NIST SP 800-57 Part 1 Rev. 5 treats trust anchors and revocation as key-management infrastructure that must remain authoritative.
+- decision: do not add a second core-side trust-root fingerprint interpretation. The apparent omission is not a demonstrated fail-open defect because the injected verifier contract already requires authoritative claim binding to the trust-root context.
+- evidence: reconnaissance document `docs/AGENT_STEP_2026-09-16_trust-root-binding-recon.md`; documentation commit `2a30ddef33440f2aab5bab1df943faf37d9de2bb`. No runtime tests were run because no implementation changed.
+- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond semantic CI controls.
 - next_step: perform fresh repository, internet, and skill reconnaissance for the next concrete provider-boundary contract gap; modify code only if a reproducible fail-closed defect is found. Otherwise preserve the explicit production-evidence blocker and avoid speculative provider implementation.
 
 ## Latest work
 
-- `d98f7b0365f0b8f5696dda37e67cccb2d933af29` — corrected SecureKeyStore negative-test expectation after CI exposed the new invariant's earlier failure ordering; CI `35107370479` subsequently passed all 18 configured jobs.
-- `cb8d7917a80e084f3d6256c27692640e24a6c0a4` — durable log of the CI fixture failure and correction decision.
+- `2a30ddef33440f2aab5bab1df943faf37d9de2bb` — trust-root binding reconnaissance; no code defect found.
+- `d98f7b0365f0b8f5696dda37e67cccb2d933af29` — corrected SecureKeyStore negative-test expectation; CI `35107370479` passed all 18 configured jobs.
+- `cb8d7917a80e084f3d6256c27692640e24a6c0a4` — durable log of the SecureKeyStore CI fixture failure and correction decision.
 - `e0609f077dd6a671b0449d9fb3153a1f32881730` — SecureKeyStore create-only conformance regression and intentionally overwriting-provider negative test.
 - `81036be292341e8e3d93ef3a8b22e73170c399a5` — SecureKeyStore protocol contract now explicitly documents create-only semantics.
 - `436e4721f4ce055a6863717d74c1fb50f851632a` — SecureKeyStore overwrite reconnaissance and decision record.
@@ -61,6 +62,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 2. Keep the validated OSV vulnerability workflow on main as a CI control; do not treat it as production provenance.
 3. Keep the strict revocation record parser hardening on main; its CI validation is semantic/integrity evidence, not production trust qualification.
 4. Keep SecureKeyStore overwrite qualification limited to an adapter semantic contract; do not implement a deployment-specific key vault or secret store.
-5. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-6. Validate any new implementation through GitHub Actions before treating it as evidence.
-7. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+5. Trust-root binding remains an explicit provider boundary; do not duplicate deployment-specific certificate/trust semantics in FS core without a demonstrated contract defect.
+6. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+7. Validate any new implementation through GitHub Actions before treating it as evidence.
+8. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
