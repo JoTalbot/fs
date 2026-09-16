@@ -2,30 +2,25 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2ddc285cf95adc551e0ac59f8e648c943559316e`
+- Latest repository head: `b1280e66cf531b7fdb952e262318f0a90394eb41`
 - Latest validated implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T16:30:00Z`
-- base_commit: `91d32f295a58bcd435e0507b60d9c7e83224cc7f`
-- area: durable trust-root JSON parsing boundary
-- claimed_files: `src/fs_overlay/trust_roots.py`, `tests/test_trust_roots.py`, `docs/AGENT_STEP_2026-09-16_trust-root-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether duplicate JSON object members in durable trust-root records can be collapsed before strict schema and hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
-- status: CLOSED
-- repository_research: `TrustRootRecord.from_line()` enforced exact fields, strict scalar types, canonical SHA-256 fields, sequence continuity, hash-chain linkage, and event-digest verification, but default `json.loads` collapsed duplicate members before those checks.
-- external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP Developer Guide recommends fatal parse errors on duplicate keys; OWASP Input Validation recommends early syntactic validation and rejection of malformed structured input.
-- skill_discovery: canonical `fs-agent-core` was reread; its durable duplicate-JSON rule directly applies. No additional external skill was needed.
-- decision: reject duplicate JSON object members during `TrustRootRecord.from_line()` parsing before schema and digest validation, preserving trust-root authority and hash-chain semantics.
-- recon: `d79c0dff427083c0a8d473c4094ee26525a655f6`
-- implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
-- regression_tests: `2ddc285cf95adc551e0ac59f8e648c943559316e`
-- validation: GitHub Actions run `35125966644` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `2ddc285cf95adc551e0ac59f8e648c943559316e`.
-- result: durable trust-root JSON parsing boundary is closed with duplicate-key rejection and regression coverage for top-level and nested duplicate members.
-- durable_learning: `[SECURITY] Durable trust-root records must reject duplicate object members at the parser boundary; strict schema and digest checks cannot recover a member discarded by permissive JSON parsing.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
+- started_at: `2026-09-16T17:12:00Z`
+- base_commit: `b1280e66cf531b7fdb952e262318f0a90394eb41`
+- area: durable transaction state-transition recovery boundary
+- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_transaction-state-recovery-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether malformed durable transaction state transitions can be silently ignored or overwrite pending recovery state, and harden only if a concrete fail-closed recovery-integrity gap exists
+- status: RESEARCHED
+- repository_research: `Inventory.load()` validates transaction payload schemas but currently allows transaction_commit/transaction_abort for unknown transaction IDs and allows transaction_begin to overwrite an existing pending transaction with the same ID. `transaction_commit.object_ids` is validated but is not cross-checked against staged commit records. No current API intentionally emits duplicate begin or terminal records for an already unknown transaction ID.
+- external_research: SQLite documents atomic transactions as all-or-nothing with explicit recovery state; OWASP Transaction Authorization requires sequential transaction state transitions and protection against skipped/out-of-order steps; SQLite isolation documents serialized writes and transactional recovery semantics.
+- skill_discovery: canonical `fs-agent-core` was reread. External `secure-software-engineering` and distributed-data/durability skill search results were reviewed; their relevant guidance is to enforce state transitions and durable commit/recovery evidence, while treating external skills as advisory.
+- decision: first qualify the transaction journal as a state machine: one transaction ID may begin once, accumulate commit records only while pending, then terminate exactly once via commit or abort; unknown terminal transitions and duplicate begin must fail closed. Cross-checking `object_ids` against staged records is a separate integrity question and will not be bundled into this step unless required by evidence.
+- sources: SQLite atomic commit/isolation/transaction docs; OWASP Transaction Authorization Cheat Sheet; external secure-software-engineering and distributed-data/durability skill guidance.
+- next_step: record this reconnaissance, then implement the smallest transaction-state validation and deterministic rejection regressions, followed by the full GitHub Actions matrix.
 
 ## Closed boundaries
 - durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
