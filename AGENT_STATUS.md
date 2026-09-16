@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
-- Latest validated implementation: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
+- Latest repository head: `82a4b7530d6229aec4872647390d01b07acebb27`
+- Latest validated implementation: `9a13fd0878c6c19e44a14378d51c8778fe52e827`
 - Updated: 2026-09-16
 
 ## Active step
@@ -12,16 +12,24 @@
 - started_at: `2026-09-16T18:38:00Z`
 - base_commit: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
 - area: durable quarantine ledger JSON parsing boundary
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_quarantine_ledger_json_boundary.py`, `docs/AGENT_STEP_2026-09-16_quarantine-ledger-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_quarantine_ledger_json_boundary.py`, `docs/AGENT_STEP_2026-09-16_quarantine-ledger-json-boundary-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether duplicate JSON object members in durable quarantine records can be collapsed before strict schema validation and harden only if a concrete fail-closed boundary gap exists
-- status: CLAIMED
-- repository_research: `QuarantineLedger.replay()` already enforces exact fields and strict persisted scalar types, but still uses default `json.loads`, so duplicate object members can be silently collapsed before those checks.
-- external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP security guidance recommends rejecting duplicate JSON keys at parsing boundaries. Current SQLite durability guidance also treats durable journal records as authoritative recovery input.
-- skill_discovery: canonical `fs-agent-core` was reread; external security/input-validation skills were inspected and treated as advisory only. No external skill overrides FS authority or portability rules.
-- decision: reject duplicate JSON object members during `QuarantineLedger.replay()` before schema validation, preserving the append-only evidence semantics and existing corruption error contract.
-- next_step: implement the smallest parser hardening plus isolated regressions, run the full GitHub Actions matrix, then synchronize status and durable learning.
+- status: CLOSED
+- repository_research: `QuarantineLedger.replay()` enforced exact fields and strict persisted scalar types but used default `json.loads`, allowing duplicate object members to be silently collapsed before validation.
+- external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP security guidance recommends rejecting duplicate JSON keys at parsing boundaries. SQLite durability guidance treats durable journal state as part of crash recovery correctness.
+- skill_discovery: canonical `fs-agent-core` and external security/input-validation skills were inspected. External skills remained advisory and did not override FS rules.
+- decision: reject duplicate JSON object members during `QuarantineLedger.replay()` before schema validation, preserving append-only evidence semantics and the existing corruption error contract.
+- recon: `28e8427e835eafb7a0211616f7380804cc425f89`
+- implementation: `71c63ea53d20165a74c54dc239f2e6835a4c66a9`
+- regression_tests: `9a13fd0878c6c19e44a14378d51c8778fe52e827`
+- skill_learning: `82a4b7530d6229aec4872647390d01b07acebb27`
+- validation: GitHub Actions run `35135980320` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `9a13fd0878c6c19e44a14378d51c8778fe52e827`.
+- result: durable quarantine ledger JSON parsing boundary is closed; duplicate top-level and duplicate string-field records fail closed before schema interpretation.
+- durable_learning: `[SECURITY] Durable evidence ledgers must reject duplicate JSON object members before schema validation; strict field/type checks cannot recover a discarded duplicate and must not reinterpret ambiguous persisted evidence.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
 
 ## Closed boundaries
+- durable quarantine ledger JSON parsing boundary: implementation `71c63ea53d20165a74c54dc239f2e6835a4c66a9`, regression `9a13fd0878c6c19e44a14378d51c8778fe52e827`, recon `28e8427e835eafb7a0211616f7380804cc425f89`, CI `35135980320` passed 18/18.
 - LocalDirectoryCarrier directory durability: implementation `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, regression `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, CI `35135385582` passed 18/18; decision record `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`.
 - content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
 - durable transaction state-transition recovery: implementation `f7338c4dc0d647697b178528fab53af2c302b6bc`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, CI `35126636530` passed 18/18.
