@@ -74,7 +74,9 @@ class ReferenceKeyLifecycleAdmission:
             return False
         if self._lifecycle.fingerprint_for(key_id) != fingerprint:
             return False
-        if not self._lifecycle.usable_for_verification(key_id):
+        # A retired key remains usable for verification by its existing
+        # admission, but retirement must not create a new admission path.
+        if not self._lifecycle.usable_for_signing(key_id):
             return False
         bound = self._node_by_key.get(key_id)
         if bound is not None and bound != node_id:
@@ -115,7 +117,6 @@ class ReferenceKeyLifecycleAdmission:
             and self._node_by_key.get(key_id) == node_id
             and self._lifecycle.usable_for_verification(key_id)
         )
-
 
 
 def validate_authenticated_principal_admission(
