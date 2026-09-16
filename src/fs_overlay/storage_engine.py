@@ -220,18 +220,22 @@ class ContentAddressedStore:
         if manifest.identity() != manifest.object_id:
             raise ValueError("manifest identity does not match")
         target = self.manifests / manifest.object_id
-        if not target.exists():
-            fd, temporary = tempfile.mkstemp(prefix=".tmp-", dir=self.manifests)
-            try:
-                with os.fdopen(fd, "wb") as handle:
-                    handle.write(manifest.to_bytes())
-                    handle.flush()
-                    os.fsync(handle.fileno())
-                os.replace(temporary, target)
-                _fsync_directory(self.manifests)
-            finally:
-                if os.path.exists(temporary):
-                    os.unlink(temporary)
+        if target.exists():
+            existing = Manifest.from_bytes(target.read_bytes())
+            if existing.object_id != manifest.object_id:
+                raise ValueError("manifest identity verification failed")
+            return manifest.object_id
+        fd, temporary = tempfile.mkstemp(prefix=".tmp-", dir=self.manifests)
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(manifest.to_bytes())
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, target)
+            _fsync_directory(self.manifests)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
         return manifest.object_id
 
     def get_manifest(self, object_id: str) -> Manifest:
