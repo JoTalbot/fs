@@ -2,32 +2,34 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `8568a959b318a765f2db53de51d9f51d94da1817`
-- Latest validated implementation: `8568a959b318a765f2db53de51d9f51d94da1817`
+- Latest repository head: `c1e1966bdf26f7b42c43e9bf34c022fb0066c558`
+- Latest validated implementation: `06af100d3cd0fef36d3abb33c2cc3254b0503bde`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T17:24:00Z`
-- base_commit: `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
-- area: content-addressed manifest write immutability
-- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-write-immutability-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: ensure `put_manifest()` never reports a successful idempotent write when the existing durable manifest at that content address is malformed or corrupted
+- started_at: `2026-09-16T17:52:00Z`
+- base_commit: `8568a959b318a765f2db53de51d9f51d94da1817`
+- area: snapshot publication durability
+- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `docs/AGENT_STEP_2026-09-16_snapshot-durability-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`
+- goal: ensure snapshot publication does not report success when the Unix directory-entry persistence barrier fails
 - status: CLOSED
-- repository_research: `ContentAddressedStore.put()` already verifies existing content bytes, but `put_manifest()` returned success for any existing manifest path without validating the stored manifest. `Manifest.from_bytes()` is already the canonical strict schema and identity validator, and `get_manifest()` already fails closed on corrupted persisted manifests.
-- external_research: SQLite atomic-commit documentation emphasizes durable state validation around commit/recovery; OWASP filesystem guidance requires explicit known-good filesystem targets; external secure-software-engineering guidance requires enforceable controls at the trust boundary. Sources were advisory and did not override FS semantics.
+- repository_research: `SnapshotStore._write()` fsynced the snapshot file and atomically replaced the target, but swallowed `OSError` from the subsequent directory fsync. That allowed a successful return without evidence that the new directory entry had crossed the intended crash-durability boundary.
+- external_research: SQLite atomic-commit documentation treats directory/journal synchronization as part of crash-consistent durable commit; Python documents `os.fsync()` and POSIX atomic `os.replace()` separately; NIST SP 1800-11 emphasizes trustworthy recovery data. Sources were advisory and did not override FS semantics.
 - skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` was inspected and treated as advisory.
-- decision: validate an existing manifest with `Manifest.from_bytes()` before returning success from `put_manifest()`. Do not overwrite the existing object and do not add platform-specific race handling to this small cross-platform change.
-- recon: `docs/AGENT_STEP_2026-09-16_manifest-write-immutability-recon.md`, commit `aaa784b949a95041dde11dcd0f669cef233bd18d`
-- implementation: `8568a959b318a765f2db53de51d9f51d94da1817`
-- regression_tests: `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`
-- validation: GitHub Actions run `35128250728` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for implementation head `8568a959b318a765f2db53de51d9f51d94da1817`.
-- result: existing corrupted/malformed manifest targets are now rejected by `put_manifest()` instead of being reported as successful idempotent writes; valid repeated manifest writes remain idempotent.
-- durable_learning: `[SECURITY] Content-addressed write APIs must validate an already-existing object before declaring an idempotent success; read-time integrity checks alone are too late for a write contract that claims the durable target is valid.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state, duplicate-JSON, or manifest-schema work.
+- decision: on Unix-like platforms, propagate directory fsync failures; preserve the intentional Windows skip where the project has no portable directory-fsync contract.
+- recon: `docs/AGENT_STEP_2026-09-16_snapshot-durability-recon.md`, commit `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`
+- implementation: `3da8c7d6a0ff565f410a44214fda451327d0c5d8`
+- regression_tests: `06af100d3cd0fef36d3abb33c2cc3254b0503bde`
+- validation: GitHub Actions run `35131007182` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `06af100d3cd0fef36d3abb33c2cc3254b0503bde`.
+- skill_learning: `.agents/skills/fs-agent-core/SKILL.md` updated in `c1e1966bdf26f7b42c43e9bf34c022fb0066c558` with the durable directory-sync fail-closed rule. CI run `35131171224` is the validation run for that documentation/skill commit and was still in progress at status update time.
+- result: Unix snapshot publication now fails closed when the directory fsync fails; the regression injects failure specifically into the second fsync call and requires `OSError` propagation. No Windows durability semantics were invented.
+- durable_learning: `[SECURITY] A filesystem API must not claim durable publication when the final directory-entry persistence barrier fails; on platforms where directory fsync is part of the durability contract, propagate that failure instead of converting it into a successful write.`
+- next_step: after CI run `35131171224` completes, fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state, duplicate-JSON, manifest-schema, or snapshot-durability work.
 
 ## Closed boundaries
+- snapshot publication durability: implementation `3da8c7d6a0ff565f410a44214fda451327d0c5d8`, regression `06af100d3cd0fef36d3abb33c2cc3254b0503bde`, recon `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`, CI `35131007182` passed 18/18.
 - manifest write immutability: implementation `8568a959b318a765f2db53de51d9f51d94da1817`, regression `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`, recon `aaa784b949a95041dde11dcd0f669cef233bd18d`, CI `35128250728` passed 18/18.
 - transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
 - durable transaction state-transition recovery boundary: `f7338c4dc0d647697b178528fab53af2c302b6bc`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, recon `05e09e84ef12843f63892761aef685176b3af33c`, CI `35126636530` passed 18/18.
