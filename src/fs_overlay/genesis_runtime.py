@@ -12,8 +12,13 @@ from .identity import NodeIdentity
 def build_local_service(
     identity: NodeIdentity,
     capabilities: dict[str, Any] | None = None,
+    *,
+    admitted: bool = False,
 ) -> GenesisService:
     """Create a local service without starting listeners or changing the host.
+
+    Admission is an explicit local configuration decision. It cannot be
+    changed through the request transport.
 
     When no explicit snapshot is supplied, capabilities are observed locally.
     Observation remains informational and does not imply resource sharing or
@@ -32,4 +37,4 @@ def build_local_service(
             "timed_out": result.timed_out,
         }
 
-    return GenesisService(identity, observed, executor=execute)
+    return GenesisService(identity, observed, admitted=admitted, executor=execute)
