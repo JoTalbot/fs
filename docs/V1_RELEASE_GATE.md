@@ -4,7 +4,7 @@ This gate turns the current architecture into an evidence-based release checklis
 
 ## Required evidence
 
-- [x] CI green on every supported platform/runtime combination (latest validated candidate-provider matrix: CI #642).
+- [x] CI green on every supported platform/runtime combination (latest validated candidate-provider matrix: CI #677, run `35098613033`, implementation head `a68fe13bc761ab42b7757d769440e6a7314d368d`).
 - [x] Independent federation conformance consumer passes.
 - [x] Independent admission conformance passes.
 - [x] Storage transaction crash/restart recovery passes.
