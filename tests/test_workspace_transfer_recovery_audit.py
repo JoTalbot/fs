@@ -270,3 +270,39 @@ def test_audit_rejects_non_materializing_phase(tmp_path: Path) -> None:
     log = RecoveryAuditLog(tmp_path / "recovery-audit.log")
     with pytest.raises(ValueError, match="materializing"):
         log.append(_verified_result(), TransferJournalPhase.PREPARED)
+
+
+def test_audit_replay_rejects_coercible_and_unexpected_fields(tmp_path: Path) -> None:
+    path = tmp_path / "recovery-audit.log"
+    log = RecoveryAuditLog(path)
+    log.append(_verified_result(), TransferJournalPhase.MATERIALIZING)
+    record = json.loads(path.read_text().splitlines()[0])
+
+    record["sequence"] = True
+    path.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+    with pytest.raises(RecoveryAuditCorruption, match="audit record is invalid"):
+        log.replay()
+
+    record = json.loads(path.read_text().splitlines()[0])
+    record["sequence"] = "1"
+    path.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+    with pytest.raises(RecoveryAuditCorruption, match="audit record is invalid"):
+        log.replay()
+
+    record = json.loads(path.read_text().splitlines()[0])
+    record["sequence"] = 1
+    record["unexpected"] = "field"
+    path.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+    with pytest.raises(RecoveryAuditCorruption, match="audit record is invalid"):
+        log.replay()
+
+
+def test_audit_replay_rejects_duplicate_json_fields(tmp_path: Path) -> None:
+    path = tmp_path / "recovery-audit.log"
+    log = RecoveryAuditLog(path)
+    log.append(_verified_result(), TransferJournalPhase.MATERIALIZING)
+    payload = path.read_text().splitlines()[0]
+    duplicate = payload.replace('"sequence":1', '"sequence":1,"sequence":2', 1)
+    path.write_text(duplicate + "\n")
+    with pytest.raises(RecoveryAuditCorruption, match="audit record is invalid"):
+        log.replay()
