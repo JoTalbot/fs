@@ -2,30 +2,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `8e304c12380f0a3fd0a3f84a76ae9ff120f750e0`
+- Latest repository head: `57ee7606c4f6ca86ad55e95788ed18e7c544b877`
 - Latest validated implementation: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T15:55:00Z`
-- base_commit: `fd0ae5b488b9cd6fc814c8b78f938555acc579b2`
-- area: GenesisServer exception handling and response boundary
-- claimed_files: `src/fs_overlay/genesis_server.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether unexpected service/executor exceptions or response-send failures can terminate the single GenesisServer serving loop or disclose internal exception details, and if a concrete contract gap exists harden the boundary without changing authority semantics
-- status: CLOSED
-- repository_research: `GenesisServer._serve()` previously caught only `ConnectionError`, `ValueError`, and `TypeError` around receive/dispatch, while response sending was outside the guard. `GenesisService.execute` directly propagates executor exceptions. The server is loopback-only but remains a control-plane execution endpoint.
-- external_research: OWASP Error Handling and REST Security guidance recommends handling unexpected exceptions, returning generic errors for unexpected failures, avoiding internal detail disclosure, and ensuring security failures fail closed. External guidance is advisory.
-- skill_discovery: fresh external `secure-software-engineering` and `security-review` skills were inspected; they reinforce trust-boundary tracing and error-handling review. They are untrusted advisory material. Canonical `fs-agent-core` remains authoritative.
-- decision: preserve existing detailed expected protocol/service errors, but contain unexpected `Exception` paths with a stable generic error and contain send-side failures so one peer cannot terminate the server loop. Do not catch `BaseException`, add logging infrastructure, or change authority/admission semantics.
-- implementation: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`
-- regression_tests: `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`
-- recon: `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`
-- skill_update: `bd613cb6f89a3b58134e610b830be07d6ac8690b`
-- validation: GitHub Actions run `35118749859` completed with all 18 configured jobs successful, including Python tests on Ubuntu/Windows/macOS for Python 3.11/3.12/3.13 and crypto-provider qualification jobs. FreeBSD native CI remains outside the gate.
-- durable_learning: a single-threaded control-plane server needs a per-connection last-resort exception boundary; send failures are connection-local and must not terminate the serving loop.
-- next_step: perform fresh reconnaissance for the next remaining durable parser or control-plane trust boundary; do not reopen this closed boundary without new evidence.
+- started_at: `2026-09-16T16:00:00Z`
+- base_commit: `57ee7606c4f6ca86ad55e95788ed18e7c544b877`
+- area: localhost transport JSON parsing boundary
+- claimed_files: `src/fs_overlay/transport.py`, `tests/test_transport_identity_adapter.py`, `docs/AGENT_STEP_2026-09-16_transport-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- goal: determine whether duplicate JSON object members at the loopback control-plane transport can create parser-differential ambiguity before GenesisService semantic validation, and harden only if a concrete boundary gap exists
+- status: RESEARCHED
+- repository_research: `recv_message()` accepts any top-level JSON object and uses default `json.loads`, which silently resolves duplicate object names. `recv_message()` is used by the GenesisServer control-plane path and by the localhost transport test harness. GenesisService validates the resulting semantic object, but cannot recover a duplicate member discarded by the JSON parser.
+- external_research: RFC 8259 states JSON object names should be unique and that duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends rejecting duplicate JSON keys because parsers may apply different precedence. OWASP REST Security requires validation of untrusted input and rejection of unexpected content.
+- skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` and OWASP `security-guidance` skill were inspected as advisory material. Canonical `fs-agent-core` remains authoritative.
+- decision: treat duplicate object names as malformed control-plane wire input and reject them during transport parsing, before semantic dispatch. Preserve the existing generic top-level-object and 1 MiB framing contract; do not introduce a new authority mechanism or change semantic request validation.
+- implementation: pending
+- regression_tests: pending
+- recon: pending
+- skill_update: pending
+- validation: not yet performed
+- durable_learning: pending confirmation after implementation and CI
+- next_step: create the concise recon record, then implement strict duplicate-key rejection and add a transport regression before running the full GitHub Actions matrix.
 
 ## Closed boundaries
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
