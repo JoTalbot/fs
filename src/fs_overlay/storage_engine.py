@@ -185,6 +185,8 @@ class ContentAddressedStore:
         return manifest.object_id
 
     def get_manifest(self, object_id: str) -> Manifest:
+        if not isinstance(object_id, str) or len(object_id) != 64 or any(c not in "0123456789abcdef" for c in object_id):
+            raise ValueError("invalid object id")
         manifest = Manifest.from_bytes((self.manifests / object_id).read_bytes())
         if manifest.object_id != object_id:
             raise ValueError("manifest identity verification failed")
