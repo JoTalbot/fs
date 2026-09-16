@@ -25,6 +25,8 @@ class MemoryKeyStore:
     def store(self, key_id: str, key_material: bytes) -> None:
         if not key_id or not key_material:
             raise ValueError("key material must be non-empty")
+        if key_id in self._keys:
+            raise ValueError("key id already exists")
         self._keys[key_id] = bytes(key_material)
 
     def contains(self, key_id: str) -> bool:
@@ -153,6 +155,9 @@ def test_secure_key_store_contract_and_fail_closed_empty_key() -> None:
         raise AssertionError("empty key id must be rejected")
     store.store("k1", b"secret")
     assert store.contains("k1")
+    assert store.load("k1") == b"secret"
+    with pytest.raises(ValueError):
+        store.store("k1", b"replacement")
     assert store.load("k1") == b"secret"
     try:
         store.store("k2", b"")
@@ -285,3 +290,24 @@ def test_reusable_harness_rejects_fail_open_adapter(
     factories.update(factory_kwargs)
     with pytest.raises(AdapterConformanceError, match=expected):
         run_adapter_conformance(**factories)
+
+
+class OverwritingKeyStore(MemoryKeyStore):
+    def store(self, key_id: str, key_material: bytes) -> None:
+        if not key_id or not key_material:
+            raise ValueError("key material must be non-empty")
+        self._keys[key_id] = bytes(key_material)
+
+
+def test_reusable_harness_rejects_silent_key_overwrite() -> None:
+    with pytest.raises(
+        AdapterConformanceError,
+        match="existing key id must not be silently overwritten",
+    ):
+        run_adapter_conformance(
+            key_store_factory=OverwritingKeyStore,
+            transport_factory=MemoryTransport,
+            key_admission_factory=MemoryKeyAdmission,
+            node_admission_factory=NodeAllowlist,
+            coordinator_factory=MemoryCoordinator,
+        )
