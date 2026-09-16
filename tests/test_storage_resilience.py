@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import fs_overlay.storage_resilience as storage_resilience
 from fs_overlay.storage_resilience import (
     CarrierState,
     QuarantineLedger,
@@ -128,6 +129,27 @@ def test_snapshot_rejects_non_list_objects(tmp_path: Path) -> None:
         Snapshot.from_bytes(json.dumps(payload).encode())
 
 
+def test_snapshot_directory_fsync_failure_is_not_silently_ignored(tmp_path: Path, monkeypatch) -> None:
+    if storage_resilience.os.name == "nt":
+        pytest.skip("directory fsync contract is intentionally not used on Windows")
+
+    store = SnapshotStore(tmp_path / "snapshots")
+    original_fsync = storage_resilience.os.fsync
+    calls = 0
+
+    def fail_on_directory_sync(fd: int) -> None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("directory sync failed")
+        original_fsync(fd)
+
+    monkeypatch.setattr(storage_resilience.os, "fsync", fail_on_directory_sync)
+    with pytest.raises(OSError, match="directory sync failed"):
+        store.create((), generation=1, metadata={"source": "test"})
+    assert calls == 2
+
+
 def test_quarantine_is_append_only_and_replay_preserves_evidence(tmp_path: Path) -> None:
     ledger = QuarantineLedger(tmp_path / "quarantine.log")
     first = ledger.quarantine("carrier-a", reason="unexpected hash", observed_hash="bad", expected_hash="good")
@@ -140,7 +162,7 @@ def test_quarantine_is_append_only_and_replay_preserves_evidence(tmp_path: Path)
 
 def _quarantine_payload(tmp_path: Path) -> tuple[Path, dict[str, object]]:
     ledger = QuarantineLedger(tmp_path / "quarantine.log")
-    record = ledger.quarantine("carrier-a", reason="bad hash", observed_hash="bad", expected_hash="good")
+    ledger.quarantine("carrier-a", reason="bad hash", observed_hash="bad", expected_hash="good")
     path = tmp_path / "quarantine.log"
     line = path.read_bytes().splitlines()[0]
     return path, json.loads(line[16:])
