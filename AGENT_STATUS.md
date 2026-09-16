@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `88fc4500480510f2fd688aea96717ed07c36b590`
-- Latest validated implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
+- Latest repository head: `75dabd5c6d1aa23934f93f21c8f95ba7eee357eb`
+- Latest validated implementation: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,7 +14,7 @@
 - area: EventLog durable schema/integrity hardening
 - claimed_files: `src/fs_overlay/event_log.py`, `tests/test_event_log_recovery.py`, `tests/test_federation_state.py`, `docs/AGENT_STEP_2026-09-16_event-log-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed persisted event records from being coerced or accepted without complete integrity/sequence validation during replay
-- status: VALIDATING
+- status: CLOSED
 - repository_research: EventLog replay previously coerced persisted sequence/hash values and conditionally verified event_hash. Existing federation-state coverage intentionally injects malformed event details to verify fail-closed restart behavior.
 - external_research: OWASP input validation/logging guidance supports strict schema validation and audit-log integrity; RFC 8259 identifies duplicate JSON names as receiver ambiguity. External guidance is advisory only.
 - skill_discovery: canonical `fs-agent-core` remains authoritative; external security-review guidance was inspected.
@@ -22,10 +22,12 @@
 - implementation: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`
 - regression_tests: `f864dea306b05f65fceeae6d868ec64ac3840794`, plus fixture expectation alignment `88fc4500480510f2fd688aea96717ed07c36b590`
 - recon: `ba488c9c06ab974233fcda0d215907a08bfd6b1e`
-- validation: CI `35117116588` exposed one expected-boundary mismatch in `tests/test_federation_state.py`: EventLog now rejects malformed `details` earlier with `event details are invalid`; the fixture still expected the former federation-state-specific message. The failing job observed 530 passed, 3 skipped, 14 deselected, 1 failed. All completed crypto-provider jobs in that run passed. The mismatch was corrected without weakening the new fail-closed parser. No local runner is available.
-- next_step: validate the corrected head `88fc4500480510f2fd688aea96717ed07c36b590` with the full GitHub Actions matrix. If green, close the EventLog schema boundary; if red, inspect the exact failing job before any further source change.
+- validation: CI `35117483049` for main head `75dabd5c6d1aa23934f93f21c8f95ba7eee357eb` completed successfully. The run reports all 18 configured jobs successful, including Python tests on Ubuntu/macOS/Windows and crypto-provider qualification jobs. The earlier `35117116588` failure was the fixture-boundary mismatch and was corrected without weakening the parser.
+- durable_learning: EventLog schema validation now rejects malformed persisted details before federation-specific replay handling; downstream recovery tests must assert the public fail-closed boundary actually reached by the hardened parser rather than an obsolete lower-layer error.
+- next_step: fresh reconnaissance of the remaining durable/control-plane request parsing boundary, beginning with GenesisService request schema validation. No implementation is authorized until repository state, external guidance, skills, and the exact current source/test blobs are re-established.
 
 ## Closed boundaries
+- EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
 - recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed the full configured matrix.
 - federation envelope schema integrity: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`, regression `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`, CI `35115180030` passed 18/18.
