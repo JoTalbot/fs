@@ -9,27 +9,21 @@
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T20:09:00Z`
-- base_commit: `979cc9b7e63529ab6909eae3c54fa16267efa2ff`
-- area: MinimalBootstrap config durability boundary
-- claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `docs/AGENT_STEP_2026-09-16_bootstrap-config-durability-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether atomic replacement of a newly created bootstrap config without syncing its parent directory can lose the durable directory entry after crash/power loss, and harden only if the bootstrap persistence contract requires it
-- status: CLOSED
-- repository_research: `MinimalBootstrap.initialize()` fsyncs the temporary config before `os.replace()` and now fsyncs the parent directory immediately after replacement, preserving atomic publication and the existing Windows no-op behavior.
-- external_research: Linux `fsync(2)` documents that file fsync does not necessarily persist the containing directory entry; SQLite durability documentation independently uses directory synchronization for durable namespace changes. External durability guidance was inspected as advisory.
-- skill_discovery: canonical `fs-agent-core` was reread; external durability guidance was inspected as advisory only and does not override FS policy.
-- decision: require a parent-directory fsync after bootstrap config replacement so the durable bootstrap record's directory entry is included in the persistence barrier.
-- recon: existing recon from this step at base `979cc9b7e63529ab6909eae3c54fa16267efa2ff`
-- implementation: `9a59e898ca58921e006bd9b98df79bcde04d2c26`
-- regression_tests: `8bf83e1619139548ffa5739d91ea47b5145be9d9`
-- validation: GitHub Actions run `35145051793` completed successfully with all 18 configured Python/platform and candidate crypto-provider jobs passing on head `8bf83e1619139548ffa5739d91ea47b5145be9d9`.
-- result: bootstrap config publication now has an explicit parent-directory durability barrier, with regression coverage proving the barrier is invoked after atomic replacement.
-- durable_learning: `[DURABILITY] Atomic replacement of a durable file is not sufficient on filesystems where directory-entry persistence is separate; fsync the containing directory after replacement when the persistence contract requires crash-durable publication.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed durability or authority boundary; do not duplicate already closed JSON, transaction-lifecycle, carrier-TOCTOU, or storage-read/write-integrity boundaries.
+- started_at: `2026-09-16T20:23:00Z`
+- base_commit: `8bf83e1619139548ffa5739d91ea47b5145be9d9`
+- area: durable federation admission replay schema
+- claimed_files: `src/fs_overlay/federation_state.py`, `tests/test_federation_state.py`, `docs/AGENT_STEP_2026-09-16_federation-admission-replay-schema-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether malformed persisted federation admission state can pass replay validation through Python type relationships and influence authoritative sender high-water state; harden only if a concrete fail-closed gap exists
+- status: CLAIMED
+- repository_research: `DurableFederationState._replay()` validates persisted admission `sequence` with `isinstance(sequence, int)`, so JSON `true` is accepted as integer `1` because Python `bool` subclasses `int`; the value is then stored in `last_sequence` and changes future admission behavior.
+- external_research: OWASP Input Validation requires syntactic and semantic validation with expected data types; Python documents that `bool` is a subclass of `int`, making `isinstance(True, int)` insufficient for an exact integer contract.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; its strict persisted-schema and fail-closed validation rules apply. No additional external skill has been adopted.
+- decision: harden the replay boundary to require a real integer (`type(sequence) is int`) and add a regression proving a hash-valid persisted admission with boolean sequence is rejected before it can alter durable admission state.
+- next_step: implement the smallest parser/state validation change and regression, then run the full 18-job GitHub Actions matrix.
 
 ## Closed boundaries
 - content-store root TOCTOU contract: documentation `4b88e61194b6a61a3f8e80c20ea8706b905fc608` + `09dacacdb81ed33b9d140949b16afd1a9ea2bfd9`; no runtime change; content store does not claim hostile-concurrency isolation independently of the carrier boundary.
-- LocalDirectoryCarrier symlink/TOCTOU isolation: implementation `d5914cd65277297f4463cf0b5601aa83fe1e2ec5`, predecessor hardening `a443ed0ec33c616d1a915bf59e2ba9e5827055b8`, CI `35138856953` passed 18/18; capability gate directly observed in the green run.
+- LocalDirectoryCarrier symlink/TOCTOU isolation: implementation `d5914cd65277297f4463cf0b5601aa83fe1e2ec5`, predecessor hardening `a443ed0ec33c616d1a915bf59e2ba9e5827055b8`, CI `35138856953` passed 18/18.
 - durable quarantine ledger JSON parsing boundary: implementation `71c63ea53d20165a74c54dc239f2e6835a4c66a9`, regression `9a13fd0878c6c19e44a14378d51c8778fe52e827`, recon `28e8427e835eafb7a0211616f7380804cc425f89`, CI `35135980320` passed 18/18.
 - LocalDirectoryCarrier directory durability: implementation `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, regression `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, CI `35135385582` passed 18/18; decision record `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`.
 - content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
