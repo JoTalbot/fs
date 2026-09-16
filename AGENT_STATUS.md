@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `f0de30235f14a82e824f60013049208b217bd460`
+- Latest repository head: `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`
 - Latest validated implementation: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`
 - Updated: 2026-09-16
 
@@ -14,18 +14,18 @@
 - area: durable workspace transfer journal JSON parsing boundary
 - claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-16_transfer-journal-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in the durable workspace transfer journal can be collapsed by parsing before schema/hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
-- status: RESEARCHED
-- repository_research: current `WorkspaceTransferJournal.replay()` and `_last_digest()` use default `json.loads`, while `_validate_record_schema()` checks the already-materialized dict. A duplicate member can therefore be discarded before exact-field and digest validation. The transfer journal is durable authority-boundary state and replay feeds transaction state/recovery candidates.
-- external_research: RFC 8259 states JSON object names should be unique and duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends fatal parse errors on duplicate keys because parser precedence can differ. RFC 8785 requires JSON objects used by canonical JSON processing to have no duplicate property names.
+- status: VALIDATING
+- repository_research: current `WorkspaceTransferJournal.replay()` and `_last_digest()` used default `json.loads`, while schema validation inspected only the materialized dictionary. Duplicate members could therefore be discarded before exact-field and digest validation.
+- external_research: RFC 8259 states JSON object names should be unique and duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends fatal parse errors on duplicate keys. RFC 8785 requires no duplicate property names for canonical JSON processing.
 - skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation guidance. Canonical `fs-agent-core` remains authoritative.
-- decision: reject duplicate JSON object member names while parsing every durable workspace transfer journal record, before schema, identity, digest, and hash-chain validation. Apply the same strict parser in `_last_digest()` so the append path cannot consume a different interpretation of persisted state. Preserve journal framing, transition rules, digest algorithm, and authority semantics.
-- implementation: pending
-- regression_tests: pending
-- recon: pending
+- decision: reject duplicate JSON object member names during parsing of every durable transfer-journal record, including `_last_digest()`, before schema, identity, digest, and hash-chain validation. Preserve journal framing, transitions, SHA-256 digest semantics, and authority boundaries.
+- implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
+- regression_tests: `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`
+- recon: `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`
 - skill_update: pending
 - validation: not yet performed; GitHub Actions is authoritative and no local test runner is available
 - durable_learning: pending confirmation after implementation and CI
-- next_step: create the recon decision record, reread the claimed source/test files at current blob SHAs, implement the smallest duplicate-key rejection, add deterministic replay regressions, then observe the full GitHub Actions matrix.
+- next_step: observe the full GitHub Actions matrix for the current head; if green, update the skill/log and close the boundary; if red, inspect the exact failing job before source changes.
 
 ## Closed boundaries
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
@@ -42,7 +42,7 @@
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
 - manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
-- storage-engine inventory journal schema integrity: `6dea4c9008caa323e4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
+- storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
 - key destruction/zeroization provider boundary: reconnaissance only.
 - transport re-authentication/provider boundary: reconnaissance only.
 - trust-root binding: reconnaissance only.
