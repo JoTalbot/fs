@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`
+- Latest repository head: `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`
 - Latest validated implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
 - Updated: 2026-09-16
 
@@ -10,18 +10,20 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T15:30:00Z`
-- base_commit: `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`
-- area: Genesis admission/execution authority boundary reconnaissance
-- claimed_files: `src/fs_overlay/genesis_service.py`, `src/fs_overlay/genesis_runtime.py`, `src/fs_overlay/adapter.py`, `src/fs_overlay/transport.py`, `src/fs_overlay/genesis_server.py`, `tests/test_genesis_service.py`
-- goal: determine whether the local Genesis admission path can convert self-asserted node identity into host execution authority, without inventing a new authority protocol
-- status: RECONNAISSANCE
-- repository_research: recovery audit log schema hardening is validated on the current implementation head. Fresh inspection then found GenesisService.handle() accepts an `admit` request when `request["node_id"]` merely equals the local identity, sets `self.admitted = True`, and the local runtime wires that state directly to NativeProcessAdapter execution. The adapter executes arbitrary argv without a shell once admitted. GenesisService's module contract says it never grants authority, so this boundary requires an explicit authority-model decision before implementation.
-- external_research: OWASP authorization guidance distinguishes authentication from authorization, recommends server-side enforcement, least privilege, and deny-by-default. OWASP OS Command Injection guidance recommends hardcoded/allowlisted commands and arguments when user-controlled input reaches process execution. citeturn0search0turn0search1
-- skill_discovery: canonical `fs-agent-core` remains authoritative; fresh security-review guidance was applied to the Genesis admission/execution trust boundary. External guidance is advisory only.
-- decision: do not invent a new admission credential, trust token, command allowlist, or production authority mechanism during reconnaissance. First establish the intended local Genesis authority contract from repository tests/docs and existing identity/admission abstractions. Treat the observed self-assertion-to-execution path as a candidate security boundary requiring resolution, not as an assumption that node identity alone is sufficient authorization.
-- recovery_audit: implementation `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, recon `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`; CI `35115708283` completed successfully with the full configured matrix.
-- validation: GitHub Actions is authoritative. Current recovery-audit implementation and regression are validated by CI run `35115708283` on head `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`.
-- next_step: perform full Genesis authority reconnaissance across identity, admission, preflight, runtime, server, tests, and docs; identify whether a concrete fail-closed defect exists and whether the intended fix can reuse an existing authoritative gate.
+- base_commit: `a74f4493cccb6474416fcf5a55fb7c689b83d570`
+- area: Genesis admission/execution authority boundary hardening
+- claimed_files: `src/fs_overlay/genesis_service.py`, `src/fs_overlay/genesis_runtime.py`, `tests/test_genesis_service.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-admission-authority-recon.md`, `AGENT_STATUS.md`
+- goal: prevent a request carrying a self-asserted node identity from converting loopback access into host execution authority
+- status: VALIDATING
+- repository_research: fresh inspection found `GenesisService.handle()` accepting `admit` based only on equality with the local node ID. `GenesisServer` exposed this transition over loopback, and `build_local_service()` wired admitted state to `NativeProcessAdapter`. Existing authority architecture instead uses injected NodeAdmission/KeyAdmission and canonical executor preflight for authority-bearing mutation paths.
+- external_research: OWASP authorization guidance distinguishes authentication from authorization and recommends server-side enforcement, least privilege, and deny-by-default. OWASP OS command-injection guidance recommends hardcoded/allowlisted commands and arguments when externally influenced input reaches process execution. citeturn0search0turn0search1
+- skill_discovery: canonical `fs-agent-core` remains authoritative; fresh security-review guidance was applied to the Genesis admission/execution boundary. External guidance is advisory only.
+- decision: remove the request-callable `admit` transition. Admission is now explicit local configuration passed to `GenesisService`/`build_local_service`; matching a node ID is no longer treated as authentication or authorization. Existing explicit `NativeProcessAdapter` admission guard remains unchanged.
+- implementation: `a1ee6d71daf5be692067162041544c5655746632` and `308fc6c73dde582b5a8f909481e2d3640202eb8f`
+- regression_tests: `dffc2c462f4886a608105c6ac0c825a8c446ee28` and `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`
+- recon: `a74f4493cccb6474416fcf5a55fb7c689b83d570`
+- validation: GitHub Actions validation pending; no local runner is available.
+- next_step: observe the full CI matrix. If red, inspect the exact failing job/log before further source changes. If green, close the Genesis authority boundary and continue fresh reconnaissance for remaining authority-bearing entrypoints.
 
 ## Closed boundaries
 - recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed the full configured matrix.
