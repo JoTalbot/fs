@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `b1280e66cf531b7fdb952e262318f0a90394eb41`
-- Latest validated implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
+- Latest repository head: `fa83c9a635a06a99f1ac04289ba82304e527240e`
+- Latest validated implementation: `f7338c4dc0d647697b178528fab53af2c302b6bc`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,16 +14,23 @@
 - area: durable transaction state-transition recovery boundary
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_transaction-state-recovery-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether malformed durable transaction state transitions can be silently ignored or overwrite pending recovery state, and harden only if a concrete fail-closed recovery-integrity gap exists
-- status: RESEARCHED
-- repository_research: `Inventory.load()` validates transaction payload schemas but currently allows transaction_commit/transaction_abort for unknown transaction IDs and allows transaction_begin to overwrite an existing pending transaction with the same ID. `transaction_commit.object_ids` is validated but is not cross-checked against staged commit records. No current API intentionally emits duplicate begin or terminal records for an already unknown transaction ID.
-- external_research: SQLite documents atomic transactions as all-or-nothing with explicit recovery state; OWASP Transaction Authorization requires sequential transaction state transitions and protection against skipped/out-of-order steps; SQLite isolation documents serialized writes and transactional recovery semantics.
-- skill_discovery: canonical `fs-agent-core` was reread. External `secure-software-engineering` and distributed-data/durability skill search results were reviewed; their relevant guidance is to enforce state transitions and durable commit/recovery evidence, while treating external skills as advisory.
-- decision: first qualify the transaction journal as a state machine: one transaction ID may begin once, accumulate commit records only while pending, then terminate exactly once via commit or abort; unknown terminal transitions and duplicate begin must fail closed. Cross-checking `object_ids` against staged records is a separate integrity question and will not be bundled into this step unless required by evidence.
-- sources: SQLite atomic commit/isolation/transaction docs; OWASP Transaction Authorization Cheat Sheet; external secure-software-engineering and distributed-data/durability skill guidance.
-- next_step: record this reconnaissance, then implement the smallest transaction-state validation and deterministic rejection regressions, followed by the full GitHub Actions matrix.
+- status: CLOSED
+- repository_research: `Inventory.load()` previously allowed unknown transaction terminals, duplicate begins, and transaction-tagged commit records without a preceding begin. The hardened replay state machine now rejects these out-of-order transitions and prevents transaction IDs from being reopened after a terminal state. The subsequent rollback lifecycle fix adds a durable begin before abort so normal rollback conforms to the same state machine.
+- external_research: SQLite atomic commit/isolation/recovery documentation and OWASP Transaction Authorization guidance support explicit sequential transaction state transitions and fail-closed handling of skipped or out-of-order steps.
+- skill_discovery: canonical `fs-agent-core` was reread; external secure-software-engineering and durability guidance was treated as advisory and did not override repository invariants.
+- decision: model durable transaction replay as `ABSENT -> PENDING -> COMMITTED` or `ABSENT -> PENDING -> ABORTED`; reject unknown terminals, duplicate/reopened IDs, and staged commit records without pending state. Do not yet bind `transaction_commit.object_ids` to staged records, which remains a separate integrity review item.
+- recon: `docs/AGENT_STEP_2026-09-16_transaction-state-recovery-recon.md`, commit `05e09e84ef12843f63892761aef685176b3af33c`
+- implementation: `f7338c4dc0d647697b178528fab53af2c302b6bc`
+- regression_tests: `bbfc2712fb04d62d995a742c669cf8d731db857c`
+- lifecycle_fix: `fa83c9a635a06a99f1ac04289ba82304e527240e`
+- validation: GitHub Actions run #874 / `35126636530` for head `fa83c9a635a06a99f1ac04289ba82304e527240e` completed successfully across all configured jobs.
+- result: durable transaction state transitions are now fail-closed under replay, and the normal rollback path emits a valid begin/abort lifecycle. Existing valid crash/restart semantics remain covered by the recovery suite.
+- durable_learning: `[SECURITY] Durable transaction replay must enforce lifecycle state transitions rather than silently treating unknown terminal records as no-ops; otherwise malformed journal history can alter the recovered state machine.`
+- next_step: fresh reconnaissance for the separate `transaction_commit.object_ids` binding/integrity question, then continue only if a concrete fail-closed gap is reproducibly established.
 
 ## Closed boundaries
-- durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
+- durable transaction state-transition recovery boundary: `f7338c4dc0d647697b178528fab53af2c302b6bc`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, recon `05e09e84ef12843f63892761aef685176b3af33c`, CI `35126636530` passed 18/18.
+- durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac04289ba82304e527240e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
 - manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
