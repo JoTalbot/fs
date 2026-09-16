@@ -2,30 +2,31 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`
-- Latest validated implementation: `908afdc49673e15fd86b641bc54bd60cacdef422`
+- Latest repository head: `ee4248ea230fbe0c7e09cefaa22615e96e553600`
+- Latest validated implementation: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T15:11:00Z`
-- base_commit: `908afdc49673e15fd86b641bc54bd60cacdef422`
-- area: bootstrap config schema integrity
-- claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `docs/AGENT_STEP_2026-09-16_bootstrap-config-schema-recon.md`, `AGENT_STATUS.md`
-- goal: prevent malformed persisted bootstrap configuration from being coerced into a different filesystem bootstrap state
-- status: VALIDATING
-- repository_research: `MinimalBootstrap.load()` previously parsed JSON and coerced `node_id`, `root`, `protocol_version`, and `initialized_ns` with `str()`/`int()` without exact field/type validation. Existing tests covered atomic bootstrap round-trip but not malformed persisted records.
-- external_research: OWASP input-validation guidance recommends early syntactic/semantic validation, strong types/ranges, allowlisted structure, and rejection of unexpected content. NIST key-management guidance reinforces protecting security-relevant configuration and trust material integrity. citeturn0search0turn0search10
-- skill_discovery: canonical `fs-agent-core` inspected; no additional skill with a materially better fit was identified.
-- decision: enforce exact bootstrap field set, exact scalar types, reject bool-as-int, reject empty node/root, require protocol_version >= 1 and initialized_ns >= 0, and preserve initialize/load round-trip semantics. Do not add speculative authorization or filesystem policy to this parser boundary.
+- base_commit: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`
+- area: next persisted/coercive state boundary reconnaissance
+- claimed_files: `AGENT_STATUS.md`
+- goal: identify the next concrete persisted-state schema boundary without speculative hardening
+- status: RECON
+- repository_research: bootstrap config schema integrity validated by GitHub Actions run `35113667112` for implementation/test head `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`; all 18 configured jobs completed successfully. The later status-only commit `ee4248ea230fbe0c7e09cefaa22615e96e553600` is the current repository head.
+- external_research: prior bootstrap recon established OWASP input-validation and NIST key-management guidance as the applicable validation rationale.
+- skill_discovery: canonical `fs-agent-core` inspected for the completed boundary; fresh skill discovery will be performed before the next substantive change.
+- decision: close bootstrap config schema integrity. Do not infer production readiness from green CI; continue with fresh reconnaissance for another persisted/coercive state boundary.
 - implementation: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`
 - regression_tests: `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`
 - recon: `ec39558fae48a6f91cf5bce1831a2ca251b9ef9b`
-- validation: pending GitHub Actions validation for bootstrap schema changes; no local runner is available.
-- next_step: observe the CI run for `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`; if green, close the bootstrap schema boundary and begin fresh reconnaissance for the next persisted/coercive state boundary. If red, inspect the exact failing job/log before source changes.
+- validation: GitHub Actions `35113667112`, 18/18 configured jobs passed.
+- next_step: fresh repository search for remaining persisted deserialization/coercion boundaries, then fresh external research, skill discovery, and a decision record before any source modification.
 
 ## Closed boundaries
+- bootstrap config schema integrity: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`, regression `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`, CI `35113667112` passed 18/18.
 - durable admission record schema integrity: `908afdc49673e15fd86b641bc54bd60cacdef422`, CI `35113266230` passed 18/18.
 - durable trust-root record schema integrity: `ad288758b1004e0f32e32af78bff87affab52324`, CI `35112943359` passed 18/18.
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
