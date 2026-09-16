@@ -3,7 +3,7 @@
 - Repository: `JoTalbot/fs`
 - Branch: `main`
 - Latest repository head: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`
-- Latest validated implementation: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`
+- Latest validated implementation: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,17 +14,19 @@
 - area: manifest deserialization schema integrity
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed persisted manifests from being coerced into authoritative manifest state
-- status: VALIDATION_PENDING
+- status: VALIDATED
 - repository_research: `Manifest.from_bytes()` previously coerced persisted object_id/size/chunks/chunk_size/format_version and accepted unvalidated metadata. `ContentAddressedStore.get_manifest()` validates the requested path key and final manifest identity, but strict persisted-field validation was missing.
 - external_research: OWASP Input Validation and ASVS 5.0 support exact schema/type validation and rejection of malformed structured input. This step remains limited to the manifest boundary.
 - skill_discovery: external `secure-software-engineering` skill inspected; `fs-agent-core` remains authoritative.
 - decision: validate the exact manifest envelope, reject wrong scalar/container types, reject unexpected fields, validate SHA-256 identifiers and numeric ranges, and preserve canonical identity semantics without broad refactoring.
 - implementation: `16ecaae264e35aba87a1370ac716a7e3a25ab402`
 - regression_tests: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`
-- validation: GitHub Actions CI run `35111800923` is in progress. At last observation, jobs were mixed `in_progress`/`queued`; no green result is claimed yet.
-- next_step: observe CI `35111800923`; if green, record the validated head and close this boundary. If red, inspect the exact failing job/log before any further source changes.
+- validation: GitHub Actions CI run `35111800923` completed successfully with all 18 configured jobs passing, including Python 3.11/3.12/3.13 on Ubuntu, Windows, and macOS plus crypto-provider jobs.
+- result: strict persisted manifest schema validation is validated on the repository CI matrix. No source defect was exposed by CI.
+- next_step: begin fresh reconnaissance for the next distinct persisted-state integrity boundary; do not infer a new defect from this closed boundary.
 
 ## Closed boundaries
+- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
 - storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
 - key destruction/zeroization provider boundary: reconnaissance only.
