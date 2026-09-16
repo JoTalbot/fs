@@ -22,6 +22,16 @@ _TRUST_ROOT_FIELDS = frozenset(
 )
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous JSON objects before trust-root schema validation."""
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class TrustRootRecord:
     sequence: int
@@ -63,7 +73,7 @@ class TrustRootRecord:
     @classmethod
     def from_line(cls, line: str) -> "TrustRootRecord":
         try:
-            data = json.loads(line)
+            data = json.loads(line, object_pairs_hook=_reject_duplicate_object_keys)
             if not isinstance(data, dict) or set(data) != _TRUST_ROOT_FIELDS:
                 raise ValueError
             if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
