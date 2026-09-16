@@ -119,7 +119,7 @@ def test_key_replay_rejects_duplicate_json_member(tmp_path):
     store = DurableKeyAdmission(path)
     assert store.admit_key("node-1", "key-1", fp("key-1"))
     line = path.read_text().strip()
-    duplicate = line.replace('"sequence":1}', '"sequence":1,"sequence":1}', 1)
+    duplicate = line.replace('"key_id":"key-1",', '"key_id":"key-1","key_id":"key-1",', 1)
     path.write_text(duplicate + "\n")
     with pytest.raises(ValueError, match="malformed key admission record"):
         DurableKeyAdmission(path)
