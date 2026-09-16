@@ -108,6 +108,7 @@ Recent durable lessons:
 - [PATTERN] A default evidence dispatcher may cover only explicitly supported checks; unknown checks must return no evidence and fail closed.
 - [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace, root filesystem, or resource-enforcement guarantees.
 - [SECURITY] A key-material store contract should make replacement semantics explicit; when key identity is immutable at the authority boundary, storage must reject silent overwrite and preserve the original material.
+- [SECURITY] A single-threaded control-plane server needs a per-connection last-resort `Exception` boundary so one unexpected backend failure cannot terminate the serving loop; transport send failures must likewise remain connection-local. Do not catch `BaseException` or change authority semantics merely to improve availability.
 
 ## FS engineering invariants
 
