@@ -138,6 +138,61 @@ def test_quarantine_is_append_only_and_replay_preserves_evidence(tmp_path: Path)
     assert [record.reason for record in records] == ["unexpected hash", "still unexpected"]
 
 
+def _quarantine_payload(tmp_path: Path) -> tuple[Path, dict[str, object]]:
+    ledger = QuarantineLedger(tmp_path / "quarantine.log")
+    record = ledger.quarantine("carrier-a", reason="bad hash", observed_hash="bad", expected_hash="good")
+    path = tmp_path / "quarantine.log"
+    line = path.read_bytes().splitlines()[0]
+    return path, json.loads(line[16:])
+
+
+def test_quarantine_replay_rejects_coercible_types(tmp_path: Path) -> None:
+    path, payload = _quarantine_payload(tmp_path)
+    payload["carrier_id"] = 123
+    path.write_bytes(f"{len(json.dumps(payload).encode()):016x}".encode() + json.dumps(payload).encode() + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+    path, payload = _quarantine_payload(tmp_path / "timestamp")
+    payload["timestamp_ns"] = True
+    body = json.dumps(payload).encode()
+    path.write_bytes(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+    path, payload = _quarantine_payload(tmp_path / "hash")
+    payload["observed_hash"] = 123
+    body = json.dumps(payload).encode()
+    path.write_bytes(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+
+def test_quarantine_replay_rejects_unexpected_and_missing_fields(tmp_path: Path) -> None:
+    path, payload = _quarantine_payload(tmp_path)
+    payload["unexpected"] = "field"
+    body = json.dumps(payload).encode()
+    path.write_bytes(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+    path, payload = _quarantine_payload(tmp_path / "missing")
+    del payload["record_id"]
+    body = json.dumps(payload).encode()
+    path.write_bytes(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+
+def test_quarantine_replay_rejects_negative_timestamp(tmp_path: Path) -> None:
+    path, payload = _quarantine_payload(tmp_path)
+    payload["timestamp_ns"] = -1
+    body = json.dumps(payload).encode()
+    path.write_bytes(f"{len(body):016x}".encode() + body + b"\n")
+    with pytest.raises(ValueError, match="quarantine ledger corruption"):
+        QuarantineLedger(path).replay()
+
+
 def test_quarantine_replay_rejects_malformed_record(tmp_path: Path) -> None:
     path = tmp_path / "quarantine.log"
     ledger = QuarantineLedger(path)
