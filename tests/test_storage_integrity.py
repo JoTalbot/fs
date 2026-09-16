@@ -51,6 +51,54 @@ def test_manifest_object_id_mismatch_is_rejected(tmp_path: Path) -> None:
         engine.store.get_manifest(manifest.object_id)
 
 
+def test_manifest_rejects_boolean_numeric_fields(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"strict manifest schema")
+    path = engine.store.manifests / manifest.object_id
+    raw = json.loads(path.read_text())
+    raw["size"] = True
+    path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":")))
+
+    with pytest.raises(ValueError, match="manifest size is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
+def test_manifest_rejects_coercible_chunk_and_object_id_types(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"strict chunk types")
+    path = engine.store.manifests / manifest.object_id
+    raw = json.loads(path.read_text())
+    raw["chunks"][0] = {"value": raw["chunks"][0]}
+    path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":")))
+
+    with pytest.raises(ValueError, match="manifest chunk id is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
+def test_manifest_rejects_unexpected_fields(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"strict manifest fields")
+    path = engine.store.manifests / manifest.object_id
+    raw = json.loads(path.read_text())
+    raw["unexpected"] = "must be rejected"
+    path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":")))
+
+    with pytest.raises(ValueError, match="manifest schema is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
+def test_manifest_rejects_invalid_metadata_types(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"strict metadata types")
+    path = engine.store.manifests / manifest.object_id
+    raw = json.loads(path.read_text())
+    raw["metadata"] = {"source": 7}
+    path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":")))
+
+    with pytest.raises(ValueError, match="manifest metadata is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
 def test_repeated_content_addressed_write_is_idempotent(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     payload = b"same content-addressed object"
