@@ -33,6 +33,16 @@ def _canonical(data: dict) -> bytes:
     return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous JSON objects before durable admission validation."""
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class NodeAdmissionRecord:
     sequence: int
@@ -67,7 +77,7 @@ class NodeAdmissionRecord:
     @classmethod
     def from_line(cls, line: str) -> "NodeAdmissionRecord":
         try:
-            data = json.loads(line)
+            data = json.loads(line, object_pairs_hook=_reject_duplicate_object_keys)
             if not isinstance(data, dict) or set(data) != _NODE_ADMISSION_FIELDS:
                 raise ValueError
             if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
@@ -208,7 +218,7 @@ class KeyAdmissionRecord:
     @classmethod
     def from_line(cls, line: str) -> "KeyAdmissionRecord":
         try:
-            data = json.loads(line)
+            data = json.loads(line, object_pairs_hook=_reject_duplicate_object_keys)
             if not isinstance(data, dict) or set(data) != _KEY_ADMISSION_FIELDS:
                 raise ValueError
             if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
