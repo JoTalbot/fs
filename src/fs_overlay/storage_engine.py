@@ -31,6 +31,16 @@ def _fsync_directory(directory: str | Path) -> None:
         os.close(fd)
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous JSON objects before schema or integrity validation."""
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 @dataclass(frozen=True)
 class Manifest:
     object_id: str
@@ -69,8 +79,8 @@ class Manifest:
     @classmethod
     def from_bytes(cls, data: bytes) -> "Manifest":
         try:
-            raw = json.loads(data)
-        except (TypeError, json.JSONDecodeError) as exc:
+            raw = json.loads(data, object_pairs_hook=_reject_duplicate_object_keys)
+        except (TypeError, json.JSONDecodeError, ValueError) as exc:
             raise ValueError("manifest JSON is invalid") from exc
         if not isinstance(raw, dict):
             raise ValueError("manifest schema is invalid")
@@ -401,113 +411,80 @@ class MerkleDAG:
         if not level:
             return cls.leaf(b"")
         while len(level) > 1:
-            level = [cls.parent(level[i:i + 2]) for i in range(0, len(level), 2)]
+            next_level: list[str] = []
+            for index in range(0, len(level), 2):
+                pair = level[index:index + 2]
+                next_level.append(cls.parent(pair))
+            level = next_level
         return level[0]
+
+
+class StorageTransaction:
+    def __init__(self, engine: "LocalStorageEngine"):
+        self.engine = engine
+        self.transaction_id = uuid.uuid4().hex
+        self._prepared: list[Manifest] = []
+        self.engine.journal.append("transaction_begin", {"transaction_id": self.transaction_id})
+
+    def prepare(self, data: bytes, *, metadata: dict[str, str] | None = None) -> Manifest:
+        chunks = tuple(self.engine.store.put(chunk) for chunk in DeterministicChunker(self.engine.chunk_size).split(data))
+        manifest = Manifest("", len(data), chunks, self.engine.chunk_size, FORMAT_VERSION, metadata)
+        manifest = Manifest(manifest.identity(), manifest.size, manifest.chunks, manifest.chunk_size, manifest.format_version, manifest.metadata)
+        self.engine.store.put_manifest(manifest)
+        self._prepared.append(manifest)
+        self.engine.journal.append("commit", {
+            "object_id": manifest.object_id,
+            "size": manifest.size,
+            "manifest_path": manifest.object_id,
+            "transaction_id": self.transaction_id,
+        })
+        return manifest
+
+    def commit(self) -> tuple[Manifest, ...]:
+        self.engine.journal.append("transaction_commit", {
+            "transaction_id": self.transaction_id,
+            "object_ids": [manifest.object_id for manifest in self._prepared],
+        })
+        return tuple(self._prepared)
+
+    def rollback(self) -> None:
+        self.engine.journal.append("transaction_abort", {"transaction_id": self.transaction_id})
 
 
 class LocalStorageEngine:
     def __init__(self, root: str | Path, *, chunk_size: int = DEFAULT_CHUNK_SIZE):
         self.root = Path(root)
-        self.store = ContentAddressedStore(self.root)
-        self.journal = AppendJournal(self.root / "journal.log")
+        self.root.mkdir(parents=True, exist_ok=True)
+        self.chunk_size = chunk_size
+        self.store = ContentAddressedStore(self.root / "storage")
+        self.journal = AppendJournal(self.root / "inventory.log")
         self.inventory = Inventory(self.journal.path)
-        self.chunker = DeterministicChunker(chunk_size)
-
-    def _build_manifest(self, data: bytes, metadata: dict[str, str] | None = None) -> Manifest:
-        chunks = tuple(self.store.put(chunk) for chunk in self.chunker.split(data))
-        unsigned = Manifest("", len(data), chunks, self.chunker.chunk_size, metadata=metadata)
-        return Manifest(unsigned.identity(), unsigned.size, unsigned.chunks, unsigned.chunk_size,
-                        unsigned.format_version, unsigned.metadata)
-
-    def _commit_manifest(self, manifest: Manifest, *, transaction_id: str | None = None,
-                         publish_inventory: bool = True) -> Manifest:
-        self.store.put_manifest(manifest)
-        if manifest.object_id not in self.inventory.records and publish_inventory:
-            payload = {"object_id": manifest.object_id, "size": manifest.size,
-                       "manifest_path": manifest.object_id}
-            if transaction_id:
-                payload["transaction_id"] = transaction_id
-            self.journal.append("commit", payload)
-            self.inventory.records[manifest.object_id] = ObjectRecord(
-                manifest.object_id, manifest.size, manifest.object_id
-            )
-        elif transaction_id:
-            payload = {"object_id": manifest.object_id, "size": manifest.size,
-                       "manifest_path": manifest.object_id, "transaction_id": transaction_id}
-            self.journal.append("commit", payload)
-        return manifest
 
     def put(self, data: bytes, *, metadata: dict[str, str] | None = None) -> Manifest:
-        return self._commit_manifest(self._build_manifest(data, metadata))
+        transaction = StorageTransaction(self)
+        manifest = transaction.prepare(data, metadata=metadata)
+        transaction.commit()
+        self.inventory.load()
+        return manifest
 
     def get(self, object_id: str) -> bytes:
         manifest = self.store.get_manifest(object_id)
-        data = b"".join(self.store.get(chunk) for chunk in manifest.chunks)
-        if len(data) != manifest.size or manifest.identity() != object_id:
-            raise IOError("object verification failed")
+        chunks = [self.store.get(chunk_id) for chunk_id in manifest.chunks]
+        data = b"".join(chunks)
+        if len(data) != manifest.size:
+            raise IOError("manifest size mismatch")
         return data
 
     def audit(self) -> dict[str, object]:
-        corrupt = []
-        for oid in self.inventory.records:
+        corrupt: list[str] = []
+        for object_id in self.inventory.records:
             try:
-                self.get(oid)
-            except (OSError, ValueError, IOError):
-                corrupt.append(oid)
+                self.get(object_id)
+            except (IOError, ValueError):
+                corrupt.append(object_id)
         return {"ok": not corrupt, "objects_checked": len(self.inventory.records), "corrupt_objects": corrupt}
 
-    def recover(self) -> dict[str, object]:
+    def recover(self) -> dict[str, int]:
         before = len(self.inventory.records)
         self.inventory.load()
-        return {"ok": True, "objects_before": before, "objects_after": len(self.inventory.records),
-                "journal": str(self.journal.path)}
-
-
-class StorageTransaction:
-    """Stage immutable data and publish inventory atomically through journal commit markers."""
-    def __init__(self, engine: LocalStorageEngine):
-        self.engine = engine
-        self.transaction_id = uuid.uuid4().hex
-        self._prepared: list[Manifest] = []
-        self._closed = False
-
-    def prepare(self, data: bytes, *, metadata: dict[str, str] | None = None) -> Manifest:
-        if self._closed:
-            raise RuntimeError("transaction is closed")
-        manifest = self.engine._build_manifest(data, metadata)
-        self.engine.store.put_manifest(manifest)
-        self._prepared.append(manifest)
-        return manifest
-
-    def commit(self) -> tuple[Manifest, ...]:
-        if self._closed:
-            raise RuntimeError("transaction is closed")
-        result = tuple(self._prepared)
-        if not result:
-            self._closed = True
-            return result
-        self.engine.journal.append("transaction_begin", {"transaction_id": self.transaction_id})
-        try:
-            for manifest in result:
-                self.engine._commit_manifest(manifest, transaction_id=self.transaction_id, publish_inventory=False)
-            self.engine.journal.append("transaction_commit", {
-                "transaction_id": self.transaction_id,
-                "object_ids": [manifest.object_id for manifest in result],
-            })
-            for manifest in result:
-                self.engine.inventory.records[manifest.object_id] = ObjectRecord(
-                    manifest.object_id, manifest.size, manifest.object_id
-                )
-            self._prepared.clear()
-            self._closed = True
-            return result
-        except Exception:
-            self._closed = True
-            raise
-
-    def rollback(self) -> None:
-        if self._closed:
-            return
-        self.engine.journal.append("transaction_abort", {"transaction_id": self.transaction_id})
-        self._prepared.clear()
-        self._closed = True
+        return {"objects_before": before, "objects_after": len(self.inventory.records)}
