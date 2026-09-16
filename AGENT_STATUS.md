@@ -14,19 +14,19 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T14:45:00Z`
-- base_commit: `6e93183d0f425bb5f59d59766ee9f8a90085af77`
-- area: key lifecycle destruction / zeroization provider boundary
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/AGENT_STEP_2026-09-16_key-destruction-boundary-recon.md`
-- goal: determine whether the absence of a DESTROYED key state in the reference lifecycle is a reproducible fail-open defect or an intentional provider boundary
-- status: HANDED_OFF. No reproducible repository-level defect was found; no runtime implementation change was justified.
-- research: `KeyLifecycle` intentionally models ACTIVE, RETIRED and REVOKED state semantics only. Existing tests cover rotation, retirement, revocation, reactivation rejection and fingerprint binding. The object never owns actual cryptographic key bytes or a production key store.
-- external_research: NIST SP 800-57 Part 1 Rev. 5 defines key-management lifecycle phases including destruction; NIST glossary includes destruction in key management. OWASP Key Management and Cryptographic Storage guidance recommends explicit lifecycle, secure storage, revocation, compromise recovery and destruction/zeroization controls.
-- skill_discovery: no external Agent Skill was found that should override or materially replace `fs-agent-core` for this provider-boundary decision; external security/recovery material remains methodology only.
-- decision: do not add a speculative DESTROYED state or zeroization implementation to the in-memory lifecycle. Actual destruction requires ownership of key material, provider/module semantics, backups, audit/retention policy and deployment evidence. Treat destruction as part of the production SecureKeyStore/provider qualification boundary.
-- evidence: `docs/AGENT_STEP_2026-09-16_key-destruction-boundary-recon.md`; documentation commit `6fea1864be14bc67f77400607aca5abfa127ecf9`. No runtime tests were run because no implementation changed.
+- started_at: `2026-09-16T15:00:00Z`
+- base_commit: `6fea1864be14bc67f77400607aca5abfa127ecf9`
+- area: durable workspace transfer journal schema integrity
+- claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-16_transfer-journal-schema-recon.md`, `AGENT_STATUS.md`
+- goal: determine and, if reproducible, close malformed persisted transfer-journal records that can be coerced into authoritative state instead of being rejected fail-closed
+- status: CLAIMED / RESEARCHED
+- research: current replay parser validates the hash chain and digest before constructing `TransferJournalEntry`, but coerces persisted identity fields with `str(...)`, accepts boolean-as-integer version values through Python equality, and does not reject unexpected record fields. This mirrors the previously hardened revocation-record schema boundary and can collapse malformed durable input into a valid in-memory journal identity.
+- external_research: OWASP Transaction Authorization guidance requires transaction state transitions and significant transaction data to be protected from modification and checked again at execution; OWASP Authorization guidance requires default-deny and server-side enforcement. RFC 8259/RFC 8785 style canonical JSON work and the repository's revocation hardening establish strict type/schema validation before interpreting durable security state.
+- skill_discovery: external authorization/security-audit skills were inspected as methodology only. No external skill should override `fs-agent-core`; no narrower skill was found that materially replaces the repository-local durable-journal workflow.
+- decision: treat persisted transfer-journal records as an exact schema boundary. If the malformed-type/extra-field acceptance is confirmed by a regression, harden replay to reject schema violations before constructing authoritative entries and preserve the existing hash-chain verification.
+- evidence: current `workspace_transfer_journal.py` and `tests/test_workspace_transfer_journal.py` were re-read from `main`; exact parser weakness is visible in the current code. Fresh external sources: OWASP Transaction Authorization, OWASP Authorization, NIST least privilege/security controls, and current Agent Skill security/authorization references.
 - blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle including destruction evidence, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
-- next_step: perform fresh repository, internet, and skill reconnaissance for another non-overlapping production boundary. Modify code only if a concrete fail-closed defect is reproduced.
+- next_step: implement the smallest strict replay-schema hardening and targeted regressions, then validate through GitHub Actions.
 
 ## Latest work
 
@@ -64,6 +64,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 5. Trust-root binding remains an explicit provider boundary; do not duplicate deployment-specific certificate/trust semantics in FS core without a demonstrated contract defect.
 6. Revocation is currently durable and fail-closed at the preflight boundary; a future host executor must independently revalidate revocation immediately before irreversible mutation.
 7. Treat key destruction/zeroization as a concrete production provider qualification item rather than an in-memory lifecycle feature.
-8. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-9. Validate any new implementation through GitHub Actions before treating it as evidence.
-10. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+8. Treat the transfer journal as an exact durable schema: malformed persisted types or unexpected fields must not be coerced into authoritative state.
+9. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+10. Validate any new implementation through GitHub Actions before treating it as evidence.
+11. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
