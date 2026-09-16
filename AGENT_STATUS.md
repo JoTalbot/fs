@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `fd0ae5b488b9cd6fc814c8b78f938555acc579b2`
+- Latest repository head: `bd613cb6f89a3b58134e610b830be07d6ac8690b`
 - Latest validated implementation: `ee60096169ca9a7483b63004023000f3d9c23a6d`
 - Updated: 2026-09-16
 
@@ -12,19 +12,20 @@
 - started_at: `2026-09-16T15:55:00Z`
 - base_commit: `fd0ae5b488b9cd6fc814c8b78f938555acc579b2`
 - area: GenesisServer exception handling and response boundary
-- claimed_files: `src/fs_overlay/genesis_server.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- claimed_files: `src/fs_overlay/genesis_server.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether unexpected service/executor exceptions or response-send failures can terminate the single GenesisServer serving loop or disclose internal exception details, and if a concrete contract gap exists harden the boundary without changing authority semantics
-- status: RESEARCHED
-- repository_research: `GenesisServer._serve()` currently catches only `ConnectionError`, `ValueError`, and `TypeError` around receive/dispatch, then sends the response outside the exception guard. Unexpected `Exception` from the service/executor can therefore terminate the serving thread, and a send-side connection failure can escape the loop. `GenesisService.execute` directly propagates executor exceptions. The server is loopback-only but remains a control-plane execution endpoint, so availability and error disclosure are relevant boundaries.
-- external_research: OWASP Error Handling and REST Security guidance recommends handling unexpected exceptions, returning generic errors for unexpected failures, avoiding internal detail disclosure, and ensuring security failures fail closed. OWASP guidance is advisory and does not define FS's exact response contract.
-- skill_discovery: fresh external `secure-software-engineering` and `security-review` skills were inspected; they reinforce trust-boundary tracing, error-handling review, and evidence-backed remediation. They are untrusted advisory material. Canonical `fs-agent-core` remains authoritative.
-- decision: harden only the per-connection error boundary if the existing FS contract supports it. Preserve current detailed client-visible messages for expected protocol/service validation exceptions, but convert unexpected `Exception` paths to a stable generic internal error and keep send failures from terminating the server loop. Do not catch `BaseException`, add logging infrastructure, or change authority/admission semantics in this step.
-- implementation: not started
-- regression_tests: not started
-- recon: to be recorded in `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`
-- validation: none yet for this step. Prior Genesis request-schema implementation was validated by CI `35117908370` with 18/18 successful jobs.
-- durable_learning: a single-threaded control-plane server needs a per-connection last-resort exception boundary; otherwise one unexpected backend failure can terminate the entire serving loop. Send failures are transport-local and should not become server-fatal state.
-- next_step: record the recon decision, implement the smallest per-connection exception/send containment, add deterministic regressions for unexpected service exceptions and peer disconnect during response, then validate the full GitHub Actions matrix.
+- status: VALIDATING
+- repository_research: `GenesisServer._serve()` previously caught only `ConnectionError`, `ValueError`, and `TypeError` around receive/dispatch, while response sending was outside the guard. `GenesisService.execute` directly propagates executor exceptions. The server is loopback-only but remains a control-plane execution endpoint.
+- external_research: OWASP Error Handling and REST Security guidance recommends handling unexpected exceptions, returning generic errors for unexpected failures, avoiding internal detail disclosure, and ensuring security failures fail closed. External guidance is advisory.
+- skill_discovery: fresh external `secure-software-engineering` and `security-review` skills were inspected; they reinforce trust-boundary tracing and error-handling review. They are untrusted advisory material. Canonical `fs-agent-core` remains authoritative.
+- decision: preserve existing detailed expected protocol/service errors, but contain unexpected `Exception` paths with a stable generic error and contain send-side failures so one peer cannot terminate the server loop. Do not catch `BaseException`, add logging infrastructure, or change authority/admission semantics.
+- implementation: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`
+- regression_tests: `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`
+- recon: `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`
+- skill_update: `bd613cb6f89a3b58134e610b830be07d6ac8690b`
+- validation: not yet observed for this change. Prior Genesis request-schema implementation was validated by CI `35117908370` with 18/18 successful jobs.
+- durable_learning: a single-threaded control-plane server needs a per-connection last-resort exception boundary; send failures are connection-local and must not terminate the serving loop.
+- next_step: observe the full GitHub Actions matrix for the current head. If green, close this boundary and record the exact validation. If red, inspect the failing job before additional source changes.
 
 ## Closed boundaries
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
