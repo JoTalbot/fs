@@ -55,12 +55,19 @@ class DurableFederationState:
                 continue
             details = event.get("details")
             if not isinstance(details, dict):
-                continue
+                raise ValueError("invalid federation admission event details")
             sender = details.get("sender_node")
             message_id = details.get("message_id")
             sequence = details.get("sequence")
-            if not (isinstance(sender, str) and sender and isinstance(message_id, str) and message_id and isinstance(sequence, int)):
-                continue
+            if not (
+                isinstance(sender, str)
+                and sender
+                and isinstance(message_id, str)
+                and message_id
+                and isinstance(sequence, int)
+                and sequence >= 0
+            ):
+                raise ValueError("invalid federation admission event state")
             if message_id in self.seen_message_ids:
                 raise ValueError("duplicate federation message ID in durable state")
             previous = self.last_sequence.get(sender, -1)
