@@ -74,3 +74,11 @@ def test_snapshot_rejects_noncanonical_ids_before_path_lookup(tmp_path: Path, sn
         store.get(snapshot_id)
 
     assert outside.read_bytes() == b"must remain inaccessible"
+
+
+@pytest.mark.parametrize("object_id", ["../outside", "../../etc/passwd", "/etc/passwd", "C:\\\\outside"])
+def test_manifest_rejects_ids_before_filesystem_lookup(tmp_path: Path, object_id: str) -> None:
+    engine = LocalStorageEngine(tmp_path / "storage")
+
+    with pytest.raises(ValueError, match="invalid object id"):
+        engine.store.get_manifest(object_id)
