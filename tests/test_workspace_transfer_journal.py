@@ -33,6 +33,15 @@ def _plan(tmp_path: Path):
     )
 
 
+def _rewrite_first_record(path: Path, mutate) -> None:
+    record = json.loads(path.read_text().splitlines()[0])
+    mutate(record)
+    record["event_digest"] = None
+    encoded = json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
+    record["event_digest"] = hashlib.sha256(encoded).hexdigest()
+    path.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+
+
 def _concurrent_begin_worker(
     journal_path: str,
     plan: WorkspaceTransferPlan,
@@ -277,6 +286,33 @@ def test_journal_replay_rejects_unsupported_legacy_record(tmp_path: Path) -> Non
     raw = path.read_text().replace('"version":2', '"version":1')
     path.write_text(raw)
     with pytest.raises(TransferJournalCorruption, match="unsupported journal version"):
+        list(journal.replay())
+
+
+def test_journal_replay_rejects_boolean_version_even_when_digest_is_valid(tmp_path: Path) -> None:
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(_plan(tmp_path))
+    _rewrite_first_record(path, lambda record: record.__setitem__("version", True))
+    with pytest.raises(TransferJournalCorruption, match="version must be an integer"):
+        list(journal.replay())
+
+
+def test_journal_replay_rejects_coercible_identity_type_even_when_digest_is_valid(tmp_path: Path) -> None:
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(_plan(tmp_path))
+    _rewrite_first_record(path, lambda record: record.__setitem__("transaction_id", 123))
+    with pytest.raises(TransferJournalCorruption, match="transaction_id must be a non-empty string"):
+        list(journal.replay())
+
+
+def test_journal_replay_rejects_unexpected_field_even_when_digest_is_valid(tmp_path: Path) -> None:
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(_plan(tmp_path))
+    _rewrite_first_record(path, lambda record: record.__setitem__("unexpected", "value"))
+    with pytest.raises(TransferJournalCorruption, match="schema is invalid"):
         list(journal.replay())
 
 
