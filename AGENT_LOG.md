@@ -289,3 +289,33 @@ Learning:
 - [SECURITY] The first observed failure occurred in test expectations while the new security invariant itself behaved as intended; distinguish harness regressions from implementation regressions using the exact failure log.
 - [VALIDATION] A failed CI run is not validation evidence for the intended final state; after a test-only correction the complete matrix must run again.
 Next: Validate corrected head `d98f7b0365f0b8f5696dda37e67cccb2d933af29` through the full 18-job CI matrix. If it passes, synchronize status and retain the prior failed run as negative evidence; if it fails elsewhere, diagnose only the concrete failure.
+
+## 2026-09-16 | current-agent | release-provenance-implementation
+Base: e93a0dc465ffd41753122e7e92bd4d965867e251
+Area: release artifact provenance and SBOM qualification
+Goal: Establish a controlled release-shaped build path that binds exact Python artifacts to SHA-256 evidence, reproducible CycloneDX SBOM data, and GitHub artifact attestations without claiming production security certification.
+Research:
+- Fresh GitHub documentation confirms artifact attestations bind releasable artifacts to workflow/repository/commit/event provenance and only provide security value when verified.
+- `actions/attest` supports SLSA provenance and SBOM attestations and requires `id-token`, `attestations`, and `artifact-metadata` write permissions.
+- CycloneDX Python 7.3.1 supports reproducible environment SBOM generation; build tooling was kept outside the isolated target environment.
+- Repository research confirmed `pyproject.toml` defines `fs-overlay` 0.1.0 with setuptools PEP 517 metadata and no mandatory runtime dependencies; ordinary CI previously had no release provenance workflow.
+Changes:
+- Added `.github/workflows/release-provenance.yml` with `workflow_dispatch` and `v*` tag triggers.
+- Builds both sdist and wheel artifacts with pinned `build==1.3.0`.
+- Generates `dist/SHA256SUMS` from the release artifacts.
+- Creates an isolated target environment and generates a reproducible, validated CycloneDX JSON SBOM using `cyclonedx-bom==7.3.1`.
+- Uploads the release evidence bundle with immutable `actions/upload-artifact` pinning.
+- Creates signed provenance attestations for wheel and sdist and an SBOM attestation for the wheel using immutable `actions/attest` pinning.
+- Corrected the initial attest action SHA before handoff; the final workflow uses `1e69f48acb82d1966a394da916b4c1698aa569d6` for `v4.2.2`.
+Validation:
+- Workflow file commits: `08086148aa813fa133ea41ace1bced2612f641e4`, followed by pin correction `5674db6e791b58fcc8a870c790a2df30c8810983`.
+- Documentation record commit: `ebcf0583599ea29da105ee8c04837ea5d33e9805`.
+- Status synchronization commit: `862f1105531ffc620ed33642da51841e89066b17`.
+- The workflow intentionally does not execute on ordinary `main` pushes. No provenance/SBOM workflow success is claimed yet because this connector does not expose workflow dispatch and no release tag was created.
+Result: release provenance implementation is committed and handed off for execution validation; V1 production-security blockers remain unchanged.
+Learning:
+- [SECURITY] Provenance is lineage evidence, not a security certification; attestation verification remains mandatory.
+- [SUPPLY-CHAIN] Pin all release workflow actions to immutable upstream SHAs and retain exact artifact digests.
+- [PATTERN] Generate SBOMs from an isolated environment containing the actual target package so build/SBOM tooling is not falsely represented as a runtime dependency.
+- [RULE] A release-provenance workflow is not complete until it has executed and its artifact digests, SBOM and attestation verification results have been observed.
+Next: Execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event, inspect the resulting artifacts and attestations, and only then update the production release evidence.
