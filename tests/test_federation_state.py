@@ -213,6 +213,37 @@ def test_coordinated_admission_recovers_after_process_crash(tmp_path) -> None:
     assert restored.accept(message(2, "next-after-crash"))
 
 
+def test_malformed_durable_admission_fails_closed(tmp_path) -> None:
+    """A hash-valid but schema-invalid admission event must not be ignored on restart."""
+    path = tmp_path / "events.journal"
+    state = DurableFederationState(path)
+    state.events.emit(
+        "federation.accepted",
+        details={"sender_node": "node-a", "message_id": "m1"},
+    )
+
+    try:
+        DurableFederationState(path)
+    except ValueError as exc:
+        assert str(exc) == "invalid federation admission event state"
+    else:
+        raise AssertionError("malformed durable admission must fail closed")
+
+
+def test_malformed_durable_admission_details_fail_closed(tmp_path) -> None:
+    """A federation admission event with non-object details is durable corruption."""
+    path = tmp_path / "events.journal"
+    state = DurableFederationState(path)
+    state.events.emit("federation.accepted", details=[])
+
+    try:
+        DurableFederationState(path)
+    except ValueError as exc:
+        assert str(exc) == "invalid federation admission event details"
+    else:
+        raise AssertionError("malformed durable admission details must fail closed")
+
+
 def test_two_node_fixtures_converge_on_identical_ordered_stream(tmp_path) -> None:
     """Independent nodes consuming the same stream must derive identical durable indexes."""
     stream = (
