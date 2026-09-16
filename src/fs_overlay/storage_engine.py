@@ -183,12 +183,15 @@ class ContentAddressedStore:
     def object_id(data: bytes) -> str:
         return hashlib.sha256(data).hexdigest()
 
-    def _path(self, object_id: str) -> Path:
+    def _validated_path(self, object_id: str) -> Path:
         if len(object_id) != 64 or any(c not in "0123456789abcdef" for c in object_id):
             raise ValueError("invalid object id")
-        directory = self.objects / object_id[:2]
-        directory.mkdir(exist_ok=True)
-        return directory / object_id
+        return self.objects / object_id[:2] / object_id
+
+    def _path(self, object_id: str) -> Path:
+        path = self._validated_path(object_id)
+        path.parent.mkdir(exist_ok=True)
+        return path
 
     def put(self, data: bytes) -> str:
         oid = self.object_id(data)
@@ -211,7 +214,7 @@ class ContentAddressedStore:
         return oid
 
     def get(self, object_id: str) -> bytes:
-        data = self._path(object_id).read_bytes()
+        data = self._validated_path(object_id).read_bytes()
         if self.object_id(data) != object_id:
             raise IOError("object integrity check failed")
         return data
