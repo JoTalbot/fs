@@ -28,10 +28,18 @@ For every concrete `SecureKeyStore` implementation, record:
 - creation, activation, rotation, retirement and revocation behavior;
 - restart, backup and recovery behavior;
 - denial behavior for unknown or revoked keys;
+- destruction/zeroization behavior for private and symmetric key material when it is no longer required;
+- treatment of every retained copy, including backups, replicas, caches and provider-managed copies;
+- metadata retained after destruction for audit/accountability, without retaining recoverable secret material;
+- evidence that destruction/zeroization is performed by the authoritative provider or cryptographic module rather than inferred from a reference lifecycle status;
 - audit/logging behavior and sensitive-data handling;
 - independent security review appropriate to the deployment threat model.
 
 Keys must not be placed in source control, test fixtures used by production, ordinary configuration files, or unprotected logs.
+
+### Destruction qualification boundary
+
+A `RETIRED` or `REVOKED` lifecycle state is not evidence that key material has been destroyed. Production qualification must separately establish when destruction is permitted, which copies must be destroyed, what retention requirements apply to recoverability, and what observable evidence the provider exposes for completion. If the selected provider cannot provide a meaningful destruction/zeroization guarantee, record that limitation rather than claiming one from application-level object deletion or garbage collection.
 
 ## 3. Authenticated transport
 
