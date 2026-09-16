@@ -29,6 +29,13 @@ def _validate_object_id(object_id: object) -> str:
     return object_id
 
 
+def _validate_snapshot_id(snapshot_id: object) -> str:
+    """Require the canonical lowercase SHA-256 representation before path use."""
+    if not isinstance(snapshot_id, str) or _OBJECT_ID_RE.fullmatch(snapshot_id) is None:
+        raise ValueError("invalid snapshot id")
+    return snapshot_id
+
+
 @dataclass(frozen=True)
 class Snapshot:
     snapshot_id: str
@@ -110,6 +117,7 @@ class SnapshotStore:
                 os.unlink(temporary)
 
     def get(self, snapshot_id: str) -> Snapshot:
+        _validate_snapshot_id(snapshot_id)
         snapshot = Snapshot.from_bytes((self.root / snapshot_id).read_bytes())
         if snapshot.snapshot_id != snapshot_id:
             raise ValueError("snapshot identity verification failed")
