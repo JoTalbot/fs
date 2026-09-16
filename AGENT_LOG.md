@@ -281,11 +281,11 @@ Changes:
 - Added `docs/AGENT_STEP_2026-09-16_secure-key-store-overwrite-recon.md` and distilled the durable rule into `fs-agent-core`.
 Validation:
 - Repository writes completed successfully.
-- GitHub Actions CI run `35107179255` (run #732) was observed for implementation head `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`; at handoff it was still queued across the 18-job matrix. No test pass is claimed yet.
-- Earlier validation run `35106280201` remains evidence for the prior revocation implementation only and is not evidence for this new change.
-Result: implementation changes `81036be292341e8e3d93ef3a8b22e73170c399a5`, `da312fe43a65fa5d1831b2248ec40c2ae852411d`, `e0609f077dd6a671b0449d9fb3153a1f32881730`; research doc `436e4721f4ce055a6863717d74c1fb50f851632a`; durable skill update `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`. Current head is `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`.
+- CI run `35107179255` (run #732) tested implementation head `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`. It exposed a test-fixture expectation mismatch after the new overwrite check ran first: Ubuntu 3.11 and 3.12 failed in the harness-rejection parametrization because `PermissiveKeyStore` was now correctly rejected for silent overwrite before the older empty-material expectation. The same failing job reports 488 passed and 3 skipped before the single assertion failure; independent conformance/admission checks passed. This is a regression-test expectation defect, not evidence of a runtime implementation failure.
+- The failure log was inspected directly and the fix was limited to aligning that test expectation with the newly enforced ordering.
+Result: implementation changes `81036be292341e8e3d93ef3a8b22e73170c399a5`, `da312fe43a65fa5d1831b2248ec40c2ae852411d`, `e0609f077dd6a671b0449d9fb3153a1f32881730`; failure analysis/fix `d98f7b0365f0b8f5696dda37e67cccb2d933af29`; research doc `436e4721f4ce055a6863717d74c1fb50f851632a`; durable skill update `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`. Validation remains pending on the corrected head.
 Learning:
-- [SECURITY] If key identity is immutable at the authority boundary, storage must reject silent overwrite under an existing identifier; otherwise a storage adapter can substitute key material without an explicit lifecycle transition.
-- [RULE] Key rotation must remain an explicit lifecycle/identity transition and must not be smuggled into a generic storage `store()` operation.
-- [VALIDATION] A queued GitHub Actions run is not validation evidence; only completed observed jobs may move the step to `VALIDATED`.
-Next: Wait for CI run `35107179255` to complete, inspect all 18 jobs, then synchronize `AGENT_STATUS.md` with the exact validated implementation head and CI result. If CI fails, diagnose only the concrete failure before further changes.
+- [FAILURE] When strengthening a reusable conformance harness, existing negative fixtures can fail earlier on the newly added invariant; expected-failure assertions must be reviewed for the new ordering.
+- [SECURITY] The first observed failure occurred in test expectations while the new security invariant itself behaved as intended; distinguish harness regressions from implementation regressions using the exact failure log.
+- [VALIDATION] A failed CI run is not validation evidence for the intended final state; after a test-only correction the complete matrix must run again.
+Next: Validate corrected head `d98f7b0365f0b8f5696dda37e67cccb2d933af29` through the full 18-job CI matrix. If it passes, synchronize status and retain the prior failed run as negative evidence; if it fails elsewhere, diagnose only the concrete failure.
