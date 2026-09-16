@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
+- Latest repository head: `81d6aae4a7937f649004a2bf2436f56d15876320`
 - Latest validated implementation: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
 - Updated: 2026-09-16
 
@@ -10,22 +10,21 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T16:30:00Z`
-- base_commit: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
-- area: storage-engine durable journal JSON parsing boundary
-- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_storage-journal-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether duplicate JSON object members in the durable append journal can be collapsed before strict journal schema and inventory recovery validation, and harden only if a concrete fail-closed boundary gap exists
-- status: CLOSED
-- repository_research: `AppendJournal.replay()` already enforced frame length, EOF-tail semantics, exact record fields, strict version/operation/payload types, and downstream inventory payload validation, but default `json.loads` collapsed duplicate object members before those checks.
-- external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP input-validation guidance supports rejecting ambiguous duplicate JSON keys.
-- skill_discovery: canonical `fs-agent-core` remains authoritative; its durable duplicate-JSON parsing rule applies directly. No additional skill change was required.
-- decision: reject duplicate JSON object member names during `AppendJournal.replay()` parsing before schema and inventory recovery validation, preserving incomplete EOF-tail behavior and transaction semantics.
-- implementation: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`
-- regression_tests: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
-- recon: `98b3e609bdaec2461eb5183110fe699e2711c024`
-- validation: GitHub Actions run `35124222857` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `9dcc0327ce13ab9568fef037984d51e8d03b6db2`.
-- durable_learning: `[SECURITY] Durable JSON records must reject duplicate object members at the parser boundary; downstream strict schemas cannot recover a member discarded by a permissive JSON parser.`
-- result: storage-engine durable journal JSON parsing boundary is closed with validated duplicate-key rejection and recovery-path regressions.
-- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
+- base_commit: `91d32f295a58bcd435e0507b60d9c7e83224cc7f`
+- area: durable trust-root JSON parsing boundary
+- claimed_files: `src/fs_overlay/trust_roots.py`, `tests/test_trust_roots.py`, `docs/AGENT_STEP_2026-09-16_trust-root-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether duplicate JSON object members in durable trust-root records can be collapsed before strict schema and hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
+- status: VALIDATING
+- repository_research: `TrustRootRecord.from_line()` enforced exact fields, strict scalar types, canonical SHA-256 fields, sequence continuity, hash-chain linkage, and event-digest verification, but default `json.loads` collapsed duplicate members before those checks.
+- external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP Developer Guide recommends fatal parse errors on duplicate keys; OWASP Input Validation recommends early syntactic validation and rejection of malformed structured input.
+- skill_discovery: canonical `fs-agent-core` was reread; its durable duplicate-JSON rule directly applies. No additional external skill was needed.
+- decision: reject duplicate JSON object members during `TrustRootRecord.from_line()` parsing before schema and digest validation, preserving trust-root authority and hash-chain semantics.
+- recon: `d79c0dff427083c0a8d473c4094ee26525a655f6`
+- implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
+- regression_tests: `81d6aae4a7937f649004a2bf2436f56d15876320`
+- validation: CI pending for the trust-root implementation/test head; no new validation claim yet.
+- result: implementation is committed; duplicate-key regressions are present; full matrix remains the release gate for this step.
+- next_step: inspect GitHub Actions for the implementation/test head, trace any failures to exact job logs, then synchronize status and continue with the next non-overlapping durable boundary.
 
 ## Closed boundaries
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
