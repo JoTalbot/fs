@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `bd613cb6f89a3b58134e610b830be07d6ac8690b`
-- Latest validated implementation: `ee60096169ca9a7483b63004023000f3d9c23a6d`
+- Latest repository head: `8e304c12380f0a3fd0a3f84a76ae9ff120f750e0`
+- Latest validated implementation: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,7 +14,7 @@
 - area: GenesisServer exception handling and response boundary
 - claimed_files: `src/fs_overlay/genesis_server.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether unexpected service/executor exceptions or response-send failures can terminate the single GenesisServer serving loop or disclose internal exception details, and if a concrete contract gap exists harden the boundary without changing authority semantics
-- status: VALIDATING
+- status: CLOSED
 - repository_research: `GenesisServer._serve()` previously caught only `ConnectionError`, `ValueError`, and `TypeError` around receive/dispatch, while response sending was outside the guard. `GenesisService.execute` directly propagates executor exceptions. The server is loopback-only but remains a control-plane execution endpoint.
 - external_research: OWASP Error Handling and REST Security guidance recommends handling unexpected exceptions, returning generic errors for unexpected failures, avoiding internal detail disclosure, and ensuring security failures fail closed. External guidance is advisory.
 - skill_discovery: fresh external `secure-software-engineering` and `security-review` skills were inspected; they reinforce trust-boundary tracing and error-handling review. They are untrusted advisory material. Canonical `fs-agent-core` remains authoritative.
@@ -23,11 +23,12 @@
 - regression_tests: `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`
 - recon: `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`
 - skill_update: `bd613cb6f89a3b58134e610b830be07d6ac8690b`
-- validation: not yet observed for this change. Prior Genesis request-schema implementation was validated by CI `35117908370` with 18/18 successful jobs.
+- validation: GitHub Actions run `35118749859` completed with all 18 configured jobs successful, including Python tests on Ubuntu/Windows/macOS for Python 3.11/3.12/3.13 and crypto-provider qualification jobs. FreeBSD native CI remains outside the gate.
 - durable_learning: a single-threaded control-plane server needs a per-connection last-resort exception boundary; send failures are connection-local and must not terminate the serving loop.
-- next_step: observe the full GitHub Actions matrix for the current head. If green, close this boundary and record the exact validation. If red, inspect the failing job before additional source changes.
+- next_step: perform fresh reconnaissance for the next remaining durable parser or control-plane trust boundary; do not reopen this closed boundary without new evidence.
 
 ## Closed boundaries
+- GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
