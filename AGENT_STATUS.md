@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`
-- Latest validated implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
+- Latest repository head: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1`
+- Latest validated implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,7 +14,7 @@
 - area: snapshot wire/deserialization JSON parsing boundary
 - claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in persisted snapshots can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
-- status: VALIDATING
+- status: HANDED_OFF
 - repository_research: `Snapshot.from_bytes()` performed strict field/type/identity/Merkle validation but used default `json.loads`, allowing duplicate top-level and nested object members to be collapsed before validation.
 - external_research: RFC 8259 documents unpredictable duplicate-name behavior; RFC 8785 forbids duplicate property names for canonical JSON; OWASP recommends rejecting duplicate keys and validating structured input early.
 - skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation/security guidance. Canonical `fs-agent-core` remains authoritative.
@@ -22,12 +22,13 @@
 - implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
 - regression_tests: `744066a027a6e375beb501951bb827b66e93c9bc`
 - recon: `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`
-- skill_update: pending
-- validation: not yet performed; GitHub Actions is authoritative and no local test runner is available
-- durable_learning: pending CI confirmation
-- next_step: observe the full GitHub Actions matrix for the current implementation/regression head; if green, update the skill/log and close the boundary; if red, inspect the exact failing job before source changes.
+- skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1`
+- validation: GitHub Actions run `35121226276` completed successfully with all 18 configured jobs. Python test jobs and candidate crypto-provider jobs all reported success. No local test runner was used.
+- durable_learning: `[SECURITY] Persisted snapshot JSON must reject duplicate object member names before schema, identity, or Merkle validation; otherwise parser collapse can cause integrity checks to validate an ambiguous representation rather than the original record.`
+- next_step: perform fresh reconnaissance for the next non-overlapping repository-level contract gap. Do not reopen this snapshot boundary without new evidence.
 
 ## Closed boundaries
+- snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
