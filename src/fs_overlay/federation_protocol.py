@@ -14,6 +14,27 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("federation envelope contains duplicate JSON fields")
+        result[key] = value
+    return result
+
+
+def _validate_non_negative_int(value: object, field: str) -> int:
+    if type(value) is not int or value < 0:
+        raise ValueError(f"invalid federation envelope {field}")
+    return value
+
+
+def _validate_non_empty_string(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise ValueError(f"invalid federation envelope {field}")
+    return value
+
+
 @dataclass(frozen=True)
 class FederationEnvelope:
     sender_node: str
@@ -56,16 +77,40 @@ class FederationEnvelope:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "FederationEnvelope":
-        value = json.loads(data.decode("utf-8"))
+        try:
+            value = json.loads(data.decode("utf-8"), object_pairs_hook=_reject_duplicate_object_keys)
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            raise ValueError("invalid federation envelope JSON") from exc
         if not isinstance(value, dict):
             raise ValueError("federation envelope must be an object")
-        signature = value.get("signature")
-        decoded = base64.b64decode(signature, validate=True) if isinstance(signature, str) else None
-        payload = value.get("payload")
+        expected_fields = {
+            "sender_node", "message_id", "message_type", "sequence",
+            "issued_ns", "payload", "signature",
+        }
+        if set(value) != expected_fields:
+            raise ValueError("federation envelope fields are invalid")
+
+        sender_node = _validate_non_empty_string(value["sender_node"], "sender_node")
+        message_id = _validate_non_empty_string(value["message_id"], "message_id")
+        message_type = _validate_non_empty_string(value["message_type"], "message_type")
+        sequence = _validate_non_negative_int(value["sequence"], "sequence")
+        issued_ns = _validate_non_negative_int(value["issued_ns"], "issued_ns")
+        payload = value["payload"]
         if not isinstance(payload, dict):
             raise ValueError("federation payload must be an object")
-        return cls(str(value["sender_node"]), str(value["message_id"]), str(value["message_type"]),
-                   int(value["sequence"]), int(value["issued_ns"]), payload, decoded)
+
+        signature = value["signature"]
+        if signature is None:
+            decoded = None
+        elif isinstance(signature, str):
+            try:
+                decoded = base64.b64decode(signature, validate=True)
+            except (ValueError, TypeError) as exc:
+                raise ValueError("invalid federation envelope signature") from exc
+        else:
+            raise ValueError("invalid federation envelope signature")
+
+        return cls(sender_node, message_id, message_type, sequence, issued_ns, payload, decoded)
 
 
 class ReplayGuard:
