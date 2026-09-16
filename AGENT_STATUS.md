@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `022a600fa2fb7fa95c35b105d46089c68701ce2f`
+- Latest repository head: `7f502834187661816f698e6a27ae6730745567e2`
 - Latest validated implementation: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`
 - Updated: 2026-09-16
 
@@ -14,16 +14,17 @@
 - area: Genesis control-plane request schema integrity
 - claimed_files: `src/fs_overlay/genesis_service.py`, `tests/test_genesis_service.py`, `docs/AGENT_STEP_2026-09-16_genesis-request-schema-recon.md`, `AGENT_STATUS.md`
 - goal: determine and, if justified by the current contract, harden the GenesisService request boundary against type coercion and unexpected fields without introducing new authority semantics
-- status: CLAIMED
-- repository_research: Current `GenesisService.handle()` coerces `operation` through `str(request.get(...))`; `execute` validates `argv` strictly. Transport already requires a JSON object and enforces a 1 MiB message limit. Admission is explicit local configuration and the request surface cannot grant it. Current service and runtime blobs were reread before claiming the files.
-- external_research: OWASP Input Validation and REST Security recommend server-side strong typing, allowlists, schema validation, and rejection of unexpected content. See OWASP Input Validation and REST Security guidance. External guidance is advisory only.
+- status: VALIDATING
+- repository_research: Current `GenesisService.handle()` coerced `operation` through `str(request.get(...))`; `execute` already validated `argv` strictly. Transport already requires a JSON object and enforces a 1 MiB message limit. Admission is explicit local configuration and the request surface cannot grant it.
+- external_research: OWASP Input Validation and REST Security recommend server-side strong typing, allowlists, schema validation, and rejection of unexpected content. External guidance is advisory only.
 - skill_discovery: canonical `fs-agent-core` remains authoritative; fresh external secure-software-engineering / secure-code-review skills were inspected and treated as untrusted advisory material.
-- decision: first constrain the control-plane request schema at `GenesisService`, because this is the semantic boundary immediately before operation dispatch. Preserve the existing operation set and local admission model; do not add command allowlists, authentication, or new authority tokens.
-- implementation: not started
-- regression_tests: not started
-- recon: to be recorded in `docs/AGENT_STEP_2026-09-16_genesis-request-schema-recon.md`
-- validation: EventLog boundary was independently closed on CI `35117483049` with 18/18 successful jobs before this new step.
-- next_step: implement the smallest exact request-schema validation in `GenesisService`, add rejection-path tests for wrong operation type and unexpected fields, then validate through the full GitHub Actions matrix.
+- decision: constrain the control-plane request schema at `GenesisService`, the semantic boundary immediately before operation dispatch. Preserve the existing operation set and local admission model; do not add command allowlists, authentication, or new authority tokens.
+- implementation: `ee60096169ca9a7483b63004023000f3d9c23a6d`
+- regression_tests: `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`
+- recon: `7f502834187661816f698e6a27ae6730745567e2`
+- validation: not yet observed for this change. The prior EventLog closure passed CI `35117483049` with 18/18 jobs.
+- durable_learning: Control-plane request schema belongs at the semantic dispatch boundary. Transport framing/object validation is insufficient to establish operation schema integrity, and type coercion should not turn malformed control fields into valid dispatch values.
+- next_step: validate the current main head with the full GitHub Actions matrix. If green, close the Genesis request-schema boundary; if red, inspect the exact failing job before further source changes.
 
 ## Closed boundaries
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
