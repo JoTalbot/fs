@@ -2,30 +2,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `71ca4ec2a2de1c267427a0dfdb6241fc8d85da7f`
+- Latest repository head: `22e84e5af6c0e2a9e4d54b176f63372cd0c1d214`
 - Latest validated implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T16:00:00Z`
-- base_commit: `f0de30235f14a82e824f60013049208b217bd460`
-- area: durable workspace transfer journal JSON parsing boundary
-- claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-16_transfer-journal-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether duplicate JSON object members in the durable workspace transfer journal can be collapsed by parsing before schema/hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
-- status: HANDED_OFF
-- repository_research: current `WorkspaceTransferJournal.replay()` and `_last_digest()` used default `json.loads`, while schema validation inspected only the materialized dictionary. Duplicate members could therefore be discarded before exact-field and digest validation.
-- external_research: RFC 8259 states JSON object names should be unique and duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends fatal parse errors on duplicate keys. RFC 8785 requires no duplicate property names for canonical JSON processing.
-- skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation guidance. Canonical `fs-agent-core` remains authoritative.
-- decision: reject duplicate JSON object member names during parsing of every durable transfer-journal record, including `_last_digest()`, before schema, identity, digest, and hash-chain validation. Preserve journal framing, transitions, SHA-256 digest semantics, and authority boundaries.
-- implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
-- regression_tests: `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`
-- recon: `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`
-- skill_update: `71ca4ec2a2de1c267427a0dfdb6241fc8d85da7f`
-- validation: GitHub Actions run `35120511163` completed successfully with all 18 configured jobs. Its validated head was the later coordination commit containing the transfer-journal implementation/regression ancestry; no local test runner was used. The final skill/status documentation commits are documentation-only and are not presented as new implementation validation.
-- durable_learning: `[SECURITY] Durable JSON journals must reject duplicate object member names at every parse path, including helper paths that derive hash-chain state, before schema or digest validation; otherwise parser collapse can make ambiguous persisted records appear structurally valid.`
-- next_step: perform fresh reconnaissance for the next non-overlapping repository-level contract gap. Do not reopen this boundary without new evidence.
+- started_at: `2026-09-16T16:20:00Z`
+- base_commit: `22e84e5af6c0e2a9e4d54b176f63372cd0c1d214`
+- area: snapshot wire/deserialization JSON parsing boundary
+- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- goal: determine whether duplicate JSON object members in persisted snapshots can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
+- status: RESEARCHED
+- repository_research: `Snapshot.from_bytes()` performs strict field/type/identity/Merkle validation but currently uses default `json.loads`, so duplicate object members are collapsed before those checks.
+- external_research: fresh standards/security review is being performed for duplicate JSON member handling and canonical structured-data validation.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; applicable external security/input-validation guidance will be inspected before implementation.
+- decision: pending completion of fresh external research and skill inspection; no source mutation for this step yet.
+- implementation: pending
+- regression_tests: pending
+- recon: pending
+- skill_update: pending
+- validation: not yet performed
+- durable_learning: pending
+- next_step: complete fresh external research/skill discovery, record the decision, then implement the smallest parser-boundary hardening if the gap remains concrete.
 
 ## Closed boundaries
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
