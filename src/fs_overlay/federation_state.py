@@ -64,7 +64,7 @@ class DurableFederationState:
                 and sender
                 and isinstance(message_id, str)
                 and message_id
-                and isinstance(sequence, int)
+                and type(sequence) is int
                 and sequence >= 0
             ):
                 raise ValueError("invalid federation admission event state")
