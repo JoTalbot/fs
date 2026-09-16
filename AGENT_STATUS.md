@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `fd010f13ae176eb423fca1f15d5b977cc8e7af91`
+- Latest repository head: `434dda3ef77d58ee1f7ec91912e96cb3daea1d87`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -16,23 +16,24 @@
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T12:52:00Z`
 - base_commit: `a68fe13bc761ab42b7757d769440e6a7314d368d`
-- area: release evidence and provider-boundary qualification
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`
+- area: secure key lifecycle persistence boundary
+- claimed_files: `AGENT_STATUS.md`, `docs/AGENT_STEP_2026-09-16_key-lifecycle-persistence-recon.md`
 - goal: preserve evidence-backed fail-closed qualification without implementing unaudited production security providers or host filesystem mutation
-- status: Release-gate evidence was reconciled with the latest CI-validated implementation. The active V1 gate now points to CI #677 and implementation head `a68fe13bc761ab42b7757d769440e6a7314d368d`; historical CI references remain only in historical records. No production-security provider was added.
-- decision: treat `a68fe13bc761ab42b7757d769440e6a7314d368d` as the current CI-validated implementation head. Later commits `d62d5e3f575ca50b9a8af9c804486204360bad3d`, `cf7f21a96efd9385de03a541d966b0959c040a3c`, `321f0e31b1e6f532fae26247a15a718a1f1d7f84`, and `fd010f13ae176eb423fca1f15d5b977cc8e7af91` are coordination/documentation commits, not new implementation validation points.
+- status: Focused reconnaissance found no repository-level fail-open restart path for retired/revoked key authority. The reference lifecycle and admission adapter are explicitly in-memory and non-durable; durable lifecycle persistence is delegated to a concrete deployment provider.
+- decision: no code change. Do not treat the reference lifecycle as durable production authority. Preserve the existing production-security blocker.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, and independent security review.
-- next_step: inspect one focused production-boundary contract area for a reproducible repository-level defect; if none exists, stop code changes rather than manufacture a security provider.
+- next_step: stop code changes unless a concrete provider/deployment package or reproducible repository-level contract defect appears.
 
 ## Latest work
 
+- `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — record key lifecycle persistence boundary reconnaissance.
+- `2ed72f33e093e9dd3c334e8c065fb4524c6fafda` — synchronize status after release-evidence review.
 - `fd010f13ae176eb423fca1f15d5b977cc8e7af91` — synchronize status after release-evidence review.
 - `321f0e31b1e6f532fae26247a15a718a1f1d7f84` — reconcile V1 release-gate CI evidence with CI #677.
 - `cf7f21a96efd9385de03a541d966b0959c040a3c` — synchronize coordination log after rotated-key CI validation.
 - `d62d5e3f575ca50b9a8af9c804486204360bad3d` — synchronize status after rotated-key CI validation.
 - `a68fe13bc761ab42b7757d769440e6a7314d368d` — add regression proving rotated retired keys cannot be re-admitted while the existing admission remains verification-capable.
 - `4f048e1a2fc0b6379616d6c0d85f44afe9e14280` — reject new admission of keys retired by lifecycle rotation.
-- `70470e79d2ea181351cae8dacf5e2ff974e58f50` — record provider-boundary review; no new safe repository-level provider defect found.
 
 ## Validation boundary
 
