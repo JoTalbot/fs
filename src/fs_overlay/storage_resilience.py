@@ -25,6 +25,15 @@ _QUARANTINE_FIELDS = {
 }
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 def _validate_object_id(object_id: object) -> str:
     """Require the canonical lowercase SHA-256 representation for object IDs."""
     if not isinstance(object_id, str) or _OBJECT_ID_RE.fullmatch(object_id) is None:
@@ -81,8 +90,8 @@ class Snapshot:
     @classmethod
     def from_bytes(cls, data: bytes) -> "Snapshot":
         try:
-            raw = json.loads(data)
-        except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as exc:
+            raw = json.loads(data, object_pairs_hook=_reject_duplicate_object_keys)
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
             raise ValueError("snapshot JSON is invalid") from exc
         if not isinstance(raw, dict):
             raise ValueError("snapshot must be an object")
