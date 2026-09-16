@@ -66,6 +66,31 @@ class RecoveryAuditCorruption(ValueError):
     """Raised when recovery audit history cannot be trusted."""
 
 
+_RECOVERY_AUDIT_FIELDS = {
+    "version",
+    "sequence",
+    "transaction_id",
+    "snapshot_id",
+    "operation",
+    "phase_before",
+    "decision",
+    "proposed_transition",
+    "reason",
+    "evidence_digest",
+    "previous_digest",
+    "event_digest",
+}
+
+
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object member")
+        result[key] = value
+    return result
+
+
 def _canonical(payload: dict[str, object]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
 
@@ -86,6 +111,20 @@ def _transition(decision: RecoveryDecision) -> RecoveryAuditTransition:
 
 def _valid_digest(value: str) -> bool:
     return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
+
+
+def _require_exact_string(raw: dict[str, object], field: str) -> str:
+    value = raw[field]
+    if type(value) is not str or not value:
+        raise ValueError(f"invalid audit {field}")
+    return value
+
+
+def _require_non_negative_int(raw: dict[str, object], field: str) -> int:
+    value = raw[field]
+    if type(value) is not int or value < 0:
+        raise ValueError(f"invalid audit {field}")
+    return value
 
 
 class RecoveryAuditLog:
@@ -156,24 +195,45 @@ class RecoveryAuditLog:
                 if not raw_line.endswith(b"\n"):
                     raise RecoveryAuditCorruption("audit contains an incomplete record")
                 try:
-                    raw = json.loads(raw_line[:-1])
+                    raw = json.loads(
+                        raw_line[:-1],
+                        object_pairs_hook=_reject_duplicate_object_keys,
+                    )
+                    if not isinstance(raw, dict) or set(raw) != _RECOVERY_AUDIT_FIELDS:
+                        raise ValueError("audit record fields are invalid")
+                    version = raw["version"]
+                    if type(version) is not int or version != 1:
+                        raise ValueError("unsupported audit version")
+                    sequence = _require_non_negative_int(raw, "sequence")
+                    if sequence < 1:
+                        raise ValueError("invalid audit sequence")
+                    transaction_id = _require_exact_string(raw, "transaction_id")
+                    snapshot_id = _require_exact_string(raw, "snapshot_id")
+                    operation = _require_exact_string(raw, "operation")
+                    phase_before = _require_exact_string(raw, "phase_before")
+                    decision = _require_exact_string(raw, "decision")
+                    proposed_transition = _require_exact_string(raw, "proposed_transition")
+                    reason = _require_exact_string(raw, "reason")
+                    evidence_digest = _require_exact_string(raw, "evidence_digest")
+                    previous_digest = raw["previous_digest"]
+                    if previous_digest is not None and (type(previous_digest) is not str or not previous_digest):
+                        raise ValueError("invalid audit previous_digest")
+                    event_digest = _require_exact_string(raw, "event_digest")
                     event = RecoveryAuditEvent(
-                        int(raw["sequence"]),
-                        str(raw["transaction_id"]),
-                        str(raw["snapshot_id"]),
-                        WorkspaceTransfer(str(raw["operation"])),
-                        TransferJournalPhase(str(raw["phase_before"])),
-                        RecoveryDecision(str(raw["decision"])),
-                        RecoveryAuditTransition(str(raw["proposed_transition"])),
-                        str(raw["reason"]),
-                        str(raw["evidence_digest"]),
-                        None if raw.get("previous_digest") is None else str(raw["previous_digest"]),
-                        str(raw["event_digest"]),
+                        sequence,
+                        transaction_id,
+                        snapshot_id,
+                        WorkspaceTransfer(operation),
+                        TransferJournalPhase(phase_before),
+                        RecoveryDecision(decision),
+                        RecoveryAuditTransition(proposed_transition),
+                        reason,
+                        evidence_digest,
+                        previous_digest,
+                        event_digest,
                     )
                 except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                     raise RecoveryAuditCorruption("audit record is invalid") from exc
-                if raw.get("version") != 1:
-                    raise RecoveryAuditCorruption("unsupported audit version")
                 if event.phase_before is not TransferJournalPhase.MATERIALIZING:
                     raise RecoveryAuditCorruption("audit event is not tied to materializing recovery")
                 if not _valid_digest(event.evidence_digest):
