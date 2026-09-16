@@ -14,18 +14,18 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T14:15:00Z`
-- base_commit: `2a30ddef33440f2aab5bab1df943faf37d9de2bb`
-- area: revocation / future executor mutation boundary
-- claimed_files: `AGENT_STATUS.md`, `src/fs_overlay/authority_revocation.py`, `src/fs_overlay/workspace_transfer_materializer.py`, `src/fs_overlay/executor_preflight.py`, `src/fs_overlay/workspace_transfer_authority.py`, relevant revocation/executor tests, `docs/AGENT_STEP_2026-09-16_revocation-execution-race-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether live authority revocation has a reproducible fail-open race in the implemented repository rather than merely in the explicitly unimplemented future host executor
-- status: HANDED_OFF. Reconnaissance found no current fail-open defect and no code change was justified.
-- research: `AuthorityRevocationRegistry` serializes replay and revocation checks through a shared cross-process lock and refreshes durable state while holding it. `executor_preflight()` performs live revocation validation. The current materializer is non-destructive, while the future executor contract explicitly requires revalidation immediately before mutation.
-- external_research: NIST SP 800-57 Part 1 Rev. 5 treats key-management lifecycle and trust infrastructure as authoritative security mechanisms; OWASP Secrets Management emphasizes revocation, rotation, lifecycle metadata, least privilege, and rapid containment. External security-review/secure-software-engineering skills were inspected as untrusted methodology references only.
-- decision: do not add a core-wide lock spanning an unspecified future executor and do not duplicate revocation state. The apparent TOCTOU risk becomes an implementation obligation only when an authority-bearing host executor exists; the current repository has no such mutation path.
-- evidence: `docs/AGENT_STEP_2026-09-16_revocation-execution-race-recon.md`; documentation commit `cdc87f1e0a874610abf4962d72e32004e53bc327`. No runtime tests were run because no implementation changed.
-- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond semantic CI controls.
-- next_step: perform fresh repository, internet, and skill reconnaissance for the next concrete provider-boundary contract gap; modify code only if a reproducible fail-closed defect is found. Otherwise preserve the explicit production-evidence blocker and avoid speculative provider implementation.
+- started_at: `2026-09-16T14:30:00Z`
+- base_commit: `cdc87f1e0a874610abf4962d72e32004e53bc327`
+- area: authenticated/encrypted transport provider boundary
+- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/AGENT_STEP_2026-09-16_transport-provider-boundary-recon.md`
+- goal: determine whether the implemented AuthenticatedTransport contract contains a reproducible fail-open semantic defect beyond the already audited session binding/re-authentication boundary
+- status: CLAIMED / RESEARCHED
+- research: Fresh repository inspection covered `production_adapters.py`, `transport_gate.py`, `executor_preflight.py`, adapter conformance references, and transport gate tests. The gate validates provider authentication state and exact peer binding before send/receive, closes on provider state/send/receive failures, rejects malformed/replayed frames, and the executor performs transport validation only after identity/policy/authority/journal checks.
+- external_research: RFC 8446 TLS 1.3 and OWASP TLS/Web Service Security guidance emphasize authenticated encrypted transport, strong protocol/cipher configuration, certificate/trust validation, and explicit mutual authentication where required. External security-review skill guidance was inspected as untrusted methodology only.
+- decision: continue as a no-code provider-boundary reconnaissance unless a concrete contract mismatch is found. Do not implement generic TLS, certificate, trust, key custody, or deployment configuration in FS core merely to fill the production evidence gap.
+- evidence: current repository files cited in the recon; external sources include RFC 8446 and OWASP TLS/Web Service Security guidance. No runtime tests run yet because no implementation change has been made.
+- blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
+- next_step: complete the focused transport contract review, record the decision in a durable recon document/log, and hand off without speculative implementation if no reproducible defect exists.
 
 ## Latest work
 
@@ -38,7 +38,6 @@
 - `436e4721f4ce055a6863717d74c1fb50f851632a` — SecureKeyStore overwrite reconnaissance and decision record.
 - `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2` — durable fs-agent-core lesson for explicit key-storage replacement semantics.
 - `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening; validated by CI #718 and OSV run #2.
-- `98ca71af4cfa9093a8639f554b2097df30db77ee` — previous final coordination-state synchronization.
 
 ## Validation boundary
 
