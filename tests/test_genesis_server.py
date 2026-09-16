@@ -8,9 +8,9 @@ from fs_overlay.identity import NodeIdentity
 from fs_overlay.transport import LocalhostTransport
 
 
-def make_service():
+def make_service(*, admitted=False):
     identity = NodeIdentity.from_public_key("node-server", b"server-key")
-    return build_local_service(identity, {"cpu": {"capacity": 2, "unit": "cores"}})
+    return build_local_service(identity, {"cpu": {"capacity": 2, "unit": "cores"}}, admitted=admitted)
 
 
 def wait_for_port(server: GenesisServer) -> tuple[str, int]:
@@ -49,9 +49,22 @@ def test_genesis_server_round_trip_and_admission_gate():
             port,
             {"operation": "admit", "node_id": "node-server"},
         )
-        assert admitted["ok"]
+        assert not admitted["ok"]
+        assert admitted["error"] == "unsupported operation: admit"
 
-        result = transport.request(
+        still_blocked = transport.request(
+            port,
+            {"operation": "execute", "argv": ["python", "-c", "print('still-blocked')"]},
+        )
+        assert not still_blocked["ok"]
+        assert still_blocked["error"] == "node is not admitted"
+
+
+def test_genesis_server_can_serve_explicitly_admitted_local_service():
+    service = make_service(admitted=True)
+    with GenesisServer(service) as server:
+        _, port = wait_for_port(server)
+        result = LocalhostTransport().request(
             port,
             {"operation": "execute", "argv": ["python", "-c", "print('server-ok')"]},
         )
