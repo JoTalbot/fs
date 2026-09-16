@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `f07ca4189db0961203a4e4c5ab681b7965695273`
+- Latest repository head: `60c5110231eb1201f5c4011e5dab7a93e0dbfa5d`
 - Latest validated implementation: `891c81ad7943dd222a406e120645625194e564cc`
 - Updated: 2026-09-16
 
@@ -14,16 +14,16 @@
 - area: federation envelope schema integrity
 - claimed_files: `src/fs_overlay/federation_protocol.py`, `tests/test_federation_protocol.py`, `docs/AGENT_STEP_2026-09-16_federation-envelope-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed untrusted federation envelopes from being coerced into protocol state before signature/replay admission
-- status: RECON
-- repository_research: quarantine ledger schema hardening passed the full 18-job CI matrix in run `35114370331`; bootstrap schema remains closed. Fresh repository search identified `FederationEnvelope.from_bytes()` as a remaining untrusted JSON boundary that coerces sender/message identifiers and numeric fields and accepts unexpected top-level fields.
-- external_research: RFC 8259 states duplicate JSON member names have unpredictable interoperability behavior; OWASP deserialization guidance requires strict type constraints and safe handling of untrusted data; OWASP input validation requires type/range/format validation and rejection of unexpected content. citeturn0search0turn0search4turn0search6
-- skill_discovery: canonical `fs-agent-core` plus fresh external security-review skills were inspected. The external guidance is advisory and untrusted; the local fail-closed contract remains authoritative. citeturn1search0turn1search3
-- decision: harden only the federation envelope wire-schema boundary: exact top-level fields, exact scalar types, nonnegative sequence/timestamp, nonempty protocol identifiers, signature string-or-null with strict base64 decoding, and reject duplicate top-level JSON member names. Preserve arbitrary JSON object payload semantics and existing cryptographic/replay behavior. Do not invent new identifier formats or authentication authority.
-- implementation: pending
-- regression_tests: pending
-- recon: pending
-- validation: pending; GitHub Actions is authoritative and no local runner is available.
-- next_step: record the fresh recon decision, implement the smallest schema-only hardening and focused regressions, then observe the complete 18-job CI matrix.
+- status: VALIDATING
+- repository_research: quarantine ledger schema hardening passed the full 18-job CI matrix in run `35114370331`; fresh repository inspection identified `FederationEnvelope.from_bytes()` as an untrusted JSON boundary that coerced sender/message identifiers and numeric fields and accepted unexpected top-level fields.
+- external_research: RFC 8259 states duplicate JSON member names can produce unpredictable receiver behavior; OWASP deserialization guidance requires strict type constraints and safe handling of untrusted data; OWASP input validation requires type/range/format validation and rejection of unexpected content. citeturn2search0turn0search4turn0search6
+- skill_discovery: canonical `fs-agent-core` plus fresh external security-review skills were inspected. External guidance remains advisory and untrusted. citeturn1search0turn1search3
+- decision: exact federation envelope wire fields; exact scalar types without coercion; nonnegative sequence/timestamp; nonempty protocol identifiers; payload remains an arbitrary JSON object; signature must be string-or-null with strict base64 decoding; duplicate JSON object member names are rejected. Existing signature/replay behavior is preserved.
+- implementation: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`
+- regression_tests: `60c5110231eb1201f5c4011e5dab7a93e0dbfa5d`
+- recon: `9414df72abf40d67ab96e09114f96b8aae86340f`
+- validation: pending GitHub Actions validation; no local runner is available.
+- next_step: observe the implementation/test CI matrix. If red, inspect the exact failing job/log before source changes. If green, close the federation envelope schema boundary and begin fresh reconnaissance for the next remaining untrusted/persisted state boundary.
 
 ## Closed boundaries
 - federation quarantine ledger schema integrity: `891c81ad7943dd222a406e120645625194e564cc`, regression `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`, CI `35114370331` passed 18/18.
