@@ -2,8 +2,10 @@ import time
 
 import pytest
 
+import fs_overlay.genesis_server as genesis_server_module
 from fs_overlay.genesis_runtime import build_local_service
 from fs_overlay.genesis_server import GenesisServer
+from fs_overlay.genesis_service import GenesisService
 from fs_overlay.identity import NodeIdentity
 from fs_overlay.transport import LocalhostTransport
 
@@ -72,6 +74,47 @@ def test_genesis_server_can_serve_explicitly_admitted_local_service():
         assert result["data"]["status"] == "succeeded"
         assert result["data"]["timed_out"] is False
         assert "server-ok" in result["data"]["stdout"]
+
+
+def test_genesis_server_contains_unexpected_service_exception():
+    identity = NodeIdentity.from_public_key("node-server", b"server-key")
+
+    def fail(_: tuple[str, ...]):
+        raise RuntimeError("executor internals must not cross the boundary")
+
+    service = GenesisService(identity, {"cpu": {"capacity": 2}}, admitted=True, executor=fail)
+    with GenesisServer(service) as server:
+        _, port = wait_for_port(server)
+        failed = LocalhostTransport().request(port, {"operation": "execute", "argv": ["demo"]})
+        assert not failed["ok"]
+        assert failed["error"] == "internal server error"
+
+        healthy = LocalhostTransport().request(port, {"operation": "ping"})
+        assert healthy["ok"]
+        assert healthy["data"]["ready"] is True
+
+
+def test_genesis_server_contains_response_send_failure(monkeypatch):
+    service = make_service()
+    original_send = genesis_server_module.send_message
+    calls = 0
+
+    def fail_first_send(connection, message):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise ConnectionError("peer disconnected")
+        return original_send(connection, message)
+
+    monkeypatch.setattr(genesis_server_module, "send_message", fail_first_send)
+    with GenesisServer(service) as server:
+        _, port = wait_for_port(server)
+        with pytest.raises((ConnectionError, TimeoutError, OSError)):
+            LocalhostTransport().request(port, {"operation": "ping"})
+
+        healthy = LocalhostTransport().request(port, {"operation": "ping"})
+        assert healthy["ok"]
+        assert healthy["data"]["ready"] is False
 
 
 def test_genesis_server_stop_is_idempotent():
