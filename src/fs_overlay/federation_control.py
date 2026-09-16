@@ -167,6 +167,9 @@ class BootstrapConfig:
     initialized_ns: int = 0
 
 
+_BOOTSTRAP_CONFIG_FIELDS = frozenset({"node_id", "root", "protocol_version", "initialized_ns"})
+
+
 class MinimalBootstrap:
     """Smallest safe initiator: create only an explicitly selected FS root/config."""
 
@@ -194,6 +197,22 @@ class MinimalBootstrap:
         return config
 
     def load(self) -> BootstrapConfig:
-        raw = json.loads(self.config_path.read_text(encoding="utf-8"))
-        return BootstrapConfig(str(raw["node_id"]), str(raw["root"]), int(raw.get("protocol_version", 1)),
-                               int(raw["initialized_ns"]))
+        try:
+            raw = json.loads(self.config_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict) or set(raw) != _BOOTSTRAP_CONFIG_FIELDS:
+                raise ValueError
+            if not isinstance(raw["node_id"], str) or not raw["node_id"]:
+                raise ValueError
+            if not isinstance(raw["root"], str) or not raw["root"]:
+                raise ValueError
+            if not isinstance(raw["protocol_version"], int) or isinstance(raw["protocol_version"], bool):
+                raise ValueError
+            if not isinstance(raw["initialized_ns"], int) or isinstance(raw["initialized_ns"], bool):
+                raise ValueError
+            if raw["protocol_version"] < 1 or raw["initialized_ns"] < 0:
+                raise ValueError
+            return BootstrapConfig(
+                raw["node_id"], raw["root"], raw["protocol_version"], raw["initialized_ns"]
+            )
+        except (OSError, UnicodeDecodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError("malformed bootstrap config") from exc
