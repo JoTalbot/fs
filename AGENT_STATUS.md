@@ -2,31 +2,32 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
-- Latest validated implementation: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
+- Latest repository head: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
+- Latest validated implementation: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T18:32:00Z`
-- base_commit: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
-- area: LocalDirectoryCarrier directory-durability failure boundary
-- claimed_files: `src/fs_overlay/carrier.py`, `tests/test_carrier.py`, `docs/AGENT_STEP_2026-09-16_carrier-durability-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether LocalDirectoryCarrier can report successful put/delete publication while its directory-entry persistence barrier fails, and harden the boundary if that is a concrete fail-closed contract gap
+- started_at: `2026-09-16T18:38:00Z`
+- base_commit: `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`
+- area: durable quarantine ledger JSON parsing boundary
+- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_quarantine_ledger_json_boundary.py`, `docs/AGENT_STEP_2026-09-16_quarantine-ledger-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether duplicate JSON object members in durable quarantine records can be collapsed before strict schema validation and harden only if a concrete fail-closed boundary gap exists
 - status: CLAIMED
-- repository_research: `LocalDirectoryCarrier.put()` atomically replaces the target and calls `_fsync_directory()`, while `delete()` unlinks the target and calls the same helper. `_fsync_directory()` currently catches `OSError` and returns success, so both mutating APIs can report success without evidence that the directory entry was durably synchronized.
-- external_research: Linux `fsync(2)` documents that syncing a file does not necessarily sync its containing directory; POSIX fsync reports errors when synchronization fails; SQLite's atomic-commit documentation explicitly treats directory synchronization as part of crash-safe journal visibility. Sources support propagating a failed directory persistence barrier when the API claims durable publication.
-- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` and durability-oriented agent-skill guidance were inspected and treated as advisory. No external skill overrides FS authority or portability rules.
-- decision: on platforms where `_fsync_directory()` is supported, propagate its `OSError` from `put()` and `delete()` instead of converting it into success. Preserve the existing platform-specific implementation boundary rather than inventing Windows directory-fsync semantics.
-- next_step: add the smallest fail-closed regression coverage for put/delete directory-fsync failures, implement the helper failure propagation, run the full GitHub Actions matrix, then synchronize status and durable learning.
+- repository_research: `QuarantineLedger.replay()` already enforces exact fields and strict persisted scalar types, but still uses default `json.loads`, so duplicate object members can be silently collapsed before those checks.
+- external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP security guidance recommends rejecting duplicate JSON keys at parsing boundaries. Current SQLite durability guidance also treats durable journal records as authoritative recovery input.
+- skill_discovery: canonical `fs-agent-core` was reread; external security/input-validation skills were inspected and treated as advisory only. No external skill overrides FS authority or portability rules.
+- decision: reject duplicate JSON object members during `QuarantineLedger.replay()` before schema validation, preserving the append-only evidence semantics and existing corruption error contract.
+- next_step: implement the smallest parser hardening plus isolated regressions, run the full GitHub Actions matrix, then synchronize status and durable learning.
 
 ## Closed boundaries
+- LocalDirectoryCarrier directory durability: implementation `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, regression `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, CI `35135385582` passed 18/18; decision record `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`.
 - content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
+- durable transaction state-transition recovery: implementation `f7338c4dc0d647697b178528fab53af2c302b6bc`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, CI `35126636530` passed 18/18.
 - snapshot publication durability: implementation `3da8c7d6a0ff565f410a44214fda451327d0c5d8`, regression `06af100d3cd0fef36d3abb33c2cc3254b0503bde`, recon `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`, CI `35131007182` passed 18/18.
 - manifest write immutability: implementation `8568a959b318a765f2db53de51d9f51d94da1817`, regression `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`, recon `aaa784b949a95041dde11dcd0f669cef233bd18d`, CI `35128250728` passed 18/18.
 - transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
-- durable transaction state-transition recovery boundary: `f7338c4dc0d647697b178528fab53af2c302b6bc`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, recon `05e09e84ef12843f63892761aef685176b3af33c`, CI `35126636530` passed 18/18.
 - durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
 - manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
@@ -34,23 +35,19 @@
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
-- Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed all 18 configured jobs.
+- Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
-- recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed full configured matrix.
+- recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed full matrix.
 - federation envelope schema integrity: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`, regression `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`, CI `35115180030` passed 18/18.
 - federation quarantine ledger schema integrity: `891c81ad7943dd222a406e120645625194e564cc`, regression `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`, CI `35114370331` passed 18/18.
 - bootstrap config schema integrity: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`, regression `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`, CI `35113667112` passed 18/18.
 - durable admission record schema integrity: `908afdc49673e15fd86b641bc54bd60cacdef422`, CI `35113266230` passed 18/18.
 - durable trust-root record schema integrity: `ad288758b1004e0f32e32af78bff87affab52324`, CI `35112943359` passed 18/18.
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
-- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
 - storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
-- key destruction/zeroization provider boundary: reconnaissance only.
-- transport re-authentication/provider boundary: reconnaissance only.
-- trust-root binding: reconnaissance only.
-- revocation/execution race: reconnaissance only.
+- key destruction/zeroization, transport re-authentication, trust-root binding, and revocation/execution race remain reconnaissance-only boundaries.
 - path isolation, Dependency Review, OSV: already handled.
 
 ## V1 blocker
