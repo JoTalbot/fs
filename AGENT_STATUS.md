@@ -2,30 +2,29 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`
-- Latest validated implementation: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`
+- Latest repository head: `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`
+- Latest validated implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T15:30:00Z`
-- base_commit: `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`
-- area: recovery audit log schema integrity
-- claimed_files: `src/fs_overlay/workspace_transfer_recovery_audit.py`, `tests/test_workspace_transfer_recovery_audit.py`, `docs/AGENT_STEP_2026-09-16_recovery-audit-schema-recon.md`, `AGENT_STATUS.md`
-- goal: prevent malformed persisted recovery-audit records from being coerced into trusted recovery history before hash-chain validation
-- status: VALIDATING
-- repository_research: fresh inspection found `RecoveryAuditLog.replay()` coercing persisted sequence and identity fields with `int()`/`str()`, accepting unexpected fields, and not enforcing exact persisted scalar types before enum/hash-chain validation. The audit log is recovery evidence only and does not itself grant authority.
-- external_research: RFC 8259 documents interoperability problems from duplicate JSON member names; OWASP REST and deserialization guidance requires strict type/range/format validation, rejection of unexpected content, and safe handling of untrusted serialized data. citeturn0search0turn0search2turn0search8
-- skill_discovery: canonical `fs-agent-core` was already established; fresh security-review guidance was applied to the persisted parser boundary. External guidance remains advisory and untrusted.
-- decision: exact recovery-audit field set; exact scalar types without coercion; version exactly 1; sequence is a positive integer; required identifiers/reason/digests are nonempty strings; previous_digest is string-or-null; duplicate JSON object member names are rejected; existing semantic, hash-chain, and digest checks remain authoritative after schema validation.
-- implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
-- regression_tests: `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`
-- recon: pending durable documentation commit
-- validation: pending GitHub Actions validation; no local runner is available.
-- next_step: observe the CI matrix. If red, inspect the exact failing job/log before further source changes. If green, close the recovery-audit schema boundary and continue fresh reconnaissance.
+- base_commit: `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`
+- area: Genesis admission/execution authority boundary reconnaissance
+- claimed_files: `src/fs_overlay/genesis_service.py`, `src/fs_overlay/genesis_runtime.py`, `src/fs_overlay/adapter.py`, `src/fs_overlay/transport.py`, `src/fs_overlay/genesis_server.py`, `tests/test_genesis_service.py`
+- goal: determine whether the local Genesis admission path can convert self-asserted node identity into host execution authority, without inventing a new authority protocol
+- status: RECONNAISSANCE
+- repository_research: recovery audit log schema hardening is validated on the current implementation head. Fresh inspection then found GenesisService.handle() accepts an `admit` request when `request["node_id"]` merely equals the local identity, sets `self.admitted = True`, and the local runtime wires that state directly to NativeProcessAdapter execution. The adapter executes arbitrary argv without a shell once admitted. GenesisService's module contract says it never grants authority, so this boundary requires an explicit authority-model decision before implementation.
+- external_research: OWASP authorization guidance distinguishes authentication from authorization, recommends server-side enforcement, least privilege, and deny-by-default. OWASP OS Command Injection guidance recommends hardcoded/allowlisted commands and arguments when user-controlled input reaches process execution. citeturn0search0turn0search1
+- skill_discovery: canonical `fs-agent-core` remains authoritative; fresh security-review guidance was applied to the Genesis admission/execution trust boundary. External guidance is advisory only.
+- decision: do not invent a new admission credential, trust token, command allowlist, or production authority mechanism during reconnaissance. First establish the intended local Genesis authority contract from repository tests/docs and existing identity/admission abstractions. Treat the observed self-assertion-to-execution path as a candidate security boundary requiring resolution, not as an assumption that node identity alone is sufficient authorization.
+- recovery_audit: implementation `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, recon `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`; CI `35115708283` completed successfully with the full configured matrix.
+- validation: GitHub Actions is authoritative. Current recovery-audit implementation and regression are validated by CI run `35115708283` on head `49a35ca3c5fcdaa29317c93962008ad1f7f4be1d`.
+- next_step: perform full Genesis authority reconnaissance across identity, admission, preflight, runtime, server, tests, and docs; identify whether a concrete fail-closed defect exists and whether the intended fix can reuse an existing authoritative gate.
 
 ## Closed boundaries
+- recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed the full configured matrix.
 - federation envelope schema integrity: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`, regression `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`, CI `35115180030` passed 18/18.
 - federation quarantine ledger schema integrity: `891c81ad7943dd222a406e120645625194e564cc`, regression `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`, CI `35114370331` passed 18/18.
 - bootstrap config schema integrity: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`, regression `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`, CI `35113667112` passed 18/18.
