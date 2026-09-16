@@ -39,6 +39,20 @@ def test_tampered_manifest_is_rejected(tmp_path: Path) -> None:
         engine.store.get_manifest(manifest.object_id)
 
 
+def test_repeated_manifest_write_rejects_existing_corruption(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"manifest write integrity")
+    manifest_path = engine.store.manifests / manifest.object_id
+    raw = json.loads(manifest_path.read_text())
+    raw["size"] += 1
+    manifest_path.write_text(
+        json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    )
+
+    with pytest.raises(ValueError, match="manifest identity verification failed"):
+        engine.store.put_manifest(manifest)
+
+
 def test_manifest_object_id_mismatch_is_rejected(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     manifest = engine.put(b"identity mismatch")
