@@ -36,6 +36,25 @@ def _validate_snapshot_id(snapshot_id: object) -> str:
     return snapshot_id
 
 
+def _validate_non_negative_int(value: object, field: str) -> int:
+    """Require an actual non-negative integer, rejecting bool coercion."""
+    if type(value) is not int or value < 0:
+        raise ValueError(f"invalid snapshot {field}")
+    return value
+
+
+def _validate_metadata(metadata: object) -> dict[str, str] | None:
+    """Require snapshot metadata to be null or a string-to-string mapping."""
+    if metadata is None:
+        return None
+    if not isinstance(metadata, dict):
+        raise ValueError("invalid snapshot metadata")
+    if any(not isinstance(key, str) or not isinstance(value, str)
+           for key, value in metadata.items()):
+        raise ValueError("invalid snapshot metadata")
+    return dict(metadata)
+
+
 @dataclass(frozen=True)
 class Snapshot:
     snapshot_id: str
@@ -58,12 +77,29 @@ class Snapshot:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> "Snapshot":
-        raw = json.loads(data)
-        objects = tuple(raw["objects"])
-        for object_id in objects:
-            _validate_object_id(object_id)
-        snapshot = cls(str(raw["snapshot_id"]), int(raw["generation"]), objects,
-                       str(raw["merkle_root"]), int(raw["created_ns"]), raw.get("metadata"))
+        try:
+            raw = json.loads(data)
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError) as exc:
+            raise ValueError("snapshot JSON is invalid") from exc
+        if not isinstance(raw, dict):
+            raise ValueError("snapshot must be an object")
+        expected_fields = {"snapshot_id", "generation", "objects", "merkle_root", "created_ns", "metadata"}
+        if set(raw) != expected_fields:
+            raise ValueError("snapshot fields are invalid")
+
+        snapshot_id = _validate_snapshot_id(raw["snapshot_id"])
+        generation = _validate_non_negative_int(raw["generation"], "generation")
+        objects_raw = raw["objects"]
+        if not isinstance(objects_raw, list):
+            raise ValueError("invalid snapshot objects")
+        objects: list[str] = []
+        for object_id in objects_raw:
+            objects.append(_validate_object_id(object_id))
+        merkle_root = _validate_object_id(raw["merkle_root"])
+        created_ns = _validate_non_negative_int(raw["created_ns"], "created_ns")
+        metadata = _validate_metadata(raw["metadata"])
+
+        snapshot = cls(snapshot_id, generation, tuple(objects), merkle_root, created_ns, metadata)
         if snapshot.identity() != snapshot.snapshot_id:
             raise ValueError("snapshot identity verification failed")
         if MerkleDAG.root(snapshot.objects) != snapshot.merkle_root:
