@@ -15,9 +15,9 @@
 - claimed_files: `src/fs_overlay/federation_control.py`, `tests/test_federation_control.py`, `docs/AGENT_STEP_2026-09-16_bootstrap-config-durability-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether atomic replacement of a newly created bootstrap config without syncing its parent directory can lose the durable directory entry after crash/power loss, and harden only if the bootstrap persistence contract requires it
 - status: CLOSED
-- repository_research: `MinimalBootstrap.initialize()` already fsyncs the temporary config before `os.replace()`; the implementation now also fsyncs the parent directory immediately after replacement, preserving atomic publication and the existing Windows no-op behavior.
-- external_research: Linux `fsync(2)` documents that file fsync does not necessarily persist the containing directory entry; durability guidance independently identifies the missing directory barrier as a crash-durability failure mode. The repository's storage substrate already uses the same platform-aware directory fsync pattern.
-- skill_discovery: canonical `fs-agent-core` was reread; external durability guidance from PlunderStruck/agent-skills was inspected as advisory only and does not override FS policy.
+- repository_research: `MinimalBootstrap.initialize()` fsyncs the temporary config before `os.replace()` and now fsyncs the parent directory immediately after replacement, preserving atomic publication and the existing Windows no-op behavior.
+- external_research: Linux `fsync(2)` documents that file fsync does not necessarily persist the containing directory entry; SQLite durability documentation independently uses directory synchronization for durable namespace changes. External durability guidance was inspected as advisory.
+- skill_discovery: canonical `fs-agent-core` was reread; external durability guidance was inspected as advisory only and does not override FS policy.
 - decision: require a parent-directory fsync after bootstrap config replacement so the durable bootstrap record's directory entry is included in the persistence barrier.
 - recon: existing recon from this step at base `979cc9b7e63529ab6909eae3c54fa16267efa2ff`
 - implementation: `9a59e898ca58921e006bd9b98df79bcde04d2c26`
@@ -25,10 +25,19 @@
 - validation: GitHub Actions run `35145051793` completed successfully with all 18 configured Python/platform and candidate crypto-provider jobs passing on head `8bf83e1619139548ffa5739d91ea47b5145be9d9`.
 - result: bootstrap config publication now has an explicit parent-directory durability barrier, with regression coverage proving the barrier is invoked after atomic replacement.
 - durable_learning: `[DURABILITY] Atomic replacement of a durable file is not sufficient on filesystems where directory-entry persistence is separate; fsync the containing directory after replacement when the persistence contract requires crash-durable publication.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed durability or authority boundary; do not repeat already closed JSON or bootstrap-directory durability work.
+- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed durability or authority boundary; do not duplicate already closed JSON, transaction-lifecycle, carrier-TOCTOU, or storage-read/write-integrity boundaries.
 
 ## Closed boundaries
-- MinimalBootstrap config durability boundary: `9a59e898ca58921e006bd9b98df79bcde04d2c26`, regression `8bf83e1619139548ffa5739d91ea47b5145be9d9`, CI `35145051793` passed 18/18.
+- content-store root TOCTOU contract: documentation `4b88e61194b6a61a3f8e80c20ea8706b905fc608` + `09dacacdb81ed33b9d140949b16afd1a9ea2bfd9`; no runtime change; content store does not claim hostile-concurrency isolation independently of the carrier boundary.
+- LocalDirectoryCarrier symlink/TOCTOU isolation: implementation `d5914cd65277297f4463cf0b5601aa83fe1e2ec5`, predecessor hardening `a443ed0ec33c616d1a915bf59e2ba9e5827055b8`, CI `35138856953` passed 18/18; capability gate directly observed in the green run.
+- durable quarantine ledger JSON parsing boundary: implementation `71c63ea53d20165a74c54dc239f2e6835a4c66a9`, regression `9a13fd0878c6c19e44a14378d51c8778fe52e827`, recon `28e8427e835eafb7a0211616f7380804cc425f89`, CI `35135980320` passed 18/18.
+- LocalDirectoryCarrier directory durability: implementation `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, regression `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, CI `35135385582` passed 18/18; decision record `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`.
+- content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
+- durable transaction state-transition recovery: implementation `f7338c4dc0d647697b178528fab53af2c302b6bc`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, CI `35126636530` passed 18/18.
+- snapshot publication durability: implementation `3da8c7d6a0ff565f410a44214fda451327d0c5d8`, regression `06af100d3cd0fef36d3abb33c2cc3254b0503bde`, recon `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`, CI `35131007182` passed 18/18.
+- manifest write immutability: implementation `8568a959b318a765f2db53de51d9f51d94da1817`, regression `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`, recon `aaa784b949a95041dde11dcd0f669cef233bd18d`, CI `35128250728` passed 18/18.
+- transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
+- MinimalBootstrap config durability: implementation `9a59e898ca58921e006bd9b98df79bcde04d2c26`, regression `8bf83e1619139548ffa5739d91ea47b5145be9d9`, CI `35145051793` passed 18/18.
 - durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
 - manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
@@ -46,13 +55,9 @@
 - durable admission record schema integrity: `908afdc49673e15fd86b641bc54bd60cacdef422`, CI `35113266230` passed 18/18.
 - durable trust-root record schema integrity: `ad288758b1004e0f32e32af78bff87affab52324`, CI `35112943359` passed 18/18.
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
-- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
 - storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
-- key destruction/zeroization provider boundary: reconnaissance only.
-- transport re-authentication/provider boundary: reconnaissance only.
-- trust-root binding: reconnaissance only.
-- revocation/execution race: reconnaissance only.
+- key destruction/zeroization, transport re-authentication, trust-root binding, and revocation/execution race remain reconnaissance-only boundaries.
 - path isolation, Dependency Review, OSV: already handled.
 
 ## V1 blocker
