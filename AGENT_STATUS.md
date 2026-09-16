@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `4d3b27b1f61a939081ca3bd726156028e7707f4f`
-- Latest validated implementation head: `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`
+- Latest repository head: `ed217b349f96b4773fa2f8893b2c37f067985dd8`
+- Latest validated implementation: `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`
 - Updated: 2026-09-16
 
 ## Active step
@@ -15,30 +15,32 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T13:45:00Z`
-- base_commit: `4d3b27b1f61a939081ca3bd726156028e7707f4f`
+- base_commit: `ed217b349f96b4773fa2f8893b2c37f067985dd8`
 - area: dependency supply-chain review
 - claimed_files: `.github/workflows/dependency-review.yml`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: add a narrowly scoped pull-request dependency review gate so dependency changes are checked for known vulnerabilities before merge
-- status: CI #699 validated implementation head `2519cc...`. Fresh review found the repository has no dependency-review workflow while GitHub documents the dependency review action as an enforceable PR control for dependency changes. The project also has unpinned test/crypto extras in `pyproject.toml`; this step addresses review visibility/enforcement without inventing a production runtime dependency policy.
-- decision: add a dedicated pull-request dependency-review workflow with read-only contents permission and the maintained GitHub dependency-review action. Do not add a lockfile or pin runtime dependencies in this step because the production deployment artifact/toolchain has not been selected.
-- research: Python packaging now specifies `pylock.toml` for reproducible installations, but the current FS repository has no selected production installer/lock workflow. GitHub dependency review can compare manifest/lock changes and fail on vulnerable introduced dependencies. External security skills were reviewed; `cloudflare/security-audit-skill` is relevant to structured security auditing but is broader than this narrow CI hardening, so the local `fs-agent-core` workflow remains authoritative.
-- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond dependency review.
-- next_step: add the workflow, validate the resulting GitHub Actions matrix, then synchronize status/log with the exact result. If the workflow itself exposes an environment or permission issue, fix only that issue.
+- goal: validate a narrowly scoped pull-request dependency vulnerability gate without leaving an always-failing workflow on main
+- status: PR #12 executed the dependency-review workflow successfully through checkout and action startup, but the action failed because GitHub reports Dependency Graph is disabled for `JoTalbot/fs`. This is an environment/configuration prerequisite, not a workflow syntax or permission failure. The repository cannot currently validate the dependency-review control through the available GitHub connector because repository security settings are not writable through the available API surface.
+- evidence: PR #12 head `4aa8aed2381e2e1701d1db1f97cf50fbae620ed5`; Dependency Review run `35103492845` failed with `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled`; the same commit's CI run `35103492850` passed.
+- decision: do not leave an unvalidated, guaranteed-failing dependency-review workflow active on main. Remove the workflow from main and close PR #12. Preserve the failure as durable evidence. A future supply-chain gate can use a repository-supported scanner that does not require Dependency Graph, subject to fresh reconnaissance and validation.
+- research: GitHub documents dependency review as requiring the repository Dependency Graph and supports the current workflow shape. OSV-Scanner documents a PR workflow that compares target and feature vulnerability results and can operate from supported manifests/lockfiles without GitHub Dependency Graph. OSV-Scanner also notes that resolved lockfiles are preferred; FS currently has no selected production lockfile/toolchain.
+- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
+- next_step: remove the failing dependency-review workflow and close PR #12, then begin a separate narrowly scoped OSV-based PR vulnerability gate reconnaissance/implementation if the repository state supports it.
 
 ## Latest work
 
+- `4aa8aed2381e2e1701d1db1f97cf50fbae620ed5` — validation branch added `fail-on-severity: high`; Dependency Review run `35103492845` failed because Dependency Graph is disabled.
+- `ed217b349f96b4773fa2f8893b2c37f067985dd8` — added dependency-review workflow to main; implementation is now being withdrawn because the required repository feature is disabled.
 - `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
 - `668f8922af8bfdbe01aa335f1372777ae6d89c15` — malformed durable federation admission runtime/test head; CI #697 failed only because an empty-list fixture was normalized by `EventLog.emit()`.
 - `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c` — release provenance boundary reconnaissance.
 - `67f547e8e66f754962d94bdc76f2afe8562b79c7` — transport session re-authentication boundary reconnaissance.
 - `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — key lifecycle persistence boundary reconnaissance.
-- `a68fe13bc761ab42b7757d769440e6a7314d368d` — rotated retired-key re-admission regression.
 
 ## Validation boundary
 
 GitHub Actions is authoritative because no local checkout/test runner is available. CI #699 / run `35102902977` passed for `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`, including Python 3.11/3.12/3.13 across Ubuntu/Windows/macOS and candidate crypto-provider jobs. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
-The CI result validates repository behavior and semantic provider qualification tests. It does not certify production cryptographic providers, key custody, authenticated transport, deployment trust roots, artifact provenance verification, or security review requirements.
+The Dependency Review workflow itself was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This validates that the workflow triggers and has read-only token permissions, but does not validate dependency-review functionality for this repository. The failure is retained as negative environment evidence.
 
 ## Current V1 position
 
@@ -52,9 +54,10 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 
 ## Next phase
 
-1. Implement and validate the dependency-review workflow claimed above.
-2. Do not add speculative production security implementations or an unselected package-locking toolchain.
-3. After validation, resume only with a new non-duplicative production-boundary review or a concrete reproducible repository-level defect.
-4. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-5. Validate any new implementation through GitHub Actions before treating it as evidence.
-6. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+1. Remove the dependency-review workflow because its required repository Dependency Graph feature is disabled and cannot be enabled through the available connector API.
+2. Close PR #12 after preserving the exact failure evidence in the status/log.
+3. If continuing supply-chain hardening, perform fresh reconnaissance for an OSV-based PR vulnerability gate that does not depend on GitHub Dependency Graph, without inventing a production lockfile/toolchain.
+4. Do not add speculative production security implementations.
+5. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+6. Validate any new implementation through GitHub Actions before treating it as evidence.
+7. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
