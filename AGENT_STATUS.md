@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `d2d8bbd11d823439c4b7be63b560215690b90c00`
+- Latest repository head: `f22ed8eba1cde27db72795379899be250ea5ef98`
 - Latest validated implementation: `d2d8bbd11d823439c4b7be63b560215690b90c00`
 - Updated: 2026-09-16
 
@@ -15,23 +15,22 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T14:00:00Z`
-- base_commit: `213ea8a962c9bd5181a0d7647630c89e52c3ed41`
-- area: dependency supply-chain review / OSV PR gate validation
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `.github/workflows/osv-scanner.yml`, `.github/workflows/osv-scanner-validation.yml`, `docs/AGENT_STEP_2026-09-16_osv-pr-gate-validation.md`
-- goal: validate a narrowly scoped OSV-based pull-request vulnerability gate without leaving duplicate or unvalidated workflows on main
-- status: Validation completed successfully. The temporary duplicate validation workflow was removed. PR #13 was opened, the intended OSV workflow executed in a real pull-request context, and both OSV and ordinary CI completed successfully. PR #13 was merged into `main` as `d2d8bbd11d823439c4b7be63b560215690b90c00`.
-- evidence: OSV run `35105324357` for head `895aef52820e816b23bcf7bdd9c80e31a0480940` completed successfully; job `104824914009` shows checkout and dependency scan both successful. CI run `35105324326` for the same head also completed successfully. PR #13 is merged; merge commit is `d2d8bbd11d823439c4b7be63b560215690b90c00`.
-- decision: accept the OSV workflow as a repository-level CI vulnerability signal. Keep its scope separate from production dependency provenance, SBOM completeness, deployment lockfiles, and production security qualification.
-- research: OSV maintained guidance supports recursive repository-root scanning and PR vulnerability workflows independent of GitHub Dependency Graph. The repository has no selected production lockfile/toolchain. GitHub Dependency Review remains unavailable because Dependency Graph is disabled.
+- base_commit: `f22ed8eba1cde27db72795379899be250ea5ef98`
+- area: durable authority revocation record schema hardening
+- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `src/fs_overlay/authority_revocation.py`, `tests/test_authority_revocation.py`, `docs/AGENT_STEP_2026-09-16_revocation-record-schema-recon.md`
+- goal: determine whether durable authoritative revocation replay accepts malformed field types and, if so, harden the parser with regression coverage without changing the authority model
+- status: CLAIMED / RESEARCHED. Fresh repository, external recovery/data-integrity, and agent-skill reconnaissance completed. A concrete parser-schema weakness is under review: `RevocationRecord.from_line()` coerces persisted fields with `str()`/`int()` before validation, so non-canonical JSON types can be accepted as authoritative state.
+- evidence: current `authority_revocation.py` verifies event digests, sequence continuity, hash-chain continuity, and duplicate authority IDs, but does not require persisted JSON fields to have their declared scalar types before coercion. Current tests cover tampering, chain breaks, sequence discontinuity, durability, and concurrent writers, but not malformed field types.
+- decision: harden durable replay parsing only if the smallest strict-schema change preserves existing canonical records and fails closed on non-canonical field types. Do not introduce signatures, external trust services, or speculative production infrastructure.
+- research: NIST SP 1800-11 and current NIST recovery guidance emphasize trustworthy recovery data and tested integrity; external Agent Skills guidance confirms recovery workflows should preserve evidence and fail safely. No external skill overrides `fs-agent-core`.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
-- next_step: perform fresh reconnaissance for the next non-overlapping production-boundary issue; do not repeat lifecycle persistence, transport re-authentication, release provenance, snapshot/manifest path isolation, or the already completed OSV gate.
+- next_step: validate the parser boundary against canonical record construction, implement the smallest strict type checks if confirmed, add rejection regressions, run GitHub Actions, then synchronize status/log and durable learning.
 
 ## Latest work
 
+- `f22ed8eba1cde27db72795379899be250ea5ef98` — latest main head after OSV coordination log synchronization.
 - `d2d8bbd11d823439c4b7be63b560215690b90c00` — merged PR #13, pinned OSV vulnerability gate.
 - `895aef52820e816b23bcf7bdd9c80e31a0480940` — removed temporary duplicate OSV validation workflow; PR #13 validation head.
-- `005650886292224b3321d236b193eca9e37c0caf` — coordination claim for OSV PR gate validation.
-- `213ea8a962c9bd5181a0d7647630c89e52c3ed41` — durable log entry for dependency-review environment blocker and removal decision.
 - `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
 
 ## Validation boundary
