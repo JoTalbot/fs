@@ -273,7 +273,7 @@ class PermissiveTransport(MemoryTransport):
 @pytest.mark.parametrize(
     ("factory_kwargs", "expected"),
     [
-        ({"key_store_factory": PermissiveKeyStore}, "empty key material must be rejected"),
+        ({"key_store_factory": PermissiveKeyStore}, "existing key id must not be silently overwritten"),
         ({"transport_factory": PermissiveTransport}, "unauthenticated transport send must be rejected"),
     ],
 )
