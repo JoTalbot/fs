@@ -24,6 +24,13 @@ class ServiceResponse:
 class GenesisService:
     """Reference service implementing the smallest useful FS node boundary."""
 
+    _REQUEST_FIELDS = {
+        "ping": frozenset({"operation"}),
+        "identity": frozenset({"operation"}),
+        "capabilities": frozenset({"operation"}),
+        "execute": frozenset({"operation", "argv"}),
+    }
+
     def __init__(
         self,
         identity: NodeIdentity,
@@ -38,9 +45,20 @@ class GenesisService:
         self._executor = executor
 
     def handle(self, request: Mapping[str, Any]) -> ServiceResponse:
-        operation = str(request.get("operation", ""))
+        operation_value = request.get("operation")
+        if operation_value is None:
+            return ServiceResponse(False, "", {}, "missing operation")
+        if not isinstance(operation_value, str):
+            return ServiceResponse(False, "", {}, "operation must be a string")
+        operation = operation_value
         if not operation:
             return ServiceResponse(False, "", {}, "missing operation")
+
+        expected_fields = self._REQUEST_FIELDS.get(operation)
+        if expected_fields is None:
+            return ServiceResponse(False, operation, {}, f"unsupported operation: {operation}")
+        if set(request) != expected_fields:
+            return ServiceResponse(False, operation, {}, "unexpected request fields")
 
         if operation == "ping":
             return ServiceResponse(True, operation, {"ready": self.admitted})
