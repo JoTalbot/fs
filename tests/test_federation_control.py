@@ -1,7 +1,9 @@
 import json
+from pathlib import Path
 
 import pytest
 
+import fs_overlay.federation_control as federation_control
 from fs_overlay.federation_control import (
     FederationDirectory,
     FederationReconciler,
@@ -128,6 +130,18 @@ def test_minimal_bootstrap_is_atomic(tmp_path):
     loaded = MinimalBootstrap(tmp_path / "node.json").load()
     assert loaded == config
     assert (tmp_path / "carrier").is_dir()
+
+
+def test_bootstrap_directory_entry_is_synced_after_atomic_replace(tmp_path, monkeypatch):
+    calls: list[Path] = []
+
+    def record_directory_sync(directory: str | Path) -> None:
+        calls.append(Path(directory))
+
+    monkeypatch.setattr(federation_control, "_fsync_directory", record_directory_sync)
+    config_path = tmp_path / "node.json"
+    MinimalBootstrap(config_path).initialize(root=tmp_path / "carrier", node_id="node-a")
+    assert calls == [tmp_path]
 
 
 def test_bootstrap_load_rejects_coerced_types(tmp_path):
