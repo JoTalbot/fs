@@ -20,6 +20,16 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject ambiguous JSON objects before bootstrap schema validation."""
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 def _fsync_directory(directory: str | Path) -> None:
     """Persist directory-entry changes where the platform exposes that contract."""
     if os.name == "nt":
@@ -211,7 +221,10 @@ class MinimalBootstrap:
 
     def load(self) -> BootstrapConfig:
         try:
-            raw = json.loads(self.config_path.read_text(encoding="utf-8"))
+            raw = json.loads(
+                self.config_path.read_text(encoding="utf-8"),
+                object_pairs_hook=_reject_duplicate_object_keys,
+            )
             if not isinstance(raw, dict) or set(raw) != _BOOTSTRAP_CONFIG_FIELDS:
                 raise ValueError
             if not isinstance(raw["node_id"], str) or not raw["node_id"]:
