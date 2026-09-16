@@ -124,7 +124,7 @@ Area: repository reconnaissance and coordination state
 Goal: Reconcile the shared agent state with the actual repository head before any new substantive implementation.
 Research:
 - Re-read `README.md`, `docs/ROADMAP.md`, `docs/V1_RELEASE_GATE.md`, `docs/CRYPTOGRAPHY_PROVIDER_STATUS.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, recent commit history, and candidate crypto-provider CI configuration.
-- Confirmed `70470e79d2ea181351cae8dacf5e2ff974e58f50` is the current repository head while `AGENT_STATUS.md` still referenced `d04db9a9b759be4b75681b4da420236d6ed06f90` as the latest repository head.
+- Confirmed `70470e79d2ea181351cae8acf5e2ff974e58f50` is the current repository head while `AGENT_STATUS.md` still referenced `d04db9a9b759be4b75681b4da420236d6ed06f90` as the latest repository head.
 Changes:
 - Updated `AGENT_STATUS.md` to record the actual repository head and preserve `8d27a26cc07360269b035bfdca472a6863af3135` as the latest validated implementation head.
 Validation:
@@ -135,3 +135,40 @@ Learning:
 - [RULE] Coordination metadata must track the actual repository head separately from the latest CI-validated implementation head.
 - [SECURITY] Documentation/status synchronization must never be presented as cryptographic or runtime qualification evidence.
 Next: Inspect the synchronized provider boundary for a reproducible repository-level contract defect; do not manufacture a provider implementation merely to create code churn.
+
+## 2026-09-16 | current-agent | rotated-key-readmission-hardening
+Base: 70470e79d2ea181351cae8acf5e2ff974e58f50
+Area: secure key lifecycle admission
+Goal: Prevent a key retired by lifecycle rotation from being used to create a new admission while preserving verification for the existing admission.
+Research:
+- Re-read `production_adapters.py`, `key_lifecycle.py`, `tests/test_production_adapters.py`, and provider qualification documentation.
+- Identified that `KeyLifecycle.rotate()` moves the previous ACTIVE key to RETIRED, while `ReferenceKeyLifecycleAdmission.admit_key()` previously accepted any key still usable for verification. This allowed a retired key to create a new admission even though retired keys must only remain valid for verification of existing admissions.
+Changes:
+- Changed new admission to require `usable_for_signing()` rather than `usable_for_verification()`.
+- Added a regression covering rotation, continued verification by the existing node, rejection of re-admission by another node, and admission of the new active key.
+Validation:
+- CI #677 (`35098613033`) for implementation head `a68fe13bc761ab42b7757d769440e6a7314d368d` completed successfully across the configured Python/platform matrix, including independent conformance and candidate crypto-provider jobs.
+- The regression file was re-read from `main` after the write and confirmed intact.
+Result: implementation `4f048e1a2fc0b6379616d6c0d85f44afe9e14280`; regression `a68fe13bc761ab42b7757d769440e6a7314d368d`; status synchronization pending in the follow-up coordination commit.
+Learning:
+- [SECURITY] Verification usability and admission eligibility are distinct lifecycle properties. A retired key may verify existing state but must not create a new authority path.
+- [RULE] Lifecycle rotation must be tested as a terminal-admission boundary, not only as a status transition.
+Next: Synchronize `AGENT_STATUS.md` and `AGENT_LOG.md` with the CI-validated implementation head, then resume provider-boundary reconnaissance.
+
+## 2026-09-16 | current-agent | rotated-key-ci-status-sync
+Base: a68fe13bc761ab42b7757d769440e6a7314d368d
+Area: validation and agent coordination
+Goal: Persist the CI-confirmed state so parallel agents see the validated implementation head immediately.
+Research:
+- Checked GitHub Actions run `35098613033` and its job matrix after the rotated-key admission regression completed.
+- Confirmed the workflow was triggered by push of `a68fe13bc761ab42b7757d769440e6a7314d368d` and completed successfully.
+Changes:
+- Updated `AGENT_STATUS.md` to record `a68fe13bc761ab42b7757d769440e6a7314d368d` as both latest repository head and latest validated implementation head.
+- Preserved the production-security boundary and explicit blocker list.
+Validation:
+- CI #677 (`35098613033`) passed across configured Ubuntu/Windows/macOS Python 3.11/3.12/3.13 jobs, independent conformance jobs, and candidate crypto-provider jobs.
+Result: status synchronization `d62d5e3f575ca50b9a8af9c804486204360bad3d`.
+Learning:
+- [RULE] Coordination state must be synchronized immediately after CI validation so parallel agents do not work from stale implementation heads.
+- [SECURITY] A successful semantic/provider-qualification CI run is not production security certification.
+Next: Inspect the remaining provider-boundary state for another reproducible repository-level contract defect; if none exists, stop code changes rather than manufacture a security provider.
