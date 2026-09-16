@@ -6,8 +6,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `f22ed8eba1cde27db72795379899be250ea5ef98`
-- Latest validated implementation: `d2d8bbd11d823439c4b7be63b560215690b90c00`
+- Latest repository head: `1c41d7307ed3af4d7ad8d84398469f6d5d3b7f57`
+- Latest validated implementation: `c3495f181431ce3bdf22c9318dfa6d56c66cfae2`
 - Updated: 2026-09-16
 
 ## Active step
@@ -18,28 +18,28 @@
 - base_commit: `f22ed8eba1cde27db72795379899be250ea5ef98`
 - area: durable authority revocation record schema hardening
 - claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `src/fs_overlay/authority_revocation.py`, `tests/test_authority_revocation.py`, `docs/AGENT_STEP_2026-09-16_revocation-record-schema-recon.md`
-- goal: determine whether durable authoritative revocation replay accepts malformed field types and, if so, harden the parser with regression coverage without changing the authority model
-- status: CLAIMED / RESEARCHED. Fresh repository, external recovery/data-integrity, and agent-skill reconnaissance completed. A concrete parser-schema weakness is under review: `RevocationRecord.from_line()` coerces persisted fields with `str()`/`int()` before validation, so non-canonical JSON types can be accepted as authoritative state.
-- evidence: current `authority_revocation.py` verifies event digests, sequence continuity, hash-chain continuity, and duplicate authority IDs, but does not require persisted JSON fields to have their declared scalar types before coercion. Current tests cover tampering, chain breaks, sequence discontinuity, durability, and concurrent writers, but not malformed field types.
-- decision: harden durable replay parsing only if the smallest strict-schema change preserves existing canonical records and fails closed on non-canonical field types. Do not introduce signatures, external trust services, or speculative production infrastructure.
-- research: NIST SP 1800-11 and current NIST recovery guidance emphasize trustworthy recovery data and tested integrity; external Agent Skills guidance confirms recovery workflows should preserve evidence and fail safely. No external skill overrides `fs-agent-core`.
+- goal: prevent malformed persisted revocation JSON from being coerced into authoritative in-memory state while preserving the existing authority model
+- status: VALIDATED. Strict replay schema checks were implemented and regression-covered. Real PR CI and OSV validation completed successfully against the implementation already on `main`.
+- evidence: implementation `c3495f181431ce3bdf22c9318dfa6d56c66cfae2`; CI run `35106280201` (run #718) completed successfully across all 18 configured Python and candidate crypto-provider jobs; OSV run `35106280082` completed successfully.
+- decision: accept the strict persisted-record schema hardening. The parser now rejects noncanonical field types and unknown fields before digest/hash-chain verification. No signatures, external trust services, or speculative production infrastructure were introduced.
+- research: RFC 8785 requires validation of structured JSON before relying on cryptographic operations and says failed validation must abort processing; RFC 8259 treats JSON as data requiring safe parsing; NIST SP 800-57 Part 2 emphasizes auditing key-management records. These sources support strict parsing as a narrow integrity-boundary hardening, not as a replacement for authenticated trust infrastructure.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
-- next_step: validate the parser boundary against canonical record construction, implement the smallest strict type checks if confirmed, add rejection regressions, run GitHub Actions, then synchronize status/log and durable learning.
+- next_step: perform fresh reconnaissance for the next non-overlapping production-boundary issue; do not repeat lifecycle persistence, transport re-authentication, release provenance, snapshot/manifest path isolation, or OSV gate work.
 
 ## Latest work
 
-- `f22ed8eba1cde27db72795379899be250ea5ef98` — latest main head after OSV coordination log synchronization.
+- `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening and regressions; validated by CI #718 and OSV run #2.
+- `1c41d7307ed3af4d7ad8d84398469f6d5d3b7f57` — coordination log synchronization for the validated revocation-schema step.
 - `d2d8bbd11d823439c4b7be63b560215690b90c00` — merged PR #13, pinned OSV vulnerability gate.
-- `895aef52820e816b23bcf7bdd9c80e31a0480940` — removed temporary duplicate OSV validation workflow; PR #13 validation head.
 - `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. OSV PR run `35105324357` passed its complete job, including checkout and dependency scanning. Ordinary CI run `35105324326` also passed for the same PR head. Earlier CI #699 / run `35102902977` passed for `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`, including Python 3.11/3.12/3.13 across Ubuntu/Windows/macOS and candidate crypto-provider jobs. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35106280201` completed successfully for the validation PR head containing the exact implementation from `main`; all 18 configured Python and candidate crypto-provider jobs succeeded. OSV run `35106280082` also completed successfully. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 The Dependency Review workflow was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This validates that the workflow triggered and had read-only token permissions, but does not validate dependency-review functionality for this repository. The failure is retained as negative environment evidence.
 
-OSV validation is now positive CI evidence for the repository workflow, not production dependency provenance or security certification.
+OSV validation is positive CI evidence for the repository workflow, not production dependency provenance or security certification.
 
 ## Current V1 position
 
@@ -55,7 +55,8 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 
 1. Keep the unsupported Dependency Review workflow removed from main; PR #12 is closed unmerged.
 2. Keep the validated OSV vulnerability workflow on main as a CI control; do not treat it as production provenance.
-3. Do not add speculative production security implementations.
-4. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-5. Validate any new implementation through GitHub Actions before treating it as evidence.
-6. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+3. Keep the strict revocation record parser hardening on main; its CI validation is semantic/integrity evidence, not production trust qualification.
+4. Do not add speculative production security implementations.
+5. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+6. Validate any new implementation through GitHub Actions before treating it as evidence.
+7. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
