@@ -2,34 +2,33 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
-- Latest validated implementation: `9babfbdab1732493b384fb6a2283c8b378954d22`
+- Latest repository head: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
+- Latest validated implementation: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T16:30:00Z`
-- base_commit: `e26065bda478060456ab7af2968a0c80c29b6d15`
-- area: manifest wire/deserialization JSON parsing boundary
-- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether duplicate JSON object members in persisted manifests can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
+- base_commit: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
+- area: storage-engine durable journal JSON parsing boundary
+- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_storage-journal-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether duplicate JSON object members in the durable append journal can be collapsed before strict journal schema and inventory recovery validation, and harden only if a concrete fail-closed boundary gap exists
 - status: CLOSED
-- repository_research: `Manifest.from_bytes()` enforced exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but default `json.loads` collapsed duplicate top-level and nested members before validation.
-- external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP recommends fatal parse errors on duplicate JSON keys.
-- skill_discovery: canonical `fs-agent-core` remains authoritative; its durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
-- decision: reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving storage, content-addressing, and authority semantics.
-- implementation: `9babfbdab1732493b384fb6a2283c8b378954d22`
-- regression_tests: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
-- recon: `bc33eef704ee2834544c7f316054beb6cb1a8efc`
-- skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f8` already contains the general durable duplicate-JSON rule; no additional skill change was required.
-- validation: CI `35122605437` run #857 for corrected implementation/test head `932c36db3c58c1d0095b062f0d7056df90f1a71b` completed successfully across all 18 configured Python and candidate crypto-provider jobs.
-- prior_failure: CI `35122315961` failed because the duplicate-key fixture assumed a comma after `size` although canonical sort puts `size` last, and a rollback regression incorrectly expected no durable `journal.log`; both were corrected in tests only.
-- durable_learning: `[FAILURE] A failing security regression must be traced to the exact job log before source changes. Parser hardening was not the cause of the two observed failures; both were test expectation/fixture defects.`
-- result: manifest wire/deserialization JSON parsing boundary is closed with validated duplicate-key rejection.
+- repository_research: `AppendJournal.replay()` already enforced frame length, EOF-tail semantics, exact record fields, strict version/operation/payload types, and downstream inventory payload validation, but default `json.loads` collapsed duplicate object members before those checks.
+- external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP input-validation guidance supports rejecting ambiguous duplicate JSON keys.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; its durable duplicate-JSON parsing rule applies directly. No additional skill change was required.
+- decision: reject duplicate JSON object member names during `AppendJournal.replay()` parsing before schema and inventory recovery validation, preserving incomplete EOF-tail behavior and transaction semantics.
+- implementation: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`
+- regression_tests: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
+- recon: `98b3e609bdaec2461eb5183110fe699e2711c024`
+- validation: GitHub Actions run `35124222857` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `9dcc0327ce13ab9568fef037984d51e8d03b6db2`.
+- durable_learning: `[SECURITY] Durable JSON records must reject duplicate object members at the parser boundary; downstream strict schemas cannot recover a member discarded by a permissive JSON parser.`
+- result: storage-engine durable journal JSON parsing boundary is closed with validated duplicate-key rejection and recovery-path regressions.
 - next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
 
 ## Closed boundaries
+- storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
 - manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
