@@ -286,8 +286,8 @@ class AppendJournal:
                         raise JournalCorruption("journal frame is truncated before later records")
                     return
                 try:
-                    record = json.loads(body)
-                except json.JSONDecodeError as exc:
+                    record = json.loads(body, object_pairs_hook=_reject_duplicate_object_keys)
+                except (json.JSONDecodeError, ValueError) as exc:
                     raise JournalCorruption("journal contains malformed JSON") from exc
                 if not isinstance(record, dict) or set(record) != self._RECORD_FIELDS:
                     raise JournalCorruption("journal record schema is invalid")
