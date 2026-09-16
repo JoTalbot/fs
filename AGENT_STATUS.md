@@ -6,39 +6,37 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`
-- Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
+- Latest repository head: `4d3b27b1f61a939081ca3bd726156028e7707f4f`
+- Latest validated implementation head: `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`
 - Updated: 2026-09-16
 
 ## Active step
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T13:35:00Z`
-- base_commit: `668f8922af8bfdbe01aa335f1372777ae6d89c15`
-- area: durable federation replay/schema validation
-- claimed_files: `tests/test_federation_state.py`, `AGENT_STATUS.md`
-- goal: preserve the malformed durable-admission regression fixture as a truthy non-object so the journal replay reaches the intended schema-validation branch
-- status: The previous CI failure was isolated to the regression fixture: `details=[]` is normalized by `EventLog.emit()` to `{}` because the runtime API uses `details or {}`. The runtime fail-closed behavior was not the failing component. The fixture is now `details=["malformed"]`, and the resulting diff from implementation head `668f8922...` is exactly one line changed.
-- decision: change only the test fixture; do not broaden `EventLog.emit()` semantics merely to preserve an invalid empty-list argument against its typed `dict | None` contract. Python type annotations are not runtime enforcement, so malformed persisted-state coverage must deliberately construct a non-object value that survives the journal write unchanged. citeturn0search0
-- blocker: authoritative GitHub Actions CI for `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` is queued as run `35102902977` / CI #699. The head is not promoted to validated implementation until the full matrix completes successfully. V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and unfinished signed-release/supply-chain verification work.
-- next_step: observe authoritative CI #699; if green, promote `2519cc...` to validated implementation and move to a new non-duplicative production-boundary review or concrete reproducible defect. If red, diagnose only the new failure.
+- started_at: `2026-09-16T13:45:00Z`
+- base_commit: `4d3b27b1f61a939081ca3bd726156028e7707f4f`
+- area: dependency supply-chain review
+- claimed_files: `.github/workflows/dependency-review.yml`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: add a narrowly scoped pull-request dependency review gate so dependency changes are checked for known vulnerabilities before merge
+- status: CI #699 validated implementation head `2519cc...`. Fresh review found the repository has no dependency-review workflow while GitHub documents the dependency review action as an enforceable PR control for dependency changes. The project also has unpinned test/crypto extras in `pyproject.toml`; this step addresses review visibility/enforcement without inventing a production runtime dependency policy.
+- decision: add a dedicated pull-request dependency-review workflow with read-only contents permission and the maintained GitHub dependency-review action. Do not add a lockfile or pin runtime dependencies in this step because the production deployment artifact/toolchain has not been selected.
+- research: Python packaging now specifies `pylock.toml` for reproducible installations, but the current FS repository has no selected production installer/lock workflow. GitHub dependency review can compare manifest/lock changes and fail on vulnerable introduced dependencies. External security skills were reviewed; `cloudflare/security-audit-skill` is relevant to structured security auditing but is broader than this narrow CI hardening, so the local `fs-agent-core` workflow remains authoritative.
+- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond dependency review.
+- next_step: add the workflow, validate the resulting GitHub Actions matrix, then synchronize status/log with the exact result. If the workflow itself exposes an environment or permission issue, fix only that issue.
 
 ## Latest work
 
-- `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — restore the malformed federation-details regression fixture with the isolated `[]` -> `["malformed"]` change; compare against `668f8922...` confirms one file and one line changed.
-- `75e02a2a34b2a37fb9b1f39e155a1d83b34581ac` — initial fixture update attempt; superseded immediately because it also introduced unrelated constructor keyword changes. Do not use it as validation evidence.
-- `668f8922af8bfdbe01aa335f1372777ae6d89c15` — malformed durable federation admission runtime/test head whose CI #697 failed only because the empty-list fixture was normalized to `{}`.
-- `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c` — record release provenance boundary reconnaissance and synchronize status.
-- `67f547e8e66f754962d94bdc76f2afe8562b79c7` — record transport session re-authentication boundary reconnaissance and synchronize status.
-- `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — record key lifecycle persistence boundary reconnaissance.
-- `a68fe13bc761ab42b7757d769440e6a7314d368d` — add regression proving rotated retired keys cannot be re-admitted while the existing admission remains verification-capable.
+- `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
+- `668f8922af8bfdbe01aa335f1372777ae6d89c15` — malformed durable federation admission runtime/test head; CI #697 failed only because an empty-list fixture was normalized by `EventLog.emit()`.
+- `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c` — release provenance boundary reconnaissance.
+- `67f547e8e66f754962d94bdc76f2afe8562b79c7` — transport session re-authentication boundary reconnaissance.
+- `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — key lifecycle persistence boundary reconnaissance.
+- `a68fe13bc761ab42b7757d769440e6a7314d368d` — rotated retired-key re-admission regression.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI #699 / run `35102902977` was triggered by `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` and is currently queued. CI #697 / run `35102292645` failed on the prior head `668f8922...` with `473 passed, 15 skipped, 1 failed`; the sole failure was the malformed-details regression fixture, not a production runtime failure. FreeBSD native CI remains intentionally disabled and outside the release gate.
-
-External security/testing research supports the current decision: Python annotations do not enforce runtime types, and fail-closed handling of malformed persisted input is a recognized security pattern. citeturn0search0turn1search1
+GitHub Actions is authoritative because no local checkout/test runner is available. CI #699 / run `35102902977` passed for `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`, including Python 3.11/3.12/3.13 across Ubuntu/Windows/macOS and candidate crypto-provider jobs. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 The CI result validates repository behavior and semantic provider qualification tests. It does not certify production cryptographic providers, key custody, authenticated transport, deployment trust roots, artifact provenance verification, or security review requirements.
 
@@ -54,9 +52,9 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 
 ## Next phase
 
-1. Observe authoritative CI #699 for the corrected federation regression fixture before promoting its head.
-2. Do not add speculative production security implementations.
+1. Implement and validate the dependency-review workflow claimed above.
+2. Do not add speculative production security implementations or an unselected package-locking toolchain.
 3. After validation, resume only with a new non-duplicative production-boundary review or a concrete reproducible repository-level defect.
 4. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
 5. Validate any new implementation through GitHub Actions before treating it as evidence.
-6. Keep recovery, provenance, and audit evidence separate from authority issuance and host filesystem capability.
+6. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
