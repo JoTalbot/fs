@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `ea9c57e81eb8a112077dd04ea539309c0fb4399c`
+- Latest repository head: `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
 - Latest validated implementation: `f7338c4dc0d647697b178528fab53af2c302b6bc`
 - Updated: 2026-09-16
 
@@ -14,15 +14,19 @@
 - area: durable transaction commit-marker binding integrity
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_transaction-commit-binding-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether `transaction_commit.object_ids` is authoritative recovery evidence that must match the staged commit records, and harden only if a concrete durable-integrity gap exists
-- status: RESEARCHED
-- repository_research: `transaction_commit.object_ids` is schema-validated as a list of canonical manifest IDs but `Inventory.load()` ignores it and reconstructs publication solely from staged `commit` records. The normal writer emits `object_ids` from the same prepared manifests used to stage those records. Therefore a complete journal can currently contain a terminal marker whose declared object IDs differ from the staged records while replay still publishes the staged set.
-- external_research: SQLite atomic-commit documentation treats durable journal state as recovery-critical transaction evidence; OWASP Transaction Authorization requires transaction state transitions and transaction data to be checked server-side and protected against modification; OWASP Business Logic Security recommends explicit server-side state machines and validation of each transition.
-- skill_discovery: canonical `fs-agent-core` was reread. External `secure-software-engineering` guidance was inspected and treated as advisory. It reinforces explicit acceptance criteria, enforceable controls, and direct evidence for security-sensitive state.
-- decision: treat `transaction_commit.object_ids` as a binding commitment to the exact ordered staged object IDs for that transaction. On replay, require equality with the staged commit record sequence before applying those records. Do not use the marker to mint inventory records that were never staged.
-- sources: SQLite Atomic Commit; OWASP Transaction Authorization Cheat Sheet; OWASP Business Logic Security Cheat Sheet; external secure-software-engineering skill.
-- next_step: record this reconnaissance, implement the smallest equality check plus mismatch regressions, then run the full GitHub Actions matrix.
+- status: CLOSED
+- repository_research: `transaction_commit.object_ids` is schema-validated but is not used to select or mint inventory state; replay publishes only staged `commit` records belonging to the pending transaction. A mismatched marker can therefore degrade redundant evidence but cannot itself alter the recovered inventory set.
+- external_research: SQLite transaction/journal documentation ties commit state to actual durable transaction records and commit markers; OWASP Transaction Authorization and Business Logic Security recommend server-side validation of transaction state and meaningful field combinations.
+- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` guidance was inspected and treated as advisory.
+- decision: no code change. Treat `object_ids` as redundant transaction evidence until a stronger repository contract establishes it as authoritative. Do not add a new replay rejection rule merely for defense-in-depth without defining ordering, duplicate-ID, and historical-journal compatibility semantics.
+- recon: `docs/AGENT_STEP_2026-09-16_transaction-commit-binding-recon.md`, commit `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
+- validation: source and test inspection plus current external transaction/journal research; no runtime implementation changed.
+- result: no concrete fail-open recovery-authority defect found in the `object_ids` marker path. Transaction lifecycle state-machine hardening remains the authoritative recovery control.
+- durable_learning: `[ARCHITECTURE] A durable field that is not consumed as authority should not be promoted into a new mandatory replay invariant without a defined semantic contract; distinguish redundant evidence from state that can actually mutate recovery.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state or duplicate-JSON parsing work.
 
 ## Closed boundaries
+- transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
 - durable transaction state-transition recovery boundary: `f7338c4dc0d647697b178528fab53af2c302b6bc`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, recon `05e09e84ef12843f63892761aef685176b3af33c`, CI `35126636530` passed 18/18.
 - durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
