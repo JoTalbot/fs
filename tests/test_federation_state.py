@@ -239,7 +239,7 @@ def test_malformed_durable_admission_details_fail_closed(tmp_path) -> None:
     try:
         DurableFederationState(path)
     except ValueError as exc:
-        assert str(exc) == "invalid federation admission event details"
+        assert str(exc) == "event details are invalid"
     else:
         raise AssertionError("malformed durable admission details must fail closed")
 
