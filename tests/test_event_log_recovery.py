@@ -58,6 +58,53 @@ def test_event_log_rejects_sequence_gap(tmp_path) -> None:
         list(EventLog(path).replay())
 
 
+def test_event_log_rejects_schema_coercion_and_missing_integrity(tmp_path) -> None:
+    path = tmp_path / "events.log"
+    log = EventLog(path)
+    record = log.emit("first")
+
+    malformed = json.loads(json.dumps(record))
+    malformed["payload"]["sequence"] = "1"
+    path.write_bytes(_encode(malformed))
+    with pytest.raises(ValueError, match="event sequence is invalid"):
+        list(EventLog(path).replay())
+
+    malformed = json.loads(json.dumps(record))
+    malformed["payload"]["event_hash"] = None
+    path.write_bytes(_encode(malformed))
+    with pytest.raises(ValueError, match="event event_hash is invalid"):
+        list(EventLog(path).replay())
+
+
+def test_event_log_rejects_unexpected_event_fields(tmp_path) -> None:
+    path = tmp_path / "events.log"
+    log = EventLog(path)
+    record = log.emit("first")
+    record["payload"]["unexpected"] = True
+    path.write_bytes(_encode(record))
+
+    with pytest.raises(ValueError, match="event schema verification failed"):
+        list(EventLog(path).replay())
+
+
+def test_event_log_rejects_invalid_optional_and_timestamp_types(tmp_path) -> None:
+    path = tmp_path / "events.log"
+    log = EventLog(path)
+    record = log.emit("first")
+
+    malformed = json.loads(json.dumps(record))
+    malformed["payload"]["causal_parent"] = 1
+    path.write_bytes(_encode(malformed))
+    with pytest.raises(ValueError, match="event causal_parent is invalid"):
+        list(EventLog(path).replay())
+
+    malformed = json.loads(json.dumps(record))
+    malformed["payload"]["timestamp_ns"] = True
+    path.write_bytes(_encode(malformed))
+    with pytest.raises(ValueError, match="event timestamp_ns is invalid"):
+        list(EventLog(path).replay())
+
+
 def test_event_log_concurrent_emit_is_serialized(tmp_path) -> None:
     path = tmp_path / "events.log"
     log = EventLog(path)
