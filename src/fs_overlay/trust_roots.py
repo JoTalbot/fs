@@ -16,7 +16,10 @@ import re
 from .durable_coordination import FileAdmissionCoordinator
 from .identity_verification import TrustRootStore
 
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_TRUST_ROOT_FIELDS = frozenset(
+    {"sequence", "issuer_id", "fingerprint", "revoked", "previous_digest", "event_digest"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,9 +42,9 @@ class TrustRootRecord:
     @classmethod
     def create(cls, *, sequence: int, issuer_id: str, fingerprint: str,
                revoked: bool, previous_digest: str) -> "TrustRootRecord":
-        if sequence < 1 or not issuer_id or not _SHA256_RE.fullmatch(fingerprint):
+        if sequence < 1 or not issuer_id or not _SHA256_RE.fullmatch(fingerprint.lower()):
             raise ValueError("invalid trust-root record")
-        if not _SHA256_RE.fullmatch(previous_digest):
+        if not _SHA256_RE.fullmatch(previous_digest.lower()):
             raise ValueError("invalid trust-root previous digest")
         if not isinstance(revoked, bool):
             raise ValueError("revoked must be boolean")
@@ -61,14 +64,26 @@ class TrustRootRecord:
     def from_line(cls, line: str) -> "TrustRootRecord":
         try:
             data = json.loads(line)
-            if not isinstance(data, dict) or not isinstance(data.get("revoked"), bool):
+            if not isinstance(data, dict) or set(data) != _TRUST_ROOT_FIELDS:
                 raise ValueError
-            record = cls(int(data["sequence"]), str(data["issuer_id"]),
-                         str(data["fingerprint"]), data["revoked"],
-                         str(data["previous_digest"]), str(data["event_digest"]))
+            if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
+                raise ValueError
+            if not isinstance(data["issuer_id"], str):
+                raise ValueError
+            if not isinstance(data["fingerprint"], str):
+                raise ValueError
+            if not isinstance(data["revoked"], bool):
+                raise ValueError
+            if not isinstance(data["previous_digest"], str):
+                raise ValueError
+            if not isinstance(data["event_digest"], str):
+                raise ValueError
+            record = cls(data["sequence"], data["issuer_id"], data["fingerprint"],
+                         data["revoked"], data["previous_digest"], data["event_digest"])
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("malformed trust-root record") from exc
-        if (not record.issuer_id or not _SHA256_RE.fullmatch(record.fingerprint)
+        if (record.sequence < 1 or not record.issuer_id
+                or not _SHA256_RE.fullmatch(record.fingerprint)
                 or not _SHA256_RE.fullmatch(record.previous_digest)
                 or not _SHA256_RE.fullmatch(record.event_digest)):
             raise ValueError("malformed trust-root record")
@@ -117,7 +132,7 @@ class DurableTrustRootStore(TrustRootStore):
         return fingerprint
 
     def _append_locked(self, *, issuer_id: str, fingerprint: str, revoked: bool) -> TrustRootRecord:
-        if not issuer_id or not _SHA256_RE.fullmatch(fingerprint):
+        if not issuer_id or not _SHA256_RE.fullmatch(fingerprint.lower()):
             raise ValueError("issuer_id and a SHA-256 fingerprint are required")
         previous = self._records[-1].event_digest if self._records else "0" * 64
         record = TrustRootRecord.create(sequence=len(self._records) + 1,
