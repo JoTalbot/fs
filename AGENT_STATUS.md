@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `cf7f21a96efd9385de03a541d966b0959c040a3c`
+- Latest repository head: `fd010f13ae176eb423fca1f15d5b977cc8e7af91`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -16,16 +16,18 @@
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T12:52:00Z`
 - base_commit: `a68fe13bc761ab42b7757d769440e6a7314d368d`
-- area: provider-boundary qualification and coordination state
+- area: release evidence and provider-boundary qualification
 - claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: preserve evidence-backed fail-closed qualification without implementing unaudited production security providers or host filesystem mutation
-- status: The rotated-key re-admission contract defect was fixed and covered by a dedicated regression. GitHub Actions CI #677 validated the implementation across the configured Python/platform matrix and candidate crypto-provider jobs. Coordination status and learning log are now synchronized after that validation.
-- decision: treat `a68fe13bc761ab42b7757d769440e6a7314d368d` as the current CI-validated implementation head. Later commits `d62d5e3f575ca50b9a8af9c804486204360bad3d` and `cf7f21a96efd9385de03a541d966b0959c040a3c` are coordination documentation commits, not new implementation validation points.
+- status: Release-gate evidence was reconciled with the latest CI-validated implementation. The active V1 gate now points to CI #677 and implementation head `a68fe13bc761ab42b7757d769440e6a7314d368d`; historical CI references remain only in historical records. No production-security provider was added.
+- decision: treat `a68fe13bc761ab42b7757d769440e6a7314d368d` as the current CI-validated implementation head. Later commits `d62d5e3f575ca50b9a8af9c804486204360bad3d`, `cf7f21a96efd9385de03a541d966b0959c040a3c`, `321f0e31b1e6f532fae26247a15a718a1f1d7f84`, and `fd010f13ae176eb423fca1f15d5b977cc8e7af91` are coordination/documentation commits, not new implementation validation points.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, and independent security review.
-- next_step: inspect the remaining provider-boundary state for another reproducible repository-level contract defect; if none exists, stop code changes rather than manufacture a security provider.
+- next_step: inspect one focused production-boundary contract area for a reproducible repository-level defect; if none exists, stop code changes rather than manufacture a security provider.
 
 ## Latest work
 
+- `fd010f13ae176eb423fca1f15d5b977cc8e7af91` — synchronize status after release-evidence review.
+- `321f0e31b1e6f532fae26247a15a718a1f1d7f84` — reconcile V1 release-gate CI evidence with CI #677.
 - `cf7f21a96efd9385de03a541d966b0959c040a3c` — synchronize coordination log after rotated-key CI validation.
 - `d62d5e3f575ca50b9a8af9c804486204360bad3d` — synchronize status after rotated-key CI validation.
 - `a68fe13bc761ab42b7757d769440e6a7314d368d` — add regression proving rotated retired keys cannot be re-admitted while the existing admission remains verification-capable.
