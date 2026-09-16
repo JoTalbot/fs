@@ -1,7 +1,6 @@
 import concurrent.futures
 import multiprocessing
 from contextlib import nullcontext
-import json
 import os
 
 from fs_overlay.durable_coordination import FileAdmissionCoordinator
