@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
+- Latest repository head: `cf7f21a96efd9385de03a541d966b0959c040a3c`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -19,18 +19,18 @@
 - area: provider-boundary qualification and coordination state
 - claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: preserve evidence-backed fail-closed qualification without implementing unaudited production security providers or host filesystem mutation
-- status: The rotated-key re-admission contract defect was fixed and covered by a dedicated regression. GitHub Actions CI #677 validated the implementation across the configured Python/platform matrix and candidate crypto-provider jobs.
-- decision: treat `a68fe13bc761ab42b7757d769440e6a7314d368d` as the current CI-validated implementation head, while preserving the distinction between semantic qualification and production security qualification.
+- status: The rotated-key re-admission contract defect was fixed and covered by a dedicated regression. GitHub Actions CI #677 validated the implementation across the configured Python/platform matrix and candidate crypto-provider jobs. Coordination status and learning log are now synchronized after that validation.
+- decision: treat `a68fe13bc761ab42b7757d769440e6a7314d368d` as the current CI-validated implementation head. Later commits `d62d5e3f575ca50b9a8af9c804486204360bad3d` and `cf7f21a96efd9385de03a541d966b0959c040a3c` are coordination documentation commits, not new implementation validation points.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, and independent security review.
 - next_step: inspect the remaining provider-boundary state for another reproducible repository-level contract defect; if none exists, stop code changes rather than manufacture a security provider.
 
 ## Latest work
 
+- `cf7f21a96efd9385de03a541d966b0959c040a3c` — synchronize coordination log after rotated-key CI validation.
+- `d62d5e3f575ca50b9a8af9c804486204360bad3d` — synchronize status after rotated-key CI validation.
 - `a68fe13bc761ab42b7757d769440e6a7314d368d` — add regression proving rotated retired keys cannot be re-admitted while the existing admission remains verification-capable.
 - `4f048e1a2fc0b6379616d6c0d85f44afe9e14280` — reject new admission of keys retired by lifecycle rotation.
 - `70470e79d2ea181351cae8dacf5e2ff974e58f50` — record provider-boundary review; no new safe repository-level provider defect found.
-- `8d27a26cc07360269b035bfdca472a6863af3135` — strengthen key lifecycle terminal admission regressions; CI #667 passed.
-- `d8ddb66e3b6d0d7f53f245250a8d76bff0944a78` — append recovery authority audit to agent log.
 
 ## Validation boundary
 
