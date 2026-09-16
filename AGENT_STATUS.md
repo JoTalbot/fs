@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head before validation: `ebcf0583599ea29da105ee8c04837ea5d33e9805`
+- Latest repository head before validation: `ca7d566c9a7e62c205963584b9812bfe46a2d3e7`
 - Latest validated implementation: `bb2f83de9352d0c2262dede5e93c6eaa053dfe55`
 - Updated: 2026-09-16
 
@@ -22,6 +22,7 @@
 - change: `.github/workflows/release-provenance.yml` builds sdist/wheel, creates SHA-256 manifest, generates a reproducible validated CycloneDX SBOM from an isolated target environment, uploads release evidence, and creates provenance/SBOM attestations. All GitHub Actions are pinned to immutable SHAs.
 - implementation commits: `08086148aa813fa133ea41ace1bced2612f641e4`, followed by pin correction `5674db6e791b58fcc8a870c790a2df30c8810983`.
 - documentation record: `docs/AGENT_STEP_2026-09-16_release-provenance-recon.md` at `ebcf0583599ea29da105ee8c04837ea5d33e9805`.
+- handoff record: `AGENT_LOG.md` updated in `ca7d566c9a7e62c205963584b9812bfe46a2d3e7`.
 - next_step: execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event, then inspect build artifacts and attestation/SBOM verification evidence. Do not mark the release gate complete before observed verification.
 
 ## Completed step
