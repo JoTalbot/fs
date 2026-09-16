@@ -15,8 +15,14 @@ import re
 from .durable_coordination import FileAdmissionCoordinator
 from .production_adapters import KeyAdmission, NodeAdmission
 
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _ZERO = "0" * 64
+_NODE_ADMISSION_FIELDS = frozenset(
+    {"sequence", "node_id", "fingerprint", "revoked", "previous_digest", "event_digest"}
+)
+_KEY_ADMISSION_FIELDS = frozenset(
+    {"sequence", "node_id", "key_id", "fingerprint", "status", "previous_digest", "event_digest"}
+)
 
 
 def _valid_digest(value: str) -> bool:
@@ -44,9 +50,9 @@ class NodeAdmissionRecord:
     @classmethod
     def create(cls, *, sequence: int, node_id: str, fingerprint: str,
                revoked: bool, previous_digest: str) -> "NodeAdmissionRecord":
-        if sequence < 1 or not node_id or not _valid_digest(fingerprint):
+        if sequence < 1 or not node_id or not _valid_digest(fingerprint.lower()):
             raise ValueError("invalid node admission record")
-        if not _valid_digest(previous_digest) or not isinstance(revoked, bool):
+        if not _valid_digest(previous_digest.lower()) or not isinstance(revoked, bool):
             raise ValueError("invalid node admission record")
         record = cls(sequence, node_id, fingerprint.lower(), revoked, previous_digest.lower(), "")
         return cls(record.sequence, record.node_id, record.fingerprint, record.revoked,
@@ -61,18 +67,30 @@ class NodeAdmissionRecord:
     @classmethod
     def from_line(cls, line: str) -> "NodeAdmissionRecord":
         try:
-            d = json.loads(line)
-            if not isinstance(d, dict) or not isinstance(d.get("revoked"), bool):
+            data = json.loads(line)
+            if not isinstance(data, dict) or set(data) != _NODE_ADMISSION_FIELDS:
                 raise ValueError
-            r = cls(int(d["sequence"]), str(d["node_id"]), str(d["fingerprint"]), d["revoked"],
-                    str(d["previous_digest"]), str(d["event_digest"]))
+            if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
+                raise ValueError
+            if not isinstance(data["node_id"], str):
+                raise ValueError
+            if not isinstance(data["fingerprint"], str):
+                raise ValueError
+            if not isinstance(data["revoked"], bool):
+                raise ValueError
+            if not isinstance(data["previous_digest"], str):
+                raise ValueError
+            if not isinstance(data["event_digest"], str):
+                raise ValueError
+            record = cls(data["sequence"], data["node_id"], data["fingerprint"], data["revoked"],
+                         data["previous_digest"], data["event_digest"])
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("malformed node admission record") from exc
-        if (r.sequence < 1 or not r.node_id or not _valid_digest(r.fingerprint)
-                or not _valid_digest(r.previous_digest) or not _valid_digest(r.event_digest)
-                or r.event_digest != hashlib.sha256(r.canonical_bytes()).hexdigest()):
+        if (record.sequence < 1 or not record.node_id or not _valid_digest(record.fingerprint)
+                or not _valid_digest(record.previous_digest) or not _valid_digest(record.event_digest)
+                or record.event_digest != hashlib.sha256(record.canonical_bytes()).hexdigest()):
             raise ValueError("malformed node admission record")
-        return r
+        return record
 
 
 class DurableNodeAdmission(NodeAdmission):
@@ -121,7 +139,7 @@ class DurableNodeAdmission(NodeAdmission):
         self._records.append(r)
 
     def admit(self, node_id: str, public_key_fingerprint: str) -> bool:
-        if not node_id or not _valid_digest(public_key_fingerprint):
+        if not node_id or not _valid_digest(public_key_fingerprint.lower()):
             return False
         with self._lock.acquire(str(self.path.resolve())):
             self._records = self._replay()
@@ -142,7 +160,7 @@ class DurableNodeAdmission(NodeAdmission):
             self._append(node_id, current, True)
 
     def is_admitted(self, node_id: str, public_key_fingerprint: str) -> bool:
-        if not node_id or not _valid_digest(public_key_fingerprint):
+        if not node_id or not _valid_digest(public_key_fingerprint.lower()):
             return False
         try:
             with self._lock.acquire(str(self.path.resolve())):
@@ -174,8 +192,8 @@ class KeyAdmissionRecord:
     @classmethod
     def create(cls, *, sequence: int, node_id: str, key_id: str, fingerprint: str,
                status: str, previous_digest: str) -> "KeyAdmissionRecord":
-        if (sequence < 1 or not node_id or not key_id or not _valid_digest(fingerprint)
-                or status not in {"ACTIVE", "RETIRED", "REVOKED"} or not _valid_digest(previous_digest)):
+        if (sequence < 1 or not node_id or not key_id or not _valid_digest(fingerprint.lower())
+                or status not in {"ACTIVE", "RETIRED", "REVOKED"} or not _valid_digest(previous_digest.lower())):
             raise ValueError("invalid key admission record")
         r = cls(sequence, node_id, key_id, fingerprint.lower(), status, previous_digest.lower(), "")
         return cls(r.sequence, r.node_id, r.key_id, r.fingerprint, r.status, r.previous_digest,
@@ -190,16 +208,32 @@ class KeyAdmissionRecord:
     @classmethod
     def from_line(cls, line: str) -> "KeyAdmissionRecord":
         try:
-            d = json.loads(line)
-            r = cls(int(d["sequence"]), str(d["node_id"]), str(d["key_id"]), str(d["fingerprint"]),
-                    str(d["status"]), str(d["previous_digest"]), str(d["event_digest"]))
+            data = json.loads(line)
+            if not isinstance(data, dict) or set(data) != _KEY_ADMISSION_FIELDS:
+                raise ValueError
+            if not isinstance(data["sequence"], int) or isinstance(data["sequence"], bool):
+                raise ValueError
+            if not isinstance(data["node_id"], str):
+                raise ValueError
+            if not isinstance(data["key_id"], str):
+                raise ValueError
+            if not isinstance(data["fingerprint"], str):
+                raise ValueError
+            if not isinstance(data["status"], str):
+                raise ValueError
+            if not isinstance(data["previous_digest"], str):
+                raise ValueError
+            if not isinstance(data["event_digest"], str):
+                raise ValueError
+            record = cls(data["sequence"], data["node_id"], data["key_id"], data["fingerprint"],
+                         data["status"], data["previous_digest"], data["event_digest"])
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("malformed key admission record") from exc
-        if (r.sequence < 1 or not r.node_id or not r.key_id or not _valid_digest(r.fingerprint)
-                or r.status not in {"ACTIVE", "RETIRED", "REVOKED"} or not _valid_digest(r.previous_digest)
-                or not _valid_digest(r.event_digest) or r.event_digest != hashlib.sha256(r.canonical_bytes()).hexdigest()):
+        if (record.sequence < 1 or not record.node_id or not record.key_id or not _valid_digest(record.fingerprint)
+                or record.status not in {"ACTIVE", "RETIRED", "REVOKED"} or not _valid_digest(record.previous_digest)
+                or not _valid_digest(record.event_digest) or record.event_digest != hashlib.sha256(record.canonical_bytes()).hexdigest()):
             raise ValueError("malformed key admission record")
-        return r
+        return record
 
 
 class DurableKeyAdmission(KeyAdmission):
@@ -240,7 +274,7 @@ class DurableKeyAdmission(KeyAdmission):
         self._records.append(r)
 
     def admit_key(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-        if not node_id or not key_id or not _valid_digest(fingerprint): return False
+        if not node_id or not key_id or not _valid_digest(fingerprint.lower()): return False
         with self._lock.acquire(str(self.path.resolve())):
             self._records = self._replay(); current = self._current(node_id, key_id)
             if current is not None and (
@@ -264,7 +298,7 @@ class DurableKeyAdmission(KeyAdmission):
             self._append(node_id, key_id, current.fingerprint, "RETIRED")
 
     def is_key_admitted(self, node_id: str, key_id: str, fingerprint: str) -> bool:
-        if not node_id or not key_id or not _valid_digest(fingerprint): return False
+        if not node_id or not key_id or not _valid_digest(fingerprint.lower()): return False
         try:
             with self._lock.acquire(str(self.path.resolve())):
                 self._records = self._replay(); r = self._current(node_id, key_id)
