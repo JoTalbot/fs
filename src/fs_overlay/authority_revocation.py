@@ -7,7 +7,7 @@ provides no authentication or filesystem mutation.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 import hashlib
 import json
 import os
@@ -142,8 +142,6 @@ class AuthorityRevocationRegistry:
         if not authority_id or not reason:
             raise ValueError("authority_id and reason are required")
         with self._coordinator.acquire(str(self.path.resolve())):
-            # Refresh while holding the lock so independent registry instances
-            # cannot make decisions from an obsolete in-memory snapshot.
             self._records = self._replay()
             if self._is_revoked(self._records, authority_id):
                 raise ValueError("authority is already revoked")
