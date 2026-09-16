@@ -2,31 +2,25 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `c1e1966bdf26f7b42c43e9bf34c022fb0066c558`
+- Latest repository head: `2ae7dcfbf7702bec14ac9cb0179edd73ca1c381d`
 - Latest validated implementation: `06af100d3cd0fef36d3abb33c2cc3254b0503bde`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T17:52:00Z`
-- base_commit: `8568a959b318a765f2db53de51d9f51d94da1817`
-- area: snapshot publication durability
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `docs/AGENT_STEP_2026-09-16_snapshot-durability-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`
-- goal: ensure snapshot publication does not report success when the Unix directory-entry persistence barrier fails
-- status: CLOSED
-- repository_research: `SnapshotStore._write()` fsynced the snapshot file and atomically replaced the target, but swallowed `OSError` from the subsequent directory fsync. That allowed a successful return without evidence that the new directory entry had crossed the intended crash-durability boundary.
-- external_research: SQLite atomic-commit documentation treats directory/journal synchronization as part of crash-consistent durable commit; Python documents `os.fsync()` and POSIX atomic `os.replace()` separately; NIST SP 1800-11 emphasizes trustworthy recovery data. Sources were advisory and did not override FS semantics.
-- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` was inspected and treated as advisory.
-- decision: on Unix-like platforms, propagate directory fsync failures; preserve the intentional Windows skip where the project has no portable directory-fsync contract.
-- recon: `docs/AGENT_STEP_2026-09-16_snapshot-durability-recon.md`, commit `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`
-- implementation: `3da8c7d6a0ff565f410a44214fda451327d0c5d8`
-- regression_tests: `06af100d3cd0fef36d3abb33c2cc3254b0503bde`
-- validation: GitHub Actions run `35131007182` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `06af100d3cd0fef36d3abb33c2cc3254b0503bde`.
-- skill_learning: `.agents/skills/fs-agent-core/SKILL.md` updated in `c1e1966bdf26f7b42c43e9bf34c022fb0066c558` with the durable directory-sync fail-closed rule. CI run `35131171224` is the validation run for that documentation/skill commit and was still in progress at status update time.
-- result: Unix snapshot publication now fails closed when the directory fsync fails; the regression injects failure specifically into the second fsync call and requires `OSError` propagation. No Windows durability semantics were invented.
-- durable_learning: `[SECURITY] A filesystem API must not claim durable publication when the final directory-entry persistence barrier fails; on platforms where directory fsync is part of the durability contract, propagate that failure instead of converting it into a successful write.`
-- next_step: after CI run `35131171224` completes, fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state, duplicate-JSON, manifest-schema, or snapshot-durability work.
+- started_at: `2026-09-16T18:04:00Z`
+- base_commit: `2ae7dcfbf7702bec14ac9cb0179edd73ca1c381d`
+- area: content-addressed read-path mutation boundary
+- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_engine.py`, `docs/AGENT_STEP_2026-09-16_content-store-read-path-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether content-addressed reads mutate managed filesystem state through directory creation, and remove that side effect if it violates the read-only storage contract
+- status: CLAIMED
+- repository_research: `ContentAddressedStore._path()` validates object IDs but unconditionally calls `directory.mkdir(exist_ok=True)`. Both `put()` and `get()` use `_path()`, so a read of a valid but absent object creates its two-character shard directory. `put()` needs directory creation; `get()` does not. Current tests cover object integrity/path validation but not absence-read mutation.
+- external_research: Python `pathlib.Path.mkdir()` is explicitly a filesystem-creation operation; Python `Path.read_bytes()` is a read operation. POSIX mkdir likewise creates directories. This supports separating read and write path construction rather than mutating during lookup.
+- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` guidance was inspected and treated as advisory. No additional external skill was required.
+- decision: split content-store path resolution into a pure validated path helper and a write-only shard-directory creation path. `get()` must never create shard directories; `put()` may create them before durable publication. Preserve object-ID validation and integrity checks.
+- sources: Python pathlib documentation; POSIX mkdir specification; external secure-software-engineering skill.
+- next_step: record the reconnaissance, implement the smallest read/write path separation and regression for absent-object reads, then run the full GitHub Actions matrix.
 
 ## Closed boundaries
 - snapshot publication durability: implementation `3da8c7d6a0ff565f410a44214fda451327d0c5d8`, regression `06af100d3cd0fef36d3abb33c2cc3254b0503bde`, recon `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`, CI `35131007182` passed 18/18.
@@ -50,7 +44,7 @@
 - durable admission record schema integrity: `908afdc49673e15fd86b641bc54bd60cacdef422`, CI `35113266230` passed 18/18.
 - durable trust-root record schema integrity: `ad288758b1004e0f32e32af78bff87affab52324`, CI `35112943359` passed 18/18.
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
-- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f9`, CI `35111800923` passed 18/18.
+- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
 - storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
 - key destruction/zeroization provider boundary: reconnaissance only.
