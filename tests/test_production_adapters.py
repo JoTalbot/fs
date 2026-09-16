@@ -45,3 +45,16 @@ def test_reference_key_admission_cannot_reactivate_retired_or_revoked_key() -> N
     assert not admission.can_sign("node-1", "key-1")
     assert not admission.can_verify("node-1", "key-1")
     assert not admission.admit_key("node-1", "key-1", "fp-1")
+
+
+def test_reference_key_admission_rejects_re_admission_after_rotation() -> None:
+    lifecycle = KeyLifecycle([KeyRecord("key-1", "fp-1")])
+    admission = ReferenceKeyLifecycleAdmission(lifecycle)
+    assert admission.admit_key("node-1", "key-1", "fp-1")
+
+    lifecycle.rotate(KeyRecord("key-2", "fp-2"))
+
+    assert not admission.can_sign("node-1", "key-1")
+    assert admission.can_verify("node-1", "key-1")
+    assert not admission.admit_key("node-2", "key-1", "fp-1")
+    assert admission.admit_key("node-2", "key-2", "fp-2")
