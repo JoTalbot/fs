@@ -85,7 +85,12 @@ class GenesisServer:
                     response = self._handle(request)
                 except (ConnectionError, ValueError, TypeError) as exc:
                     response = ServiceResponse(False, "", {}, str(exc))
-                send_message(connection, self._encode(response))
+                except Exception:
+                    response = ServiceResponse(False, "", {}, "internal server error")
+                try:
+                    send_message(connection, self._encode(response))
+                except Exception:
+                    continue
 
     def _handle(self, request: Mapping[str, Any]) -> ServiceResponse:
         return self.service.handle(request)
