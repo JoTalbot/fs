@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `0e88151ebe9160c833ac5b1fa19ccc9b733bc6c9`
+- Latest repository head: `98df891dcf7c81e23f59a5219f0c88f8954974b9`
 - Latest validated implementation: `9a13fd0878c6c19e44a14378d51c8778fe52e827`
 - Updated: 2026-09-16
 
@@ -14,12 +14,17 @@
 - area: LocalDirectoryCarrier symlink/TOCTOU isolation boundary
 - claimed_files: `src/fs_overlay/carrier.py`, `tests/test_carrier.py`, `docs/AGENT_STEP_2026-09-16_carrier-symlink-toctou-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether the configured carrier root remains fail-closed under symlink/reparse-point substitution between containment validation and filesystem mutation/read, and avoid claiming stronger isolation than the platform evidence supports
-- status: CLAIMED
+- status: RESEARCHED
 - repository_research: `LocalDirectoryCarrier._resolve()` canonicalizes with `Path.resolve()` and checks containment, but each operation then resolves the pathname again through ordinary path-based filesystem calls. A concurrent replacement of an intermediate directory by a symlink can therefore invalidate the earlier containment decision before `put`, `get`, `delete`, or `contains` reaches the filesystem.
-- external_research: Linux `open(2)` documents that path-prefix changes can create TOCTOU races and recommends directory-fd-relative operations; `O_NOFOLLOW` blocks final-component symlinks but not earlier path components; Linux `openat2(2)` provides `RESOLVE_NO_SYMLINKS` and beneath-style kernel resolution. Python `os.open`, `os.mkdir`, and `os.replace` expose dir-fd-relative operations on supported platforms. Public agent/filesystem security research independently treats symlink substitution as a workspace-boundary threat.
-- skill_discovery: canonical `fs-agent-core` was reread. External filesystem/agent-security research was inspected; no external skill was adopted as authoritative.
-- decision: the current carrier has a concrete TOCTOU isolation gap if an attacker can mutate carrier descendants concurrently. Do not claim `Path.resolve()` containment is race-free. Before implementation, design a platform-aware fail-closed carrier primitive: POSIX should use stable directory descriptors and no-follow traversal where supported; Linux can use `openat2` semantics where available. Windows/reparse-point behavior requires separate evidence before asserting equivalent protection.
-- next_step: preserve this reconnaissance as a decision record, then perform a focused platform-capability analysis and design the smallest cross-platform fail-closed carrier contract before changing `carrier.py`.
+- external_research: Linux `open(2)` documents pathname-prefix TOCTOU races and recommends directory-fd-relative operations; `O_NOFOLLOW` protects the final component only. Linux `openat2(2)` provides kernel-enforced `RESOLVE_NO_SYMLINKS` and related resolution controls. Python exposes dir-fd-relative `os.open`, `os.mkdir`, and `os.replace` primitives on supported platforms. Windows `CreateFile` exposes `FILE_FLAG_OPEN_REPARSE_POINT` and Microsoft documents reparse-point handling, but a complete multi-component race-resistant beneath primitive still requires a dedicated Windows implementation or narrower contract. Public agent/filesystem security research independently treats symlink substitution as a workspace-boundary threat.
+- skill_discovery: canonical `fs-agent-core` was reread. External filesystem/agent-security material was inspected as advisory research only; no external skill was adopted as authoritative.
+- decision: the current carrier has a concrete TOCTOU isolation gap if an attacker can mutate carrier descendants concurrently. Do not patch it with another `resolve()`/`commonpath()` check. Design a platform-aware fail-closed carrier primitive: stable directory descriptors and no-follow traversal on POSIX, `openat2` semantics where available on Linux, and a dedicated reparse-point-aware path on Windows or an explicitly narrowed contract if equivalent enforcement cannot be established.
+- recon: `353ec5ead62c22e7cc53c5a98d760b945a007565`; platform-research extension `98df891dcf7c81e23f59a5219f0c88f8954974b9`.
+- implementation: none yet; no carrier runtime change has been made.
+- validation: no new runtime test was claimed; the current finding is from repository inspection and current platform/security documentation.
+- result: a real isolation boundary gap is recorded without manufacturing a false portable fix.
+- durable_learning: `[SECURITY] Canonical-path containment is not TOCTOU-safe. Filesystem isolation boundaries require stable handle/dirfd-based or kernel-enforced no-follow operations, and platform-specific limitations must be explicit rather than hidden behind Path.resolve().`
+- next_step: perform a focused platform-capability design for the declared Python/OS matrix, then implement the smallest fail-closed carrier primitive only if the supported semantics can be evidenced on each target.
 
 ## Closed boundaries
 - durable quarantine ledger JSON parsing boundary: implementation `71c63ea53d20165a74c54dc239f2e6835a4c66a9`, regression `9a13fd0878c6c19e44a14378d51c8778fe52e827`, recon `28e8427e835eafb7a0211616f7380804cc425f89`, CI `35135980320` passed 18/18.
