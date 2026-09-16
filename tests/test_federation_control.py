@@ -199,3 +199,14 @@ def test_bootstrap_load_rejects_invalid_semantic_values(tmp_path):
     config_path.write_text(json.dumps(data))
     with pytest.raises(ValueError, match="malformed bootstrap config"):
         MinimalBootstrap(config_path).load()
+
+
+def test_bootstrap_load_rejects_duplicate_json_member_before_schema_validation(tmp_path):
+    config_path = tmp_path / "node.json"
+    MinimalBootstrap(config_path).initialize(root=tmp_path / "carrier", node_id="node-a")
+    line = config_path.read_text(encoding="utf-8").strip()
+    duplicate = line.replace('"node_id":"node-a",', '"node_id":"node-a","node_id":"node-b",', 1)
+    assert duplicate != line
+    config_path.write_text(duplicate + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
