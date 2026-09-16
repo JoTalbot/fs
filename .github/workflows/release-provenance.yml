@@ -39,7 +39,13 @@ jobs:
 
       - name: Generate SHA-256 release manifest
         shell: bash
-        run: sha256sum dist/* | sort > dist/SHA256SUMS
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(printf '%s\n' dist/*.whl)
+          mapfile -t sdists < <(printf '%s\n' dist/*.tar.gz)
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+          sha256sum "${wheels[0]}" "${sdists[0]}" | sort > dist/SHA256SUMS
 
       - name: Create isolated target environment for SBOM
         run: |
@@ -53,13 +59,27 @@ jobs:
             --output-reproducible \
             --validate
 
-      - name: Upload release evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: fs-release-evidence
-          path: dist/
-          if-no-files-found: error
-          retention-days: 30
+      - name: Verify release inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(printf '%s\n' dist/*.whl)
+          mapfile -t sdists < <(printf '%s\n' dist/*.tar.gz)
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+          test -s dist/fs-sbom.cdx.json
+          test -s dist/SHA256SUMS
+          sha256sum --check dist/SHA256SUMS
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("dist/fs-sbom.cdx.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          assert data.get("bomFormat") == "CycloneDX"
+          assert data.get("specVersion")
+          assert data.get("components") is not None
+          PY
 
       - name: Attest build provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
@@ -129,3 +149,11 @@ jobs:
               --source-ref "${GITHUB_REF}" \
               --deny-self-hosted-runners \
               --predicate-type 'https://cyclonedx.org/bom'
+
+      - name: Upload verified release evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fs-release-evidence
+          path: dist/
+          if-no-files-found: error
+          retention-days: 30
