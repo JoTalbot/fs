@@ -92,3 +92,25 @@ def test_invalid_fingerprint_is_rejected_before_persistence(tmp_path) -> None:
     store = DurableTrustRootStore(tmp_path / "trust-roots.jsonl")
     with pytest.raises(ValueError, match="SHA-256 fingerprint"):
         store.trust("issuer-1", "not-a-fingerprint")
+
+
+def test_replay_rejects_duplicate_top_level_field_before_schema_validation(tmp_path) -> None:
+    path = tmp_path / "trust-roots.jsonl"
+    store = DurableTrustRootStore(path)
+    store.trust("issuer-1", FP1)
+    line = path.read_text(encoding="utf-8").strip()
+    duplicate = line.replace('"sequence":1,', '"sequence":1,"sequence":1,', 1)
+    path.write_text(duplicate + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed trust-root record"):
+        DurableTrustRootStore(path)
+
+
+def test_replay_rejects_duplicate_nested_string_field_before_digest_validation(tmp_path) -> None:
+    path = tmp_path / "trust-roots.jsonl"
+    store = DurableTrustRootStore(path)
+    store.trust("issuer-1", FP1)
+    line = path.read_text(encoding="utf-8").strip()
+    duplicate = line.replace('"issuer_id":"issuer-1",', '"issuer_id":"issuer-1","issuer_id":"issuer-1",', 1)
+    path.write_text(duplicate + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed trust-root record"):
+        DurableTrustRootStore(path)
