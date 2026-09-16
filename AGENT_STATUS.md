@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `8e994a07ec6e6125d27443ae1dc268db15d0f11b`
+- Latest repository head: `2519cc5620abed10cbc2b3c815f8f417fa6d6a68`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -14,21 +14,21 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T12:52:00Z`
-- base_commit: `a68fe13bc761ab42b7757d769440e6a7314d368d`
-- area: snapshot identifier isolation boundary
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-id-isolation-recon.md`, `AGENT_STATUS.md`
-- goal: prevent caller-controlled snapshot identifiers from selecting paths outside the managed snapshot root while preserving content-addressed identity checks
-- status: A reproducible repository-level isolation defect was found and fixed. `SnapshotStore.get()` now validates the canonical snapshot identifier before filesystem path construction. Regression coverage rejects parent traversal and absolute-path forms. Authoritative CI is still running for the implementation head.
-- decision: keep the fix minimal and fail closed; do not add broader path normalization or host capability assumptions. The snapshot identifier is an integrity/schema identifier, not an authority grant.
-- blocker: the current implementation head is not yet promoted to the validated-implementation reference until GitHub Actions completes successfully. V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and unfinished signed-release/supply-chain verification work.
-- next_step: confirm authoritative CI for the implementation head, then update validation state; after that, continue only with a new non-duplicative production-boundary review or a concrete reproducible defect.
+- started_at: `2026-09-16T13:35:00Z`
+- base_commit: `668f8922af8bfdbe01aa335f1372777ae6d89c15`
+- area: durable federation replay/schema validation
+- claimed_files: `tests/test_federation_state.py`, `AGENT_STATUS.md`
+- goal: preserve the malformed durable-admission regression fixture as a truthy non-object so the journal replay reaches the intended schema-validation branch
+- status: The previous CI failure was isolated to the regression fixture: `details=[]` is normalized by `EventLog.emit()` to `{}` because the runtime API uses `details or {}`. The runtime fail-closed behavior was not the failing component. The fixture is now `details=["malformed"]`, and the resulting diff from implementation head `668f8922...` is exactly one line changed.
+- decision: change only the test fixture; do not broaden `EventLog.emit()` semantics merely to preserve an invalid empty-list argument against its typed `dict | None` contract. Python type annotations are not runtime enforcement, so malformed persisted-state coverage must deliberately construct a non-object value that survives the journal write unchanged. citeturn0search0
+- blocker: authoritative GitHub Actions CI for `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` is queued as run `35102902977` / CI #699. The head is not promoted to validated implementation until the full matrix completes successfully. V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and unfinished signed-release/supply-chain verification work.
+- next_step: observe authoritative CI #699; if green, promote `2519cc...` to validated implementation and move to a new non-duplicative production-boundary review or concrete reproducible defect. If red, diagnose only the new failure.
 
 ## Latest work
 
-- `8e994a07ec6e6125d27443ae1dc268db15d0f11b` — record snapshot identifier isolation boundary reconnaissance.
-- `dc34832fa7899434f54b539e16fc877371b48b77` — add regression coverage rejecting snapshot IDs that can escape the managed root.
-- `a8feab72fe1850446f251bad16a9f06a9e4f2fea` — validate snapshot IDs before filesystem lookup.
+- `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — restore the malformed federation-details regression fixture with the isolated `[]` -> `["malformed"]` change; compare against `668f8922...` confirms one file and one line changed.
+- `75e02a2a34b2a37fb9b1f39e155a1d83b34581ac` — initial fixture update attempt; superseded immediately because it also introduced unrelated constructor keyword changes. Do not use it as validation evidence.
+- `668f8922af8bfdbe01aa335f1372777ae6d89c15` — malformed durable federation admission runtime/test head whose CI #697 failed only because the empty-list fixture was normalized to `{}`.
 - `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c` — record release provenance boundary reconnaissance and synchronize status.
 - `67f547e8e66f754962d94bdc76f2afe8562b79c7` — record transport session re-authentication boundary reconnaissance and synchronize status.
 - `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — record key lifecycle persistence boundary reconnaissance.
@@ -36,7 +36,9 @@
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35101442752` / workflow run `691` was triggered by the regression head `dc34832fa7899434f54b539e16fc877371b48b77` and was still in progress when this status was synchronized. The subsequent documentation/status commits are not runtime implementation changes and must not be confused with validation of the runtime fix. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI #699 / run `35102902977` was triggered by `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` and is currently queued. CI #697 / run `35102292645` failed on the prior head `668f8922...` with `473 passed, 15 skipped, 1 failed`; the sole failure was the malformed-details regression fixture, not a production runtime failure. FreeBSD native CI remains intentionally disabled and outside the release gate.
+
+External security/testing research supports the current decision: Python annotations do not enforce runtime types, and fail-closed handling of malformed persisted input is a recognized security pattern. citeturn0search0turn1search1
 
 The CI result validates repository behavior and semantic provider qualification tests. It does not certify production cryptographic providers, key custody, authenticated transport, deployment trust roots, artifact provenance verification, or security review requirements.
 
@@ -52,9 +54,9 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 
 ## Next phase
 
-1. Do not add speculative production security implementations.
-2. Confirm the authoritative CI result for the snapshot-ID isolation fix before promoting its commit to the validated-implementation reference.
-3. Resume when a concrete provider/deployment is selected or a reproducible repository-level defect is identified.
-4. For the next substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+1. Observe authoritative CI #699 for the corrected federation regression fixture before promoting its head.
+2. Do not add speculative production security implementations.
+3. After validation, resume only with a new non-duplicative production-boundary review or a concrete reproducible repository-level defect.
+4. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
 5. Validate any new implementation through GitHub Actions before treating it as evidence.
 6. Keep recovery, provenance, and audit evidence separate from authority issuance and host filesystem capability.
