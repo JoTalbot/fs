@@ -137,7 +137,7 @@ Learning:
 Next: Inspect the synchronized provider boundary for a reproducible repository-level contract defect; do not manufacture a provider implementation merely to create code churn.
 
 ## 2026-09-16 | current-agent | rotated-key-readmission-hardening
-Base: 70470e79d2ea181351cae8acf5e2ff974e58f50
+Base: 70470e79d2ea181351cae8dacf5e2ff974e58f50
 Area: secure key lifecycle admission
 Goal: Prevent a key retired by lifecycle rotation from being used to create a new admission while preserving verification for the existing admission.
 Research:
@@ -191,3 +191,27 @@ Learning:
 - [RULE] Release evidence must identify the exact implementation head and CI run that produced it.
 - [SECURITY] Provenance evidence is useful for supply-chain traceability but cannot substitute for provider security review, key custody, transport authentication, or deployment qualification.
 Next: Continue with one focused production-boundary reconnaissance step; modify code only if a reproducible repository-level contract defect is found.
+
+## 2026-09-16 | current-agent | dependency-review-environment-blocker
+Base: ed217b349f96b4773fa2f8893b2c37f067985dd8
+Area: dependency supply-chain review
+Goal: Validate a narrowly scoped pull-request dependency vulnerability gate without leaving an always-failing workflow on main.
+Research:
+- Re-read `AGENTS.md`, `AGENT_STATUS.md`, `.github/workflows/dependency-review.yml`, `.github/workflows/ci.yml`, `pyproject.toml`, and production-security qualification docs.
+- GitHub Dependency Review documentation confirms the maintained `actions/dependency-review-action@v4` workflow shape and that Dependency Graph is a prerequisite.
+- OSV-Scanner documentation confirms an alternative PR workflow that compares target and feature vulnerability results and supports Python manifests/lockfiles including `pylock.toml`; it does not require GitHub Dependency Graph.
+- External security skill discovery found no narrower skill that should override the local `fs-agent-core` contract.
+Changes:
+- Added and exercised the Dependency Review workflow on PR #12 with `fail-on-severity: high`.
+- GitHub Actions run `35103492845` reached checkout and the dependency-review action with `Contents: read`, then failed with the exact environment error: `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled`.
+- The same PR commit `4aa8aed2381e2e1701d1db1f97cf50fbae620ed5` passed the ordinary CI workflow `35103492850`.
+- Updated `AGENT_STATUS.md` with the negative validation evidence, then removed the unsupported workflow from `main` in commit `a47308b3109ce9d89eade44aac83cb07e470eeb6` and closed PR #12 without merging it.
+Validation:
+- Ordinary CI on the PR head passed.
+- Dependency Review workflow execution was observed and its prerequisite failure was captured from the job log; therefore no successful dependency-review validation is claimed.
+Result: status synchronization `a9e286edf2d89d201ae356c30b5024e307696450`; workflow removal `a47308b3109ce9d89eade44aac83cb07e470eeb6`; PR #12 closed unmerged.
+Learning:
+- [FAILURE] GitHub Dependency Review cannot serve as an active gate when the repository Dependency Graph feature is disabled; leaving the workflow enabled would create a deterministic failing check for future PRs.
+- [SECURITY] Negative CI evidence is still evidence: distinguish action execution from successful security-control validation.
+- [RULE] When a required repository security feature is unavailable through the current administration surface, do not emulate its authority or leave a known-broken enforcement workflow enabled.
+Next: Perform fresh reconnaissance before any supply-chain replacement. If an OSV-based PR gate is selected, validate it independently and keep production lockfile/toolchain decisions separate.
