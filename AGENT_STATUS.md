@@ -2,30 +2,30 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1`
+- Latest repository head: `e26065bda478060456ab7af2968a0c80c29b6d15`
 - Latest validated implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T16:20:00Z`
-- base_commit: `22e84e5af6c0e2a9e4d54b176f63372cd0c1d214`
-- area: snapshot wire/deserialization JSON parsing boundary
-- claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether duplicate JSON object members in persisted snapshots can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
-- status: HANDED_OFF
-- repository_research: `Snapshot.from_bytes()` performed strict field/type/identity/Merkle validation but used default `json.loads`, allowing duplicate top-level and nested object members to be collapsed before validation.
-- external_research: RFC 8259 documents unpredictable duplicate-name behavior; RFC 8785 forbids duplicate property names for canonical JSON; OWASP recommends rejecting duplicate keys and validating structured input early.
-- skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation/security guidance. Canonical `fs-agent-core` remains authoritative.
-- decision: reject duplicate JSON object member names during `Snapshot.from_bytes()` parsing, before schema, identity, and Merkle-root validation. Preserve all existing snapshot semantics and authority boundaries.
-- implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
-- regression_tests: `744066a027a6e375beb501951bb827b66e93c9bc`
-- recon: `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`
-- skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1`
-- validation: GitHub Actions run `35121226276` completed successfully with all 18 configured jobs. Python test jobs and candidate crypto-provider jobs all reported success. No local test runner was used.
-- durable_learning: `[SECURITY] Persisted snapshot JSON must reject duplicate object member names before schema, identity, or Merkle validation; otherwise parser collapse can cause integrity checks to validate an ambiguous representation rather than the original record.`
-- next_step: perform fresh reconnaissance for the next non-overlapping repository-level contract gap. Do not reopen this snapshot boundary without new evidence.
+- started_at: `2026-09-16T16:30:00Z`
+- base_commit: `e26065bda478060456ab7af2968a0c80c29b6d15`
+- area: manifest wire/deserialization JSON parsing boundary
+- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- goal: determine whether duplicate JSON object members in persisted manifests can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
+- status: RESEARCHED
+- repository_research: `Manifest.from_bytes()` already enforces exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but still uses default `json.loads`, so duplicate top-level and nested metadata members are collapsed before validation.
+- external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP recommends fatal parse errors on duplicate JSON keys.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; its current durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
+- decision: pending final implementation decision after recon documentation; if gap remains concrete, reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving all existing storage and authority semantics.
+- implementation: pending
+- regression_tests: pending
+- recon: pending
+- skill_update: pending
+- validation: not yet performed
+- durable_learning: pending
+- next_step: record the recon decision, then implement the smallest parser-boundary hardening and add persisted-read regressions if no concurrent claim conflicts exist.
 
 ## Closed boundaries
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
