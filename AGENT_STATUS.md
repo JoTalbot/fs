@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `22e84e5af6c0e2a9e4d54b176f63372cd0c1d214`
+- Latest repository head: `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`
 - Latest validated implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
 - Updated: 2026-09-16
 
@@ -14,18 +14,18 @@
 - area: snapshot wire/deserialization JSON parsing boundary
 - claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_snapshot_provenance.py`, `docs/AGENT_STEP_2026-09-16_snapshot-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in persisted snapshots can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
-- status: RESEARCHED
-- repository_research: `Snapshot.from_bytes()` performs strict field/type/identity/Merkle validation but currently uses default `json.loads`, so duplicate object members are collapsed before those checks.
-- external_research: fresh standards/security review is being performed for duplicate JSON member handling and canonical structured-data validation.
-- skill_discovery: canonical `fs-agent-core` remains authoritative; applicable external security/input-validation guidance will be inspected before implementation.
-- decision: pending completion of fresh external research and skill inspection; no source mutation for this step yet.
-- implementation: pending
-- regression_tests: pending
-- recon: pending
+- status: VALIDATING
+- repository_research: `Snapshot.from_bytes()` performed strict field/type/identity/Merkle validation but used default `json.loads`, allowing duplicate top-level and nested object members to be collapsed before validation.
+- external_research: RFC 8259 documents unpredictable duplicate-name behavior; RFC 8785 forbids duplicate property names for canonical JSON; OWASP recommends rejecting duplicate keys and validating structured input early.
+- skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation/security guidance. Canonical `fs-agent-core` remains authoritative.
+- decision: reject duplicate JSON object member names during `Snapshot.from_bytes()` parsing, before schema, identity, and Merkle-root validation. Preserve all existing snapshot semantics and authority boundaries.
+- implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
+- regression_tests: `744066a027a6e375beb501951bb827b66e93c9bc`
+- recon: `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`
 - skill_update: pending
-- validation: not yet performed
-- durable_learning: pending
-- next_step: complete fresh external research/skill discovery, record the decision, then implement the smallest parser-boundary hardening if the gap remains concrete.
+- validation: not yet performed; GitHub Actions is authoritative and no local test runner is available
+- durable_learning: pending CI confirmation
+- next_step: observe the full GitHub Actions matrix for the current implementation/regression head; if green, update the skill/log and close the boundary; if red, inspect the exact failing job before source changes.
 
 ## Closed boundaries
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
