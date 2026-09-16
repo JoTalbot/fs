@@ -318,3 +318,61 @@ def test_journal_rejects_duplicate_nested_payload_field_before_inventory_mutatio
         handle.write(f"{len(body):016x}".encode() + body + b"\n")
     with pytest.raises(JournalCorruption, match="malformed JSON"):
         LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_transaction_commit_without_begin(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "transaction_commit",
+        "payload": {"transaction_id": "missing", "object_ids": []},
+    })
+    with pytest.raises(JournalCorruption, match="transaction commit is out of order"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_duplicate_transaction_begin(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "transaction_begin",
+        "payload": {"transaction_id": "tx"},
+    })
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "transaction_begin",
+        "payload": {"transaction_id": "tx"},
+    })
+    with pytest.raises(JournalCorruption, match="transaction begin is out of order"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_transaction_commit_record_without_begin(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "commit",
+        "payload": {
+            "object_id": "0" * 64,
+            "size": 0,
+            "manifest_path": "0" * 64,
+            "transaction_id": "missing",
+        },
+    })
+    with pytest.raises(JournalCorruption, match="transaction commit record is out of order"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_unknown_transaction_abort(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "transaction_abort",
+        "payload": {"transaction_id": "missing"},
+    })
+    with pytest.raises(JournalCorruption, match="transaction abort is out of order"):
+        LocalStorageEngine(tmp_path)
