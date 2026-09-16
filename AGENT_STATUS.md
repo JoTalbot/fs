@@ -9,23 +9,17 @@
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T18:04:00Z`
-- base_commit: `2ae7dcfbf7702bec14ac9cb0179edd73ca1c381d`
-- area: content-addressed read-path mutation boundary
-- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_engine.py`, `docs/AGENT_STEP_2026-09-16_content-store-read-path-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether content-addressed reads mutate managed filesystem state through directory creation, and remove that side effect if it violates the read-only storage contract
-- status: CLOSED
-- repository_research: `ContentAddressedStore._path()` created the shard directory as a side effect of path resolution; `put()` required that behavior but `get()` did not. The implementation now separates `_validated_path()` from the write-only `_path()` helper, and `get()` resolves paths without creating directories.
-- external_research: Python documents `Path.mkdir()` as directory creation and `Path.read_bytes()` as a read operation; POSIX specifies `mkdir()` as creating a directory. This supports a strict read/write path separation.
-- skill_discovery: canonical `fs-agent-core` was reread; external secure-software-engineering guidance was inspected and treated as advisory. No additional external skill was required.
-- decision: preserve shard creation for writes while making content-addressed reads non-mutating. Keep object-ID validation and integrity verification unchanged.
-- recon: `docs/AGENT_STEP_2026-09-16_content-store-read-path-recon.md` was the governing reconnaissance record.
-- implementation: `2eb44a63666185a283d729f1993a65bb0464e6be`
-- regression_tests: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
-- validation: GitHub Actions run `35133435983` for the implementation head and run `35133455718` for the regression-test head both completed successfully; the latter is the authoritative final validation and passed all 18 configured Python/platform and candidate crypto-provider jobs.
-- result: reading a missing valid object no longer creates its shard directory; normal publication still creates the shard and subsequent reads return the stored bytes.
-- durable_learning: `[SECURITY] Read-path helpers must not perform write-side directory creation merely to construct a lookup path; separate pure validation/path resolution from write-time preparation so read operations remain non-mutating.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed contract gap; do not repeat transaction-state, duplicate-JSON, manifest-schema, snapshot-durability, or read-path work.
+- started_at: `2026-09-16T18:32:00Z`
+- base_commit: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
+- area: LocalDirectoryCarrier directory-durability failure boundary
+- claimed_files: `src/fs_overlay/carrier.py`, `tests/test_carrier.py`, `docs/AGENT_STEP_2026-09-16_carrier-durability-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether LocalDirectoryCarrier can report successful put/delete publication while its directory-entry persistence barrier fails, and harden the boundary if that is a concrete fail-closed contract gap
+- status: CLAIMED
+- repository_research: `LocalDirectoryCarrier.put()` atomically replaces the target and calls `_fsync_directory()`, while `delete()` unlinks the target and calls the same helper. `_fsync_directory()` currently catches `OSError` and returns success, so both mutating APIs can report success without evidence that the directory entry was durably synchronized.
+- external_research: Linux `fsync(2)` documents that syncing a file does not necessarily sync its containing directory; POSIX fsync reports errors when synchronization fails; SQLite's atomic-commit documentation explicitly treats directory synchronization as part of crash-safe journal visibility. Sources support propagating a failed directory persistence barrier when the API claims durable publication.
+- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` and durability-oriented agent-skill guidance were inspected and treated as advisory. No external skill overrides FS authority or portability rules.
+- decision: on platforms where `_fsync_directory()` is supported, propagate its `OSError` from `put()` and `delete()` instead of converting it into success. Preserve the existing platform-specific implementation boundary rather than inventing Windows directory-fsync semantics.
+- next_step: add the smallest fail-closed regression coverage for put/delete directory-fsync failures, implement the helper failure propagation, run the full GitHub Actions matrix, then synchronize status and durable learning.
 
 ## Closed boundaries
 - content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
