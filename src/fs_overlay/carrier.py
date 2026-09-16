@@ -52,14 +52,13 @@ class LocalDirectoryCarrier:
 
     @staticmethod
     def _fsync_directory(directory: Path) -> None:
+        if os.name == "nt":
+            return
+        fd = os.open(directory, os.O_RDONLY)
         try:
-            fd = os.open(directory, os.O_RDONLY)
-            try:
-                os.fsync(fd)
-            finally:
-                os.close(fd)
-        except OSError:
-            pass
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
     def get(self, relative_name: str) -> bytes:
         return self._resolve(relative_name).read_bytes()
