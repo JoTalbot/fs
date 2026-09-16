@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `e26065bda478060456ab7af2968a0c80c29b6d15`
+- Latest repository head: `84150794e2493656202cdf5ec8f62f34595841a7`
 - Latest validated implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
 - Updated: 2026-09-16
 
@@ -14,18 +14,18 @@
 - area: manifest wire/deserialization JSON parsing boundary
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in persisted manifests can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
-- status: RESEARCHED
-- repository_research: `Manifest.from_bytes()` already enforces exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but still uses default `json.loads`, so duplicate top-level and nested metadata members are collapsed before validation.
+- status: VALIDATING
+- repository_research: `Manifest.from_bytes()` already enforced exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but default `json.loads` collapsed duplicate top-level and nested members before validation.
 - external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP recommends fatal parse errors on duplicate JSON keys.
-- skill_discovery: canonical `fs-agent-core` remains authoritative; its current durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
-- decision: pending final implementation decision after recon documentation; if gap remains concrete, reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving all existing storage and authority semantics.
-- implementation: pending
-- regression_tests: pending
-- recon: pending
-- skill_update: pending
-- validation: not yet performed
-- durable_learning: pending
-- next_step: record the recon decision, then implement the smallest parser-boundary hardening and add persisted-read regressions if no concurrent claim conflicts exist.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; its durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
+- decision: reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving storage, content-addressing, and authority semantics.
+- implementation: `376c6c0246e0ab5f6f90644be3d4e359c0407920`
+- regression_tests: `84150794e2493656202cdf5ec8f62f34595841a7`
+- recon: pending repository file creation
+- skill_update: already contains the general durable duplicate-JSON rule; manifest-specific update pending CI confirmation
+- validation: pending GitHub Actions; no local test runner available
+- durable_learning: pending CI confirmation
+- next_step: observe the full GitHub Actions matrix; if green, record the recon/skill/log state and close this boundary; if red, inspect the exact failing job before source changes.
 
 ## Closed boundaries
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
