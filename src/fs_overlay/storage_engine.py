@@ -531,6 +531,7 @@ class StorageTransaction:
     def rollback(self) -> None:
         if self._closed:
             return
+        self.engine.journal.append("transaction_begin", {"transaction_id": self.transaction_id})
         self.engine.journal.append("transaction_abort", {"transaction_id": self.transaction_id})
         self._prepared.clear()
         self._closed = True
