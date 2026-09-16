@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`
-- Latest validated implementation: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`
+- Latest repository head: `71ca4ec2a2de1c267427a0dfdb6241fc8d85da7f`
+- Latest validated implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,7 +14,7 @@
 - area: durable workspace transfer journal JSON parsing boundary
 - claimed_files: `src/fs_overlay/workspace_transfer_journal.py`, `tests/test_workspace_transfer_journal.py`, `docs/AGENT_STEP_2026-09-16_transfer-journal-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in the durable workspace transfer journal can be collapsed by parsing before schema/hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
-- status: VALIDATING
+- status: HANDED_OFF
 - repository_research: current `WorkspaceTransferJournal.replay()` and `_last_digest()` used default `json.loads`, while schema validation inspected only the materialized dictionary. Duplicate members could therefore be discarded before exact-field and digest validation.
 - external_research: RFC 8259 states JSON object names should be unique and duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends fatal parse errors on duplicate keys. RFC 8785 requires no duplicate property names for canonical JSON processing.
 - skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` was inspected as advisory input-validation guidance. Canonical `fs-agent-core` remains authoritative.
@@ -22,12 +22,13 @@
 - implementation: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`
 - regression_tests: `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`
 - recon: `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`
-- skill_update: pending
-- validation: not yet performed; GitHub Actions is authoritative and no local test runner is available
-- durable_learning: pending confirmation after implementation and CI
-- next_step: observe the full GitHub Actions matrix for the current head; if green, update the skill/log and close the boundary; if red, inspect the exact failing job before source changes.
+- skill_update: `71ca4ec2a2de1c267427a0dfdb6241fc8d85da7f`
+- validation: GitHub Actions run `35120511163` completed successfully with all 18 configured jobs. Its validated head was the later coordination commit containing the transfer-journal implementation/regression ancestry; no local test runner was used. The final skill/status documentation commits are documentation-only and are not presented as new implementation validation.
+- durable_learning: `[SECURITY] Durable JSON journals must reject duplicate object member names at every parse path, including helper paths that derive hash-chain state, before schema or digest validation; otherwise parser collapse can make ambiguous persisted records appear structurally valid.`
+- next_step: perform fresh reconnaissance for the next non-overlapping repository-level contract gap. Do not reopen this boundary without new evidence.
 
 ## Closed boundaries
+- durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
