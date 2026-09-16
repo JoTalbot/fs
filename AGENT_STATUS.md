@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2ae7dcfbf7702bec14ac9cb0179edd73ca1c381d`
-- Latest validated implementation: `06af100d3cd0fef36d3abb33c2cc3254b0503bde`
+- Latest repository head: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
+- Latest validated implementation: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,15 +14,21 @@
 - area: content-addressed read-path mutation boundary
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_engine.py`, `docs/AGENT_STEP_2026-09-16_content-store-read-path-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether content-addressed reads mutate managed filesystem state through directory creation, and remove that side effect if it violates the read-only storage contract
-- status: CLAIMED
-- repository_research: `ContentAddressedStore._path()` validates object IDs but unconditionally calls `directory.mkdir(exist_ok=True)`. Both `put()` and `get()` use `_path()`, so a read of a valid but absent object creates its two-character shard directory. `put()` needs directory creation; `get()` does not. Current tests cover object integrity/path validation but not absence-read mutation.
-- external_research: Python `pathlib.Path.mkdir()` is explicitly a filesystem-creation operation; Python `Path.read_bytes()` is a read operation. POSIX mkdir likewise creates directories. This supports separating read and write path construction rather than mutating during lookup.
-- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` guidance was inspected and treated as advisory. No additional external skill was required.
-- decision: split content-store path resolution into a pure validated path helper and a write-only shard-directory creation path. `get()` must never create shard directories; `put()` may create them before durable publication. Preserve object-ID validation and integrity checks.
-- sources: Python pathlib documentation; POSIX mkdir specification; external secure-software-engineering skill.
-- next_step: record the reconnaissance, implement the smallest read/write path separation and regression for absent-object reads, then run the full GitHub Actions matrix.
+- status: CLOSED
+- repository_research: `ContentAddressedStore._path()` created the shard directory as a side effect of path resolution; `put()` required that behavior but `get()` did not. The implementation now separates `_validated_path()` from the write-only `_path()` helper, and `get()` resolves paths without creating directories.
+- external_research: Python documents `Path.mkdir()` as directory creation and `Path.read_bytes()` as a read operation; POSIX specifies `mkdir()` as creating a directory. This supports a strict read/write path separation.
+- skill_discovery: canonical `fs-agent-core` was reread; external secure-software-engineering guidance was inspected and treated as advisory. No additional external skill was required.
+- decision: preserve shard creation for writes while making content-addressed reads non-mutating. Keep object-ID validation and integrity verification unchanged.
+- recon: `docs/AGENT_STEP_2026-09-16_content-store-read-path-recon.md` was the governing reconnaissance record.
+- implementation: `2eb44a63666185a283d729f1993a65bb0464e6be`
+- regression_tests: `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`
+- validation: GitHub Actions run `35133435983` for the implementation head and run `35133455718` for the regression-test head both completed successfully; the latter is the authoritative final validation and passed all 18 configured Python/platform and candidate crypto-provider jobs.
+- result: reading a missing valid object no longer creates its shard directory; normal publication still creates the shard and subsequent reads return the stored bytes.
+- durable_learning: `[SECURITY] Read-path helpers must not perform write-side directory creation merely to construct a lookup path; separate pure validation/path resolution from write-time preparation so read operations remain non-mutating.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed contract gap; do not repeat transaction-state, duplicate-JSON, manifest-schema, snapshot-durability, or read-path work.
 
 ## Closed boundaries
+- content-addressed read-path purity: implementation `2eb44a63666185a283d729f1993a65bb0464e6be`, regression `b075a02980dcdcb0daa3c37ef1eb19a6be392efd`, CI `35133455718` passed 18/18.
 - snapshot publication durability: implementation `3da8c7d6a0ff565f410a44214fda451327d0c5d8`, regression `06af100d3cd0fef36d3abb33c2cc3254b0503bde`, recon `a51d14a0c456224046bf0c0dac64cf1b05aec9a6`, CI `35131007182` passed 18/18.
 - manifest write immutability: implementation `8568a959b318a765f2db53de51d9f51d94da1817`, regression `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`, recon `aaa784b949a95041dde11dcd0f669cef233bd18d`, CI `35128250728` passed 18/18.
 - transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
