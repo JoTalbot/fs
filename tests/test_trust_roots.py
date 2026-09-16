@@ -99,7 +99,7 @@ def test_replay_rejects_duplicate_top_level_field_before_schema_validation(tmp_p
     store = DurableTrustRootStore(path)
     store.trust("issuer-1", FP1)
     line = path.read_text(encoding="utf-8").strip()
-    duplicate = line.replace('"sequence":1,', '"sequence":1,"sequence":1,', 1)
+    duplicate = line.replace('"sequence":1}', '"sequence":1,"sequence":1}', 1)
     path.write_text(duplicate + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="malformed trust-root record"):
         DurableTrustRootStore(path)
