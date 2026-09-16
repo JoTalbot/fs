@@ -263,3 +263,29 @@ Learning:
 - [RULE] Integrity checks do not repair schema ambiguity. Validate structure and types first, then validate the digest and chain.
 - [RULE] Validation-only PR branches must never be merged when their sole purpose is to trigger CI; preserve the tested implementation independently on `main`.
 Next: Synchronize `AGENT_STATUS.md` and `AGENT_LOG.md` to the validated implementation head, then perform fresh reconnaissance for the next non-overlapping production-boundary issue.
+
+## 2026-09-16 | current-agent | secure-key-store-overwrite-hardening
+Base: 98ca71af4cfa9093a8639f554b2097df30db77ee
+Area: secure key-store overwrite semantics
+Goal: Prevent silent replacement of protected key material under an existing key ID at the SecureKeyStore qualification boundary while preserving explicit key rotation semantics.
+Research:
+- Re-read `AGENTS.md`, `AGENT_STATUS.md`, canonical `fs-agent-core`, `production_adapters.py`, `adapter_conformance.py`, and `tests/test_adapter_conformance.py` from the current repository state.
+- Fresh external research reviewed NIST SP 800-57 key-management guidance and OWASP secrets/cryptographic-storage guidance. These support controlled key storage and explicit lifecycle/rotation boundaries.
+Skill discovery:
+- External `security-review` guidance was inspected as untrusted review guidance; it specifically treats secret handling and unsafe rotation assumptions as security-review surfaces. It did not override FS's local contract.
+Changes:
+- Documented `SecureKeyStore.store()` as create-only for a `key_id`.
+- Hardened the reusable adapter conformance harness to reject silent replacement of an existing key ID and to verify that rejected replacement leaves the original material unchanged.
+- Updated the in-memory qualification store to model create-only semantics.
+- Added a negative regression with an intentionally overwriting provider so the harness demonstrably rejects the unsafe behavior.
+- Added `docs/AGENT_STEP_2026-09-16_secure-key-store-overwrite-recon.md` and distilled the durable rule into `fs-agent-core`.
+Validation:
+- Repository writes completed successfully.
+- GitHub Actions CI run `35107179255` (run #732) was observed for implementation head `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`; at handoff it was still queued across the 18-job matrix. No test pass is claimed yet.
+- Earlier validation run `35106280201` remains evidence for the prior revocation implementation only and is not evidence for this new change.
+Result: implementation changes `81036be292341e8e3d93ef3a8b22e73170c399a5`, `da312fe43a65fa5d1831b2248ec40c2ae852411d`, `e0609f077dd6a671b0449d9fb3153a1f32881730`; research doc `436e4721f4ce055a6863717d74c1fb50f851632a`; durable skill update `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`. Current head is `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`.
+Learning:
+- [SECURITY] If key identity is immutable at the authority boundary, storage must reject silent overwrite under an existing identifier; otherwise a storage adapter can substitute key material without an explicit lifecycle transition.
+- [RULE] Key rotation must remain an explicit lifecycle/identity transition and must not be smuggled into a generic storage `store()` operation.
+- [VALIDATION] A queued GitHub Actions run is not validation evidence; only completed observed jobs may move the step to `VALIDATED`.
+Next: Wait for CI run `35107179255` to complete, inspect all 18 jobs, then synchronize `AGENT_STATUS.md` with the exact validated implementation head and CI result. If CI fails, diagnose only the concrete failure before further changes.
