@@ -64,6 +64,19 @@ class WorkspaceTransferJournal:
         TransferJournalPhase.COMMITTED: frozenset(),
         TransferJournalPhase.ABORTED: frozenset(),
     }
+    _RECORD_FIELDS = frozenset(
+        {
+            "version",
+            "transaction_id",
+            "phase",
+            "operation",
+            "snapshot_id",
+            "source_workspace_id",
+            "destination_workspace_id",
+            "previous_digest",
+            "event_digest",
+        }
+    )
 
     def __init__(self, path: str | Path, *, lock_timeout: float = 5.0):
         if lock_timeout < 0:
@@ -160,12 +173,11 @@ class WorkspaceTransferJournal:
                     raw = json.loads(line[:-1])
                 except json.JSONDecodeError as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
-                if raw.get("version") != 2:
+                self._validate_record_schema(raw)
+                if raw["version"] != 2:
                     raise TransferJournalCorruption("unsupported journal version")
-                digest = raw.get("event_digest")
-                previous_digest = raw.get("previous_digest")
-                if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
-                    raise TransferJournalCorruption("journal event digest is invalid")
+                digest = raw["event_digest"]
+                previous_digest = raw["previous_digest"]
                 if previous_digest != expected_digest:
                     raise TransferJournalCorruption("journal hash chain is broken")
                 unsigned = dict(raw)
@@ -175,14 +187,14 @@ class WorkspaceTransferJournal:
                     raise TransferJournalCorruption("journal event digest mismatch")
                 try:
                     result = TransferJournalEntry(
-                        str(raw["transaction_id"]),
-                        TransferJournalPhase(str(raw["phase"])),
-                        WorkspaceTransfer(str(raw["operation"])),
-                        str(raw["snapshot_id"]),
-                        str(raw["source_workspace_id"]),
-                        None if raw.get("destination_workspace_id") is None else str(raw["destination_workspace_id"]),
+                        raw["transaction_id"],
+                        TransferJournalPhase(raw["phase"]),
+                        WorkspaceTransfer(raw["operation"]),
+                        raw["snapshot_id"],
+                        raw["source_workspace_id"],
+                        raw["destination_workspace_id"],
                     )
-                except (KeyError, TypeError, ValueError) as exc:
+                except (TypeError, ValueError) as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
                 previous = latest.get(result.transaction_id)
                 if previous is not None:
@@ -199,6 +211,30 @@ class WorkspaceTransferJournal:
                 latest[result.transaction_id] = result
                 expected_digest = digest
                 yield result
+
+    @classmethod
+    def _validate_record_schema(cls, raw: object) -> None:
+        if not isinstance(raw, dict):
+            raise TransferJournalCorruption("journal record must be an object")
+        if set(raw) != cls._RECORD_FIELDS:
+            raise TransferJournalCorruption("journal record schema is invalid")
+        if type(raw["version"]) is not int:
+            raise TransferJournalCorruption("journal version must be an integer")
+        for field in ("transaction_id", "phase", "operation", "snapshot_id", "source_workspace_id"):
+            value = raw[field]
+            if not isinstance(value, str) or not value:
+                raise TransferJournalCorruption(f"journal {field} must be a non-empty string")
+        destination = raw["destination_workspace_id"]
+        if destination is not None and (not isinstance(destination, str) or not destination):
+            raise TransferJournalCorruption("journal destination_workspace_id must be null or a non-empty string")
+        for field in ("event_digest", "previous_digest"):
+            value = raw[field]
+            if value is not None and (
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)
+            ):
+                raise TransferJournalCorruption(f"journal {field} is invalid")
 
     @staticmethod
     def _validate_identity(
@@ -241,7 +277,7 @@ class WorkspaceTransferJournal:
                     raw = json.loads(line[:-1])
                 except json.JSONDecodeError as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
-                digest = raw.get("event_digest")
+                digest = raw.get("event_digest") if isinstance(raw, dict) else None
                 if not isinstance(digest, str):
                     raise TransferJournalCorruption("journal event digest is invalid")
                 last = digest
