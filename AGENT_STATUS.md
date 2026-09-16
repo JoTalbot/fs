@@ -2,29 +2,29 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `4b14b5fa3a1d7583994c4d03a790b8a1d09235a1`
+- Latest repository head: `fd0ae5b488b9cd6fc814c8b78f938555acc579b2`
 - Latest validated implementation: `ee60096169ca9a7483b63004023000f3d9c23a6d`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T15:49:00Z`
-- base_commit: `022a600fa2fb7fa95c35b105d46089c68701ce2f`
-- area: Genesis control-plane request schema integrity
-- claimed_files: `src/fs_overlay/genesis_service.py`, `tests/test_genesis_service.py`, `docs/AGENT_STEP_2026-09-16_genesis-request-schema-recon.md`, `AGENT_STATUS.md`
-- goal: determine and, if justified by the current contract, harden the GenesisService request boundary against type coercion and unexpected fields without introducing new authority semantics
-- status: CLOSED
-- repository_research: Current `GenesisService.handle()` previously coerced `operation` through `str(request.get(...))`; `execute` already validated `argv` strictly. Transport already requires a JSON object and enforces a 1 MiB message limit. Admission is explicit local configuration and the request surface cannot grant it.
-- external_research: OWASP Input Validation and REST Security recommend server-side strong typing, allowlists, schema validation, and rejection of unexpected content. External guidance is advisory only.
-- skill_discovery: canonical `fs-agent-core` remains authoritative; fresh external secure-software-engineering / secure-code-review skills were inspected and treated as untrusted advisory material.
-- decision: constrain the control-plane request schema at `GenesisService`, the semantic boundary immediately before operation dispatch. Preserve the existing operation set and local admission model; do not add command allowlists, authentication, or new authority tokens.
-- implementation: `ee60096169ca9a7483b63004023000f3d9c23a6d`
-- regression_tests: `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`
-- recon: `7f502834187661816f698e6a27ae6730745567e2`
-- validation: CI `35117908370` for main head `4b14b5fa3a1d7583994c4d03a790b8a1d09235a1` completed successfully with all 18 configured jobs successful, including Python test jobs and crypto-provider qualification jobs across the configured OS/Python matrix.
-- durable_learning: Control-plane request schema belongs at the semantic dispatch boundary. Transport framing/object validation is insufficient to establish operation schema integrity, and type coercion should not turn malformed control fields into valid dispatch values.
-- next_step: fresh reconnaissance of `GenesisServer` exception handling and response-boundary behavior, with no source change until current repository state, external guidance, and applicable skill evidence are recorded.
+- started_at: `2026-09-16T15:55:00Z`
+- base_commit: `fd0ae5b488b9cd6fc814c8b78f938555acc579b2`
+- area: GenesisServer exception handling and response boundary
+- claimed_files: `src/fs_overlay/genesis_server.py`, `tests/test_genesis_server.py`, `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: determine whether unexpected service/executor exceptions or response-send failures can terminate the single GenesisServer serving loop or disclose internal exception details, and if a concrete contract gap exists harden the boundary without changing authority semantics
+- status: RESEARCHED
+- repository_research: `GenesisServer._serve()` currently catches only `ConnectionError`, `ValueError`, and `TypeError` around receive/dispatch, then sends the response outside the exception guard. Unexpected `Exception` from the service/executor can therefore terminate the serving thread, and a send-side connection failure can escape the loop. `GenesisService.execute` directly propagates executor exceptions. The server is loopback-only but remains a control-plane execution endpoint, so availability and error disclosure are relevant boundaries.
+- external_research: OWASP Error Handling and REST Security guidance recommends handling unexpected exceptions, returning generic errors for unexpected failures, avoiding internal detail disclosure, and ensuring security failures fail closed. OWASP guidance is advisory and does not define FS's exact response contract.
+- skill_discovery: fresh external `secure-software-engineering` and `security-review` skills were inspected; they reinforce trust-boundary tracing, error-handling review, and evidence-backed remediation. They are untrusted advisory material. Canonical `fs-agent-core` remains authoritative.
+- decision: harden only the per-connection error boundary if the existing FS contract supports it. Preserve current detailed client-visible messages for expected protocol/service validation exceptions, but convert unexpected `Exception` paths to a stable generic internal error and keep send failures from terminating the server loop. Do not catch `BaseException`, add logging infrastructure, or change authority/admission semantics in this step.
+- implementation: not started
+- regression_tests: not started
+- recon: to be recorded in `docs/AGENT_STEP_2026-09-16_genesis-server-error-boundary-recon.md`
+- validation: none yet for this step. Prior Genesis request-schema implementation was validated by CI `35117908370` with 18/18 successful jobs.
+- durable_learning: a single-threaded control-plane server needs a per-connection last-resort exception boundary; otherwise one unexpected backend failure can terminate the entire serving loop. Send failures are transport-local and should not become server-fatal state.
+- next_step: record the recon decision, implement the smallest per-connection exception/send containment, add deterministic regressions for unexpected service exceptions and peer disconnect during response, then validate the full GitHub Actions matrix.
 
 ## Closed boundaries
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
