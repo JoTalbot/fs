@@ -57,10 +57,21 @@ class RevocationRecord:
             data = json.loads(line)
             if not isinstance(data, dict):
                 raise ValueError
+            if set(data) != {
+                "sequence", "authority_id", "reason", "previous_digest", "event_digest"
+            }:
+                raise ValueError
+            if (
+                type(data["sequence"]) is not int
+                or type(data["authority_id"]) is not str
+                or type(data["reason"]) is not str
+                or type(data["previous_digest"]) is not str
+                or type(data["event_digest"]) is not str
+            ):
+                raise ValueError
             record = cls(
-                int(data["sequence"]), str(data["authority_id"]),
-                str(data["reason"]), str(data["previous_digest"]),
-                str(data["event_digest"]),
+                data["sequence"], data["authority_id"], data["reason"],
+                data["previous_digest"], data["event_digest"],
             )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("malformed revocation record") from exc
