@@ -109,6 +109,7 @@ Recent durable lessons:
 - [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace, root filesystem, or resource-enforcement guarantees.
 - [SECURITY] A key-material store contract should make replacement semantics explicit; when key identity is immutable at the authority boundary, storage must reject silent overwrite and preserve the original material.
 - [SECURITY] A single-threaded control-plane server needs a per-connection last-resort `Exception` boundary so one unexpected backend failure cannot terminate the serving loop; transport send failures must likewise remain connection-local. Do not catch `BaseException` or change authority semantics merely to improve availability.
+- [SECURITY] Control-plane JSON decoders must reject duplicate object member names before semantic dispatch; otherwise parser behavior can collapse ambiguous wire input and prevent downstream validators from seeing the discarded value.
 
 ## FS engineering invariants
 
