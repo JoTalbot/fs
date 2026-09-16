@@ -50,13 +50,53 @@ class Manifest:
     def to_bytes(self) -> bytes:
         return _canonical(asdict(self))
 
+    @staticmethod
+    def _require_object_id(value: object, field: str = "object_id") -> str:
+        if (
+            not isinstance(value, str)
+            or len(value) != 64
+            or any(char not in "0123456789abcdef" for char in value)
+        ):
+            raise ValueError(f"manifest {field} is invalid")
+        return value
+
+    @staticmethod
+    def _require_non_negative_int(value: object, field: str) -> int:
+        if type(value) is not int or value < 0:
+            raise ValueError(f"manifest {field} is invalid")
+        return value
+
     @classmethod
     def from_bytes(cls, data: bytes) -> "Manifest":
-        raw = json.loads(data)
-        if raw.get("format_version") != FORMAT_VERSION:
+        try:
+            raw = json.loads(data)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise ValueError("manifest JSON is invalid") from exc
+        if not isinstance(raw, dict):
+            raise ValueError("manifest schema is invalid")
+        expected_fields = {"object_id", "size", "chunks", "chunk_size", "format_version", "metadata"}
+        if set(raw) != expected_fields:
+            raise ValueError("manifest schema is invalid")
+        if type(raw["format_version"]) is not int or raw["format_version"] != FORMAT_VERSION:
             raise ValueError("unsupported manifest format version")
-        result = cls(str(raw["object_id"]), int(raw["size"]), tuple(raw["chunks"]),
-                     int(raw["chunk_size"]), int(raw["format_version"]), raw.get("metadata"))
+        object_id = cls._require_object_id(raw["object_id"])
+        size = cls._require_non_negative_int(raw["size"], "size")
+        chunks = raw["chunks"]
+        if not isinstance(chunks, list):
+            raise ValueError("manifest chunks are invalid")
+        validated_chunks = tuple(cls._require_object_id(chunk, "chunk id") for chunk in chunks)
+        chunk_size = raw["chunk_size"]
+        if type(chunk_size) is not int or chunk_size <= 0:
+            raise ValueError("manifest chunk_size is invalid")
+        metadata = raw["metadata"]
+        if metadata is not None:
+            if not isinstance(metadata, dict) or any(
+                not isinstance(key, str) or not isinstance(value, str)
+                for key, value in metadata.items()
+            ):
+                raise ValueError("manifest metadata is invalid")
+            metadata = dict(metadata)
+        result = cls(object_id, size, validated_chunks, chunk_size, raw["format_version"], metadata)
         if result.identity() != result.object_id:
             raise ValueError("manifest identity verification failed")
         return result
