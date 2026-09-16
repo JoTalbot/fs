@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `67f547e8e66f754962d94bdc76f2afe8562b79c7`
+- Latest repository head: `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -16,16 +16,17 @@
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T12:52:00Z`
 - base_commit: `a68fe13bc761ab42b7757d769440e6a7314d368d`
-- area: authenticated transport session re-authentication boundary
-- claimed_files: `AGENT_STATUS.md`, `docs/AGENT_STEP_2026-09-16_transport-session-reauth-recon.md`
-- goal: preserve evidence-backed fail-closed qualification without inventing generic re-authentication or production transport authority
-- status: Focused reconnaissance found no repository-level fail-open path for provider re-authentication, peer changes, session replacement, or transport sequence reset. The gate remains bound to one principal and one session instance; peer/authentication state is revalidated before every operation, and provider failures close the gate.
-- decision: no runtime code change. A provider-side session reset must not inherit the old gate's authorization or sequence state. Production re-authentication semantics remain the responsibility of a concrete authenticated/encrypted transport deployment contract.
-- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, and independent security review.
+- area: release provenance and supply-chain evidence boundary
+- claimed_files: `AGENT_STATUS.md`, `docs/AGENT_STEP_2026-09-16_release-provenance-recon.md`
+- goal: preserve evidence-backed release provenance without conflating test CI with production artifact security
+- status: Focused reconnaissance found no repository-level fail-open path. The current workflow is test/qualification CI only; signed release and supply-chain verification remain explicit production roadmap work. Artifact provenance should be bound to a concrete release artifact and trusted builder/verification policy rather than added indiscriminately to routine test jobs.
+- decision: no runtime or CI code change. A release-attestation workflow remains deferred until the release artifact, publication target, trusted builder policy, and verification policy are concrete.
+- blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and unfinished signed-release/supply-chain verification work.
 - next_step: continue only with a new, non-duplicative production-boundary reconnaissance or a concrete reproducible repository-level contract defect.
 
 ## Latest work
 
+- `3572ebd070909db2bb2a4e8bc51bdf2aeec88b3c` — record release provenance boundary reconnaissance and synchronize status.
 - `67f547e8e66f754962d94bdc76f2afe8562b79c7` — record transport session re-authentication boundary reconnaissance and synchronize status.
 - `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — record key lifecycle persistence boundary reconnaissance.
 - `2ed72f33e093e9dd3c334e8c065fb4524c6fafda` — synchronize status after release-evidence review.
@@ -40,11 +41,11 @@
 
 GitHub Actions is authoritative because no local checkout/test runner is available. CI #677 (`35098613033`) for `a68fe13bc761ab42b7757d769440e6a7314d368d` completed successfully across the configured Python/platform matrix, including independent conformance and candidate crypto-provider jobs. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
-The CI result validates repository behavior and semantic provider qualification tests. It does not certify production cryptographic providers, key custody, authenticated transport, deployment trust roots, or security review requirements.
+The CI result validates repository behavior and semantic provider qualification tests. It does not certify production cryptographic providers, key custody, authenticated transport, deployment trust roots, artifact provenance verification, or security review requirements.
 
 ## Current V1 position
 
-V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative durable trust-root and identity verification, target-specific recovery evidence, and required external security review. The current Python authority/policy objects and authenticated-principal evidence are explicit contracts/provenance, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
+V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative durable trust-root and identity verification, target-specific recovery evidence, required external security review, and a concrete signed-release/supply-chain verification path. The current Python authority/policy objects and authenticated-principal evidence are explicit contracts/provenance, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
 
 ## Existing architecture boundary
 
@@ -55,7 +56,7 @@ Snapshot object IDs are schema/integrity identifiers. Their canonical SHA-256 en
 ## Next phase
 
 1. Do not add speculative production security implementations.
-2. Resume when a concrete provider/deployment is selected or a reproducible repository-level contract defect is identified.
+2. Resume when a concrete provider/deployment is selected or a reproducible repository-level defect is identified.
 3. For the next substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
 4. Validate any new implementation through GitHub Actions before treating it as evidence.
-5. Keep recovery and audit evidence separate from authority issuance and host filesystem capability.
+5. Keep recovery, provenance, and audit evidence separate from authority issuance and host filesystem capability.
