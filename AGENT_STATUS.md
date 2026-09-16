@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `bdf3dec314473256b2217440b8a9a96a8da48de2`
+- Latest repository head: `88fc4500480510f2fd688aea96717ed07c36b590`
 - Latest validated implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
 - Updated: 2026-09-16
 
@@ -12,16 +12,18 @@
 - started_at: `2026-09-16T15:45:00Z`
 - base_commit: `bdf3dec314473256b2217440b8a9a96a8da48de2`
 - area: EventLog durable schema/integrity hardening
-- claimed_files: `src/fs_overlay/event_log.py`, `tests/test_event_log_recovery.py`, `docs/AGENT_STEP_2026-09-16_event-log-schema-recon.md`, `AGENT_STATUS.md`
+- claimed_files: `src/fs_overlay/event_log.py`, `tests/test_event_log_recovery.py`, `tests/test_federation_state.py`, `docs/AGENT_STEP_2026-09-16_event-log-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed persisted event records from being coerced or accepted without complete integrity/sequence validation during replay
-- status: CLAIMED
-- repository_research: fresh inspection found `EventLog.replay()` validates event hashes only when `event_hash` is truthy, coerces `sequence` with `int()` and hashes with `str()`, while `reload()` repeats coercive reconstruction. Existing tests cover tampering and sequence gaps but not malformed scalar types, missing integrity fields, or unexpected event fields.
-- external_research: OWASP input validation requires syntactic/semantic validation, strong types, and rejection of unexpected content; OWASP Logging requires event field types to be defined and validated and log integrity to be protected. RFC 8259 warns that duplicate JSON object names have unpredictable receiver behavior. citeturn0search3turn0search1turn0search0
-- skill_discovery: canonical `fs-agent-core` remains authoritative. External security-review and secure-software-engineering guidance were inspected; both emphasize trust-boundary validation, audit-log integrity, and evidence-backed remediation. External guidance is advisory only. citeturn1search1turn1search2
-- decision: harden only the durable event replay schema and existing integrity chain. Require the exact event payload fields already emitted, exact scalar types, nonnegative integer timestamps/sequence, strict event-hash/causal-parent strings, and reject unexpected fields. Missing or malformed integrity fields must fail closed. Preserve existing hash-chain and sequence semantics; do not invent new event authority semantics.
-- Genesis validation: implementation `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`; regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`; CI `35116444065` passed all 18 configured jobs.
-- validation: EventLog changes not yet implemented; no local runner is available.
-- next_step: implement the smallest strict EventLog replay parser and regression tests, then validate with the full GitHub Actions matrix.
+- status: VALIDATING
+- repository_research: EventLog replay previously coerced persisted sequence/hash values and conditionally verified event_hash. Existing federation-state coverage intentionally injects malformed event details to verify fail-closed restart behavior.
+- external_research: OWASP input validation/logging guidance supports strict schema validation and audit-log integrity; RFC 8259 identifies duplicate JSON names as receiver ambiguity. External guidance is advisory only.
+- skill_discovery: canonical `fs-agent-core` remains authoritative; external security-review guidance was inspected.
+- decision: enforce the exact emitted EventLog schema and existing hash/sequence/causal-chain invariants without adding new authority semantics.
+- implementation: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`
+- regression_tests: `f864dea306b05f65fceeae6d868ec64ac3840794`, plus fixture expectation alignment `88fc4500480510f2fd688aea96717ed07c36b590`
+- recon: `ba488c9c06ab974233fcda0d215907a08bfd6b1e`
+- validation: CI `35117116588` exposed one expected-boundary mismatch in `tests/test_federation_state.py`: EventLog now rejects malformed `details` earlier with `event details are invalid`; the fixture still expected the former federation-state-specific message. The failing job observed 530 passed, 3 skipped, 14 deselected, 1 failed. All completed crypto-provider jobs in that run passed. The mismatch was corrected without weakening the new fail-closed parser. No local runner is available.
+- next_step: validate the corrected head `88fc4500480510f2fd688aea96717ed07c36b590` with the full GitHub Actions matrix. If green, close the EventLog schema boundary; if red, inspect the exact failing job before any further source change.
 
 ## Closed boundaries
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
