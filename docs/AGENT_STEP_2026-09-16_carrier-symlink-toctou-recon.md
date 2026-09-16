@@ -17,6 +17,7 @@ The carrier contract describes the root as an explicit storage boundary. That ma
 - Linux `open(2)` documents the pathname-prefix TOCTOU problem and explains that directory-file-descriptor-relative APIs such as `openat()` avoid races caused by path components changing between validation and use. It also documents that `O_NOFOLLOW` applies to the final component and does not by itself protect earlier components. citeturn0search0turn0search2
 - Linux `openat2(2)` provides kernel-enforced resolution controls including `RESOLVE_NO_SYMLINKS`, which covers symbolic links in path components rather than only the final component. citeturn0search12
 - Python documents `os.open`, `os.mkdir`, and `os.replace` support for directory-file-descriptor-relative operations on supported platforms. citeturn1search2
+- Windows `CreateFile` exposes `FILE_FLAG_OPEN_REPARSE_POINT`, which opens a reparse point itself instead of following it, while Microsoft documents that symbolic links, junctions, mount points, and other filesystem features are represented through reparse points. This is useful evidence for a Windows-specific no-follow primitive, but it does not by itself provide a portable Python-level beneath/openat2 equivalent for every path component. citeturn3search0turn3search2turn3search6
 - Current agent/filesystem security work treats symlink substitution under a configured workspace as a concrete security boundary issue, and mature filesystem-jail designs distinguish ordinary canonical-path checks from kernel-enforced TOCTOU-safe opens. citeturn2search1turn2search4
 
 ## Skill discovery
@@ -43,14 +44,14 @@ The next implementation step must first establish the supported platform contrac
 
 - POSIX path operations should use stable directory descriptors and no-follow component traversal where the Python/platform APIs expose it.
 - Linux should evaluate `openat2`-style kernel resolution for the strongest containment primitive available on the reference platform.
-- Windows reparse-point/junction behavior must be separately evidenced before claiming equivalent race resistance. If equivalent enforcement cannot be established portably, the API must fail closed or explicitly narrow its guarantee rather than silently claim parity.
+- Windows needs a native reparse-point-aware operation path or an explicitly weaker contract. `FILE_FLAG_OPEN_REPARSE_POINT` proves that Windows can open a reparse point without following it, but further work is required to make the whole multi-component carrier operation race-resistant. If equivalent enforcement cannot be established portably, the API must fail closed or explicitly narrow its guarantee rather than silently claim parity.
 
 No `carrier.py` implementation change is made in this reconnaissance step.
 
 ## What remains unproven
 
 - Whether the repository's supported Python/platform matrix exposes sufficient dir-fd and no-follow primitives on every target.
-- Whether Windows requires a dedicated native API path to prevent reparse-point substitution.
+- Whether Windows can provide a sufficiently strong component-by-component handle-based implementation without introducing an unsupported native dependency.
 - Whether the carrier contract should require a race-resistant capability or permit a weaker reference adapter outside production isolation claims.
 - A deterministic CI regression for an actual concurrent component swap is not yet implemented.
 
