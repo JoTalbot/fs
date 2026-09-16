@@ -1,8 +1,9 @@
 """Minimal local Genesis service for the FS reference runtime.
 
 The service is deliberately transport-agnostic. It exposes a tiny request
-surface around node identity, admission, capability inspection and execution.
-It never grants authority and never mutates the host during bootstrap.
+surface around node identity, capability inspection and execution.
+Admission is explicit local configuration; the request surface never grants
+execution authority.
 """
 from __future__ import annotations
 
@@ -55,11 +56,6 @@ class GenesisService:
             )
         if operation == "capabilities":
             return ServiceResponse(True, operation, dict(self.capabilities))
-        if operation == "admit":
-            if request.get("node_id") != self.identity.node_id:
-                return ServiceResponse(False, operation, {}, "node identity mismatch")
-            self.admitted = True
-            return ServiceResponse(True, operation, {"admitted": True})
         if operation == "execute":
             if not self.admitted:
                 return ServiceResponse(False, operation, {}, "node is not admitted")
