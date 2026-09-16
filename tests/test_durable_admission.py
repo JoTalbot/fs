@@ -51,6 +51,17 @@ def test_node_replay_rejects_coerced_types_and_unknown_fields(tmp_path):
         DurableNodeAdmission(store.path)
 
 
+def test_node_replay_rejects_duplicate_json_member(tmp_path):
+    path = tmp_path / "nodes-duplicate.jsonl"
+    store = DurableNodeAdmission(path)
+    assert store.admit("node-1", fp("node-key"))
+    line = path.read_text().strip()
+    duplicate = line.replace('"sequence":1}', '"sequence":1,"sequence":1}', 1)
+    path.write_text(duplicate + "\n")
+    with pytest.raises(ValueError, match="malformed node admission record"):
+        DurableNodeAdmission(path)
+
+
 def test_key_admission_lifecycle_and_restart(tmp_path):
     path = tmp_path / "keys.jsonl"
     fingerprint = fp("key-1")
@@ -96,8 +107,19 @@ def test_key_replay_rejects_coerced_types_and_unknown_fields(tmp_path):
     path = tmp_path / "keys-unknown.jsonl"
     store = DurableKeyAdmission(path)
     assert store.admit_key("node-1", "key-1", fp("key-1"))
-    data = json.loads(path.read_text().splitlines()[0])
+    data = json.loads(store.path.read_text().splitlines()[0])
     data["unexpected"] = "value"
     path.write_text(json.dumps(data) + "\n")
+    with pytest.raises(ValueError, match="malformed key admission record"):
+        DurableKeyAdmission(path)
+
+
+def test_key_replay_rejects_duplicate_json_member(tmp_path):
+    path = tmp_path / "keys-duplicate.jsonl"
+    store = DurableKeyAdmission(path)
+    assert store.admit_key("node-1", "key-1", fp("key-1"))
+    line = path.read_text().strip()
+    duplicate = line.replace('"sequence":1}', '"sequence":1,"sequence":1}', 1)
+    path.write_text(duplicate + "\n")
     with pytest.raises(ValueError, match="malformed key admission record"):
         DurableKeyAdmission(path)
