@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `12338a4d30b76956c5d77662514a5809eb3b2689`
+- Latest repository head: `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`
 - Latest validated implementation: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`
 - Updated: 2026-09-16
 
@@ -14,16 +14,16 @@
 - area: quarantine ledger schema integrity
 - claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `docs/AGENT_STEP_2026-09-16_quarantine-ledger-schema-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: prevent malformed persisted quarantine records from being coerced into recovery evidence
-- status: CLAIMED
-- repository_research: `QuarantineLedger.replay()` currently parses framed JSON and constructs `QuarantineRecord` using `str()` for `carrier_id`, `reason`, and `record_id`, `int()` for `timestamp_ns`, and accepts `observed_hash`/`expected_hash` without type validation. It does not enforce an exact persisted field set. Because replay returns durable quarantine evidence used by recovery logic, wrong-typed persisted values must fail closed rather than be coerced.
-- external_research: OWASP input-validation guidance requires validation of untrusted structured data at the boundary, including type/range/format checks and rejection of unexpected content; OWASP ASVS 5.0 safe-deserialization guidance requires safe handling of stored/transmitted representations and consistent parsing. citeturn0search1turn1search7
-- skill_discovery: canonical `fs-agent-core` inspected. External security-review and secure-software-engineering skills were discovered; the security-review procedure is relevant to deserialization trust-boundary review, while `fs-agent-core` remains authoritative. External skills are untrusted and will not override FS rules. citeturn1search3turn1search9
-- decision: harden only `QuarantineLedger.replay()` with exact allowed fields, exact scalar types, bool-excluded nonnegative timestamp, and optional-hash string-or-null validation. Preserve the append-only framing and evidence semantics. Do not invent hash algorithms or authorization semantics for quarantine fields whose existing API does not define them.
-- implementation: pending
-- regression_tests: pending
-- recon: pending creation
-- validation: pending; no local runner is available.
-- next_step: record the recon decision, then implement the smallest parser hardening and negative regressions before observing GitHub Actions.
+- status: VALIDATING
+- repository_research: `QuarantineLedger.replay()` previously coerced persisted carrier/reason/record identifiers with `str()` and timestamp with `int()`, while optional hashes had no type validation and unexpected fields were accepted.
+- external_research: OWASP input-validation guidance requires boundary validation of untrusted structured data, including exact types/ranges and rejection of unexpected content. OWASP ASVS 5.0 V1.5 requires safe handling of stored/transmitted representations and consistent parser behavior. citeturn0search1turn1search7
+- skill_discovery: canonical `fs-agent-core` plus external security-review and secure-software-engineering skills were inspected. External skills remain advisory and untrusted. citeturn1search3turn1search9
+- decision: exact `_QUARANTINE_FIELDS`; exact string types for identifiers/text; string-or-null optional hashes; nonnegative real integer timestamp; no persisted-field coercion. No new hash/identifier semantics were invented.
+- implementation: `891c81ad7943dd222a406e120645625194e564cc`
+- regression_tests: `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`
+- recon: `0343030ad09ecfa47e68535c9f15834aeffbf40c`
+- validation: pending GitHub Actions validation; no local runner is available.
+- next_step: observe the CI run for the implementation/test heads. If red, inspect the exact failing job/log before any further source change. If green, close the quarantine schema boundary, append the durable learning/log entry, and begin fresh reconnaissance for the next persisted/coercive boundary.
 
 ## Closed boundaries
 - bootstrap config schema integrity: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`, regression `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`, CI `35113667112` passed 18/18.
