@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `81d6aae4a7937f649004a2bf2436f56d15876320`
-- Latest validated implementation: `9dcc0327ce13ab9568fef037984d51e8d03b6db2`
+- Latest repository head: `2ddc285cf95adc551e0ac59f8e648c943559316e`
+- Latest validated implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
 - Updated: 2026-09-16
 
 ## Active step
@@ -14,26 +14,28 @@
 - area: durable trust-root JSON parsing boundary
 - claimed_files: `src/fs_overlay/trust_roots.py`, `tests/test_trust_roots.py`, `docs/AGENT_STEP_2026-09-16_trust-root-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether duplicate JSON object members in durable trust-root records can be collapsed before strict schema and hash-chain validation, and harden only if a concrete fail-closed boundary gap exists
-- status: VALIDATING
+- status: CLOSED
 - repository_research: `TrustRootRecord.from_line()` enforced exact fields, strict scalar types, canonical SHA-256 fields, sequence continuity, hash-chain linkage, and event-digest verification, but default `json.loads` collapsed duplicate members before those checks.
 - external_research: RFC 8259 section 4 warns duplicate JSON object names produce unpredictable receiver behavior; OWASP Developer Guide recommends fatal parse errors on duplicate keys; OWASP Input Validation recommends early syntactic validation and rejection of malformed structured input.
 - skill_discovery: canonical `fs-agent-core` was reread; its durable duplicate-JSON rule directly applies. No additional external skill was needed.
 - decision: reject duplicate JSON object members during `TrustRootRecord.from_line()` parsing before schema and digest validation, preserving trust-root authority and hash-chain semantics.
 - recon: `d79c0dff427083c0a8d473c4094ee26525a655f6`
 - implementation: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`
-- regression_tests: `81d6aae4a7937f649004a2bf2436f56d15876320`
-- validation: CI pending for the trust-root implementation/test head; no new validation claim yet.
-- result: implementation is committed; duplicate-key regressions are present; full matrix remains the release gate for this step.
-- next_step: inspect GitHub Actions for the implementation/test head, trace any failures to exact job logs, then synchronize status and continue with the next non-overlapping durable boundary.
+- regression_tests: `2ddc285cf95adc551e0ac59f8e648c943559316e`
+- validation: GitHub Actions run `35125966644` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for the implementation/test head `2ddc285cf95adc551e0ac59f8e648c943559316e`.
+- result: durable trust-root JSON parsing boundary is closed with duplicate-key rejection and regression coverage for top-level and nested duplicate members.
+- durable_learning: `[SECURITY] Durable trust-root records must reject duplicate object members at the parser boundary; strict schema and digest checks cannot recover a member discarded by permissive JSON parsing.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
 
 ## Closed boundaries
+- durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
 - storage-engine durable journal JSON parsing boundary: `8d26e0a2d0ab74d196dedc6c49823f3a0c7c97e1`, regression `9dcc0327ce13ab9568fef037984d51e8d03b6db2`, recon `98b3e609bdaec2461eb5183110fe699e2711c024`, CI `35124222857` passed 18/18.
 - manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
-- Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
+- Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed all 18 configured jobs.
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
 - recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed full configured matrix.
