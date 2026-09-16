@@ -20,6 +20,18 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
 
 
+def _fsync_directory(directory: str | Path) -> None:
+    """Persist directory-entry changes where the platform exposes that contract."""
+    if os.name == "nt":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    fd = os.open(Path(directory), flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 @dataclass(frozen=True)
 class NodeIdentity:
     node_id: str
@@ -191,6 +203,7 @@ class MinimalBootstrap:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, self.config_path)
+            _fsync_directory(self.config_path.parent)
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
