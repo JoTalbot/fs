@@ -99,6 +99,34 @@ def test_manifest_rejects_invalid_metadata_types(tmp_path: Path) -> None:
         engine.store.get_manifest(manifest.object_id)
 
 
+def test_manifest_rejects_duplicate_top_level_json_keys(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"duplicate manifest key")
+    path = engine.store.manifests / manifest.object_id
+    raw = path.read_text()
+    marker = '"size":'
+    first = raw.index(marker)
+    second = raw.index(marker, first + 1) if marker in raw[first + len(marker):] else -1
+    assert second == -1
+    duplicate = raw[:first] + raw[first:raw.index(",", first)] + "," + raw[first:]
+    path.write_text(duplicate)
+
+    with pytest.raises(ValueError, match="manifest JSON is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
+def test_manifest_rejects_duplicate_nested_metadata_keys(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine.put(b"duplicate metadata key", metadata={"source": "test"})
+    path = engine.store.manifests / manifest.object_id
+    raw = path.read_text()
+    duplicate = raw.replace('"metadata":{"source":"test"}', '"metadata":{"source":"test","source":"shadow"}')
+    path.write_text(duplicate)
+
+    with pytest.raises(ValueError, match="manifest JSON is invalid"):
+        engine.store.get_manifest(manifest.object_id)
+
+
 def test_repeated_content_addressed_write_is_idempotent(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     payload = b"same content-addressed object"
