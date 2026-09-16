@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `cda99c5edc594071caa5fc3be265f38255708797`
+- Latest repository head: `09dacacdb81ed33b9d140949b16afd1a9ea2bfd9`
 - Latest validated implementation: `d5914cd65277297f4463cf0b5601aa83fe1e2ec5`
 - Updated: 2026-09-16
 
@@ -14,19 +14,21 @@
 - area: ContentAddressedStore root TOCTOU boundary
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_engine.py`, `docs/AGENT_STEP_2026-09-16_content-store-toctou-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
 - goal: determine whether the content-store managed root must resist concurrent symlink/reparse-point substitution during object and manifest writes, and avoid duplicating platform-specific isolation primitives without a contract requirement
-- status: RESEARCHED
-- repository_research: current ContentAddressedStore validates object IDs and separates `_validated_path()` from write-only shard creation, but object/manifest writes still use path-derived temporary directories and rename operations. The recently hardened LocalDirectoryCarrier provides a stronger descriptor-scoped reference pattern, but its guarantee is explicitly tied to the carrier boundary.
-- external_research: Linux `openat2(2)` provides kernel-enforced beneath/no-symlink resolution; Python exposes dir-fd-relative operations on supported POSIX platforms; Windows reparse-point handling exists through native APIs but does not establish a portable multi-component Python equivalent. Current external filesystem-security material treats path substitution during write-back as a TOCTOU boundary issue.
+- status: CLOSED
+- repository_research: `ContentAddressedStore` validates object IDs, preserves content integrity and immutable publication, but its pathname-based write sequence is not race-resistant against hostile replacement of storage-root descendants. The explicit isolation contract is owned by the carrier abstraction, which now has stable POSIX dirfd/no-follow enforcement.
+- external_research: Linux `openat2(2)` provides kernel-enforced `RESOLVE_BENEATH`/`RESOLVE_NO_SYMLINKS`; Python provides dirfd-relative operations on supported POSIX systems; external filesystem-security material distinguishes canonical-path checks from race-resistant filesystem operations.
 - skill_discovery: canonical `fs-agent-core` was reread; external filesystem/agent-security material was inspected as advisory only and not adopted as authoritative.
-- decision: do not implement a second carrier-like primitive yet. First establish from the storage architecture whether hostile concurrent mutation of ContentAddressedStore roots is inside the contract. If it is, harden both object-shard and manifest writes with explicit platform capability checks and fail-closed semantics; otherwise document the trust assumption.
+- decision: the current architecture does not define `ContentAddressedStore`'s caller-selected root as an independent hostile-concurrency isolation boundary. Do not duplicate the carrier primitive. Document the trust assumption and keep the stronger isolation guarantee at the carrier boundary.
 - recon: `cda99c5edc594071caa5fc3be265f38255708797`
-- implementation: none yet
-- validation: no runtime implementation change was made; the recon is based on current source/tests and external platform/security documentation.
-- result: a potential storage write TOCTOU boundary is recorded without claiming it is a confirmed contract defect.
-- durable_learning: `[SECURITY] A pathname-safe content store is not automatically a race-resistant isolation boundary. Before duplicating dirfd/no-follow machinery, establish whether hostile concurrent mutation of the managed storage root is inside the primitive's contract.`
-- next_step: resolve the content-store trust-boundary contract from current architecture/docs, then either implement the smallest fail-closed write primitive or document the explicit trusted-storage assumption.
+- implementation: none; documentation-only contract clarification
+- documentation: `4b88e61194b6a61a3f8e80c20ea8706b905fc608`, `09dacacdb81ed33b9d140949b16afd1a9ea2bfd9`
+- validation: architecture/source review plus current Linux/Python filesystem documentation and external security material; no runtime test was needed because no runtime behavior changed.
+- result: the potential TOCTOU is explicitly documented as a storage trust-boundary limitation rather than incorrectly presented as a closed isolation guarantee.
+- durable_learning: `[SECURITY] A pathname-safe content store is not automatically a race-resistant isolation boundary. Keep hostile-concurrency isolation at the explicit carrier boundary unless the storage-root contract is separately promoted and qualified.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not duplicate already closed JSON, transaction-lifecycle, carrier-TOCTOU, or storage-read/write-integrity boundaries.
 
 ## Closed boundaries
+- content-store root TOCTOU contract: documentation `4b88e61194b6a61a3f8e80c20ea8706b905fc608` + `09dacacdb81ed33b9d140949b16afd1a9ea2bfd9`; no runtime change; content store does not claim hostile-concurrency isolation independently of the carrier boundary.
 - LocalDirectoryCarrier symlink/TOCTOU isolation: implementation `d5914cd65277297f4463cf0b5601aa83fe1e2ec5`, predecessor hardening `a443ed0ec33c616d1a915bf59e2ba9e5827055b8`, CI `35138856953` passed 18/18; capability gate `d5914cd65277297f4463cf0b5601aa83fe1e2ec5` was directly observed in the green run.
 - durable quarantine ledger JSON parsing boundary: implementation `71c63ea53d20165a74c54dc239f2e6835a4c66a9`, regression `9a13fd0878c6c19e44a14378d51c8778fe52e827`, recon `28e8427e835eafb7a0211616f7380804cc425f89`, CI `35135980320` passed 18/18.
 - LocalDirectoryCarrier directory durability: implementation `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, regression `b5de7ad5e1c4dbdb9095508006128d82992d6d38`, CI `35135385582` passed 18/18; decision record `d9001ef9e81a3e35e77d5a2a40d87075a3174d2e`.
