@@ -17,33 +17,35 @@ This is distinct from the already-closed carrier boundary: `ContentAddressedStor
 ## External research
 
 - Linux `openat2(2)` documents `RESOLVE_BENEATH` and `RESOLVE_NO_SYMLINKS` as kernel-enforced path-resolution controls for untrusted paths and explicitly distinguishes them from final-component-only `O_NOFOLLOW`. citeturn0search0turn0search2
-- Python documents directory-descriptor-relative filesystem operations and `follow_symlinks=False` where supported, which provides the building blocks for descriptor-scoped operations on POSIX systems. citeturn0search13turn0search17
-- Microsoft documents reparse-point handling and `FILE_FLAG_OPEN_REPARSE_POINT`, but this does not by itself establish a portable Python equivalent for the complete multi-component write sequence. citeturn0search1turn0search5
-- Current external agent/filesystem security material treats symlink substitution and path-based write-back as a TOCTOU/arbitrary-overwrite class of boundary issue. citeturn1search1turn1search3
+- Python documents directory-descriptor-relative filesystem operations and `follow_symlinks=False` where supported, which provides the building blocks for descriptor-scoped operations on POSIX systems. citeturn0search3turn0search6
+- Current external agent/filesystem security material treats symlink substitution and path-based write-back as a TOCTOU/arbitrary-overwrite class of boundary issue. citeturn1search0turn1search8
 
 ## Skill discovery
 
 The repository-local `fs-agent-core` skill was reread. External filesystem/agent-security material was inspected as advisory only; no external skill was adopted as authoritative. The external material reinforces the need to distinguish canonical-path checks from race-resistant filesystem operations.
 
+## Contract resolution
+
+The current architecture treats `ContentAddressedStore` as the local storage-engine spine, while the explicit isolation boundary is the carrier abstraction. `STORAGE_RESILIENCE.md` defines the store in terms of immutable content publication, durable journal visibility, snapshots, placement and quarantine; it does not define the caller-selected storage root as a hostile-concurrency isolation boundary. The CLI exposes the storage root as an explicit local filesystem location for audit/recovery/snapshot operations rather than as a capability-bearing carrier.
+
+Therefore the observed pathname TOCTOU is a real limitation of the storage primitive, but not a demonstrated violation of its current security contract. The carrier boundary must continue to provide the stronger hostile-concurrency isolation guarantee where isolation is required. The content store must not silently claim equivalent protection.
+
 ## Decision
 
-Do not immediately duplicate the carrier implementation inside `ContentAddressedStore`. First define whether the content-store root is an isolation/security boundary under the FS contract, or whether it is trusted deployment-owned storage where concurrent hostile mutation is explicitly out of scope.
+Do not duplicate the carrier implementation inside `ContentAddressedStore`. Document the content-store trust assumption explicitly and keep platform-specific descriptor/reparse-point hardening at the carrier boundary unless the architecture later promotes the content-store root to an independent isolation boundary.
 
-If hostile concurrent mutation of managed storage is in scope, the write path needs a descriptor-scoped, no-follow primitive analogous to the carrier boundary, with explicit platform capability checks and fail-closed behavior. The implementation should cover both object shards and the manifest directory, and must preserve atomic publication plus existing fsync semantics.
-
-If that threat is out of scope for this primitive, document the trust assumption rather than claiming race-resistant storage isolation.
+If that contract changes, the write path needs a descriptor-scoped, no-follow primitive analogous to the carrier boundary, with explicit platform capability checks and fail-closed behavior. The implementation would need to cover both object shards and the manifest directory while preserving atomic publication and existing fsync semantics.
 
 ## What remains unproven
 
-- Whether `ContentAddressedStore` is required to resist hostile concurrent mutation of its root by the public architecture contract.
-- Whether all declared Python/OS targets can support the required descriptor/reparse-point semantics.
-- Whether a shared internal safe-directory primitive should be extracted without weakening the already-closed carrier boundary.
-- A deterministic CI regression for concurrent shard-directory replacement is not yet implemented.
+- The content store is not independently qualified as a hostile-concurrency isolation primitive.
+- A future architecture could promote its root to an isolation boundary, which would require a new explicit contract and platform capability design.
+- A deterministic CI regression for concurrent shard-directory replacement is intentionally not added because the current contract does not claim that guarantee.
 
 ## Validation boundary
 
-No runtime implementation was changed in this step. The finding is based on current repository source/tests, the already-closed carrier boundary, and current platform/security documentation. No stronger content-store isolation guarantee is claimed.
+No runtime implementation was changed in this step. The decision is based on current repository source/tests and architecture documentation plus current platform/security documentation. No stronger content-store isolation guarantee is claimed.
 
 ## Next safe step
 
-Resolve the content-store trust-boundary contract from the current storage architecture/docs before implementing any write-path hardening. Avoid duplicating platform-specific filesystem primitives unless the contract requires the stronger guarantee.
+Treat the content-store TOCTOU finding as a documented trust-boundary limitation and continue with a fresh reconnaissance of the next non-overlapping concrete fail-closed contract gap.
