@@ -152,14 +152,12 @@ class SnapshotStore:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temporary, target)
-            try:
-                directory_fd = os.open(self.root, os.O_RDONLY)
+            if os.name != "nt":
+                directory_fd = os.open(self.root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
                 try:
                     os.fsync(directory_fd)
                 finally:
                     os.close(directory_fd)
-            except OSError:
-                pass
         finally:
             if os.path.exists(temporary):
                 os.unlink(temporary)
