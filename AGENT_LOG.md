@@ -119,12 +119,12 @@ Learning:
 Next: Resume when a concrete provider/evidence package or reproducible repository-level defect appears.
 
 ## 2026-09-16 | current-agent | coordination-head-reconciliation
-Base: 70470e79d2ea181351cae8dacf5e2ff974e58f50
+Base: 70470e79d2ea181351cae8acf5e2ff974e58f50
 Area: repository reconnaissance and coordination state
 Goal: Reconcile the shared agent state with the actual repository head before any new substantive implementation.
 Research:
 - Re-read `README.md`, `docs/ROADMAP.md`, `docs/V1_RELEASE_GATE.md`, `docs/CRYPTOGRAPHY_PROVIDER_STATUS.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, recent commit history, and candidate crypto-provider CI configuration.
-- Confirmed `70470e79d2ea181351cae8dacf5e2ff974e58f50` is the current repository head while `AGENT_STATUS.md` still referenced `d04db9a9b759be4b75681b4da420236d6ed06f90` as the latest repository head.
+- Confirmed `70470e79d2ea181351cae8acf5e2ff974e58f50` is the current repository head while `AGENT_STATUS.md` still referenced `d04db9a9b759be4b75681b4da420236d6ed06f90` as the latest repository head.
 Changes:
 - Updated `AGENT_STATUS.md` to record the actual repository head and preserve `8d27a26cc07360269b035bfdca472a6863af3135` as the latest validated implementation head.
 Validation:
@@ -137,7 +137,7 @@ Learning:
 Next: Inspect the synchronized provider boundary for a reproducible repository-level contract defect; do not manufacture a provider implementation merely to create code churn.
 
 ## 2026-09-16 | current-agent | rotated-key-readmission-hardening
-Base: 70470e79d2ea181351cae8dacf5e2ff974e58f50
+Base: 70470e79d2ea181351cae8acf5e2ff974e58f50
 Area: secure key lifecycle admission
 Goal: Prevent a key retired by lifecycle rotation from being used to create a new admission while preserving verification for the existing admission.
 Research:
@@ -215,3 +215,26 @@ Learning:
 - [SECURITY] Negative CI evidence is still evidence: distinguish action execution from successful security-control validation.
 - [RULE] When a required repository security feature is unavailable through the current administration surface, do not emulate its authority or leave a known-broken enforcement workflow enabled.
 Next: Perform fresh reconnaissance before any supply-chain replacement. If an OSV-based PR gate is selected, validate it independently and keep production lockfile/toolchain decisions separate.
+
+## 2026-09-16 | current-agent | osv-pr-gate-validation
+Base: 005650886292224b3321d236b193eca9e37c0caf
+Area: dependency supply-chain review / OSV PR gate
+Goal: Validate and adopt a narrowly scoped OSV-based pull-request vulnerability gate without relying on GitHub Dependency Graph.
+Research:
+- Re-read `AGENT_STATUS.md`, `AGENTS.md`, dependency-bearing configuration, current CI conventions, and the candidate OSV workflow before the validation run.
+- Current maintained OSV guidance supports recursive repository-root scanning and a PR workflow independent of GitHub Dependency Graph. Immutable action SHAs were used for the workflow.
+Changes:
+- Created the pinned `.github/workflows/osv-scanner.yml` candidate.
+- Created reconnaissance and validation records under `docs/AGENT_STEP_2026-09-16_osv-pr-gate-*.md`.
+- Removed the temporary duplicate validation workflow before PR execution.
+- Opened PR #13 from `ci/osv-pr-gate-validation` into `main`.
+Validation:
+- OSV workflow run `35105324357` on PR #13 head `895aef52820e816b23bcf7bdd9c80e31a0480940` completed successfully; job `104824914009` reports successful setup, checkout, and dependency scan.
+- Ordinary CI run `35105324326` for the same PR head completed successfully.
+- PR #13 was merged successfully as `d2d8bbd11d823439c4b7be63b560215690b90c00`.
+Result: OSV gate is now active on `main`; coordination status synchronized after merge.
+Learning:
+- [SECURITY] A real PR-triggered OSV scan provides stronger CI evidence than merely validating workflow syntax or branch presence, but it remains vulnerability-scanning evidence rather than production provenance or security certification.
+- [RULE] Supply-chain CI controls must be kept separate from production lockfile/toolchain selection, SBOM completeness, provider qualification, and release security gates.
+- [TOOLING] When repository Dependency Graph is unavailable, OSV-Scanner can provide a practical repository-level PR vulnerability signal without emulating Dependency Review authority.
+Next: Perform fresh reconnaissance for the next non-overlapping production-boundary issue; do not repeat lifecycle persistence, transport re-authentication, release provenance, snapshot/manifest path isolation, or this OSV gate.
