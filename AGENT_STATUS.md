@@ -14,20 +14,23 @@
 - area: manifest wire/deserialization JSON parsing boundary
 - claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members in persisted manifests can be collapsed before strict schema and identity verification, and harden only if a concrete fail-closed boundary gap exists
-- status: VALIDATING
-- repository_research: `Manifest.from_bytes()` already enforced exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but default `json.loads` collapsed duplicate top-level and nested members before validation.
+- status: CLOSED
+- repository_research: `Manifest.from_bytes()` enforced exact fields, strict scalar types, canonical object/chunk identifiers, metadata types, and identity, but default `json.loads` collapsed duplicate top-level and nested members before validation.
 - external_research: RFC 8259 states duplicate object names have unpredictable receiver behavior; RFC 8785 prohibits duplicate property names for canonical JSON; OWASP recommends fatal parse errors on duplicate JSON keys.
 - skill_discovery: canonical `fs-agent-core` remains authoritative; its durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
 - decision: reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving storage, content-addressing, and authority semantics.
 - implementation: `9babfbdab1732493b384fb6a2283c8b378954d22`
 - regression_tests: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
 - recon: `bc33eef704ee2834544c7f316054beb6cb1a8efc`
-- skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1` contains the general durable duplicate-JSON rule; no additional rule is required yet.
-- validation: CI `35122315961` failed 6 Python jobs. Logs showed two concrete regression-test defects: duplicate-key fixture assumed a comma after `size` although canonical sort puts `size` last, and rollback test incorrectly asserted `journal.log` did not exist although begin/abort journaling is durable. Source implementation and crypto-provider jobs were otherwise successful. Tests were corrected without source changes.
+- skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f8` already contains the general durable duplicate-JSON rule; no additional skill change was required.
+- validation: CI `35122605437` run #857 for corrected implementation/test head `932c36db3c58c1d0095b062f0d7056df90f1a71b` completed successfully across all 18 configured Python and candidate crypto-provider jobs.
+- prior_failure: CI `35122315961` failed because the duplicate-key fixture assumed a comma after `size` although canonical sort puts `size` last, and a rollback regression incorrectly expected no durable `journal.log`; both were corrected in tests only.
 - durable_learning: `[FAILURE] A failing security regression must be traced to the exact job log before source changes. Parser hardening was not the cause of the two observed failures; both were test expectation/fixture defects.`
-- next_step: observe the new full GitHub Actions matrix for the corrected test head. If green, close the boundary; if red, inspect exact logs before any source mutation.
+- result: manifest wire/deserialization JSON parsing boundary is closed with validated duplicate-key rejection.
+- next_step: fresh reconnaissance for the next non-overlapping concrete fail-closed contract gap; do not repeat already closed JSON parsing boundaries.
 
 ## Closed boundaries
+- manifest wire/deserialization JSON parsing boundary: `9babfbdab1732493b384fb6a2283c8b378954d22`, regression `932c36db3c58c1d0095b062f0d7056df90f1a71b`, recon `bc33eef704ee2834544c7f316054beb6cb1a8efc`, CI `35122605437` passed 18/18.
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
 - durable workspace transfer journal JSON parsing boundary: `24ab7f6fce50b8a97b764adffec74e3c22f13b6f`, regression `6fdfd4a5c1e741510efbec86e520a3a8b560d4cf`, recon `86e1501ec2adb68b1a37cdaec4b0cfc3adcd36ef`, CI `35120511163` passed 18/18.
 - localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
@@ -35,7 +38,7 @@
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
 - Genesis admission/execution authority boundary: `a1ee6d71daf5be692067162041544c5655746632` + `308fc6c73dde582b5a8f909481e2d3640202eb8f`, regressions `dffc2c462f4886a608105c6ac0c825a8c446ee28` + `2d9a24facc2d6f6fc63220e2727693ea9c8531a1`, CI `35116444065` passed 18/18.
-- recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed the full configured matrix.
+- recovery audit log schema integrity: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`, regression `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`, CI `35115708283` passed full configured matrix.
 - federation envelope schema integrity: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`, regression `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`, CI `35115180030` passed 18/18.
 - federation quarantine ledger schema integrity: `891c81ad7943dd222a406e120645625194e564cc`, regression `5e8e7058270941ea1bebdb9120d8d39f9c8727b9`, CI `35114370331` passed 18/18.
 - bootstrap config schema integrity: `090bc5ee61922db74d65313a4aa29d2d99e4b2f5`, regression `83422d4e4d5f0cfdbfffa6ebceefcea34e7c529d`, CI `35113667112` passed 18/18.
