@@ -52,6 +52,16 @@ def run_adapter_conformance(
     _check(store.contains("k1"), "stored key must be addressable")
     _check(store.load("k1") == b"qualification-key", "stored key must round-trip")
     try:
+        store.store("k1", b"replacement-key")
+    except (KeyError, ValueError, TypeError, PermissionError, RuntimeError):
+        pass
+    else:
+        raise AdapterConformanceError("existing key id must not be silently overwritten")
+    _check(
+        store.load("k1") == b"qualification-key",
+        "rejected key replacement must preserve existing key material",
+    )
+    try:
         store.store("k-empty", b"")
     except (ValueError, TypeError):
         pass
