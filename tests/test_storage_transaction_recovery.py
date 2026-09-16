@@ -1,6 +1,7 @@
 """Crash/restart qualification for transactional storage publication."""
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -202,3 +203,94 @@ def test_multiple_transactions_replay_in_commit_order(tmp_path: Path) -> None:
     assert recovered.get(first.object_id) == b"first transaction"
     assert recovered.get(second.object_id) == b"second transaction"
     assert recovered.audit()["ok"] is True
+
+
+def _append_record(path: Path, record: dict[str, object]) -> None:
+    body = json.dumps(record, sort_keys=True, separators=(",", ":")).encode()
+    with path.open("ab") as handle:
+        handle.write(f"{len(body):016x}".encode() + body + b"\n")
+
+
+def test_journal_rejects_boolean_version_even_when_json_is_complete(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": True,
+        "operation": "delete",
+        "payload": {"object_id": "0" * 64},
+    })
+    with pytest.raises(JournalCorruption, match="version"):
+        list(AppendJournal(engine.journal.path).replay())
+
+
+def test_journal_rejects_unknown_operation_before_inventory_mutation(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "grant",
+        "payload": {"object_id": "0" * 64},
+    })
+    with pytest.raises(JournalCorruption, match="operation"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_coercible_commit_types(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "commit",
+        "payload": {
+            "object_id": 123,
+            "size": "7",
+            "manifest_path": "123",
+        },
+    })
+    with pytest.raises(JournalCorruption, match="object_id"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_extra_commit_field(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "commit",
+        "payload": {
+            "object_id": "0" * 64,
+            "size": 7,
+            "manifest_path": "0" * 64,
+            "unexpected": "value",
+        },
+    })
+    with pytest.raises(JournalCorruption, match="commit payload schema"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_boolean_size(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "commit",
+        "payload": {
+            "object_id": "0" * 64,
+            "size": True,
+            "manifest_path": "0" * 64,
+        },
+    })
+    with pytest.raises(JournalCorruption, match="size"):
+        LocalStorageEngine(tmp_path)
+
+
+def test_journal_rejects_malformed_transaction_commit_payload(tmp_path: Path) -> None:
+    engine = LocalStorageEngine(tmp_path)
+    engine.put(b"prior commit")
+    _append_record(engine.journal.path, {
+        "version": 1,
+        "operation": "transaction_commit",
+        "payload": {"transaction_id": "tx", "object_ids": ["not-an-object-id"]},
+    })
+    with pytest.raises(JournalCorruption, match="object_id"):
+        LocalStorageEngine(tmp_path)
