@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `9e8d04f96938d5f933204b92cb08b2f12ddc786b`
-- Latest validated implementation: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`
+- Latest repository head: `f0de30235f14a82e824f60013049208b217bd460`
+- Latest validated implementation: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`
 - Updated: 2026-09-16
 
 ## Active step
@@ -12,22 +12,23 @@
 - started_at: `2026-09-16T16:00:00Z`
 - base_commit: `57ee7606c4f6ca86ad55e95788ed18e7c544b877`
 - area: localhost transport JSON parsing boundary
-- claimed_files: `src/fs_overlay/transport.py`, `tests/test_transport_identity_adapter.py`, `docs/AGENT_STEP_2026-09-16_transport-json-boundary-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- claimed_files: `src/fs_overlay/transport.py`, `tests/test_transport_identity_adapter.py`, `docs/AGENT_STEP_2026-09-16_transport-json-boundary-recon.md`, `AGENT_STATUS.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: determine whether duplicate JSON object members at the loopback control-plane transport can create parser-differential ambiguity before GenesisService semantic validation, and harden only if a concrete boundary gap exists
-- status: VALIDATING
-- repository_research: `recv_message()` accepted any top-level JSON object and used default `json.loads`, silently resolving duplicate object names. `recv_message()` is used by the GenesisServer control-plane path and by the localhost transport test harness. GenesisService validates the resulting semantic object, but cannot recover a duplicate member discarded by the JSON parser.
-- external_research: RFC 8259 states JSON object names should be unique and that duplicate-name behavior is unpredictable across implementations. OWASP Developer Guide recommends rejecting duplicate JSON keys because parsers may apply different precedence. OWASP REST Security requires validation of untrusted input and rejection of unexpected content.
-- skill_discovery: external `secure-software-engineering` skill from `magnus919/agent-skills` and OWASP `security-guidance` skill were inspected as advisory material. Canonical `fs-agent-core` remains authoritative.
-- decision: treat duplicate object names as malformed control-plane wire input and reject them during transport parsing, before semantic dispatch. Preserve the existing generic top-level-object and 1 MiB framing contract; do not introduce a new authority mechanism or change semantic request validation.
+- status: HANDED_OFF
+- repository_research: `recv_message()` used default `json.loads`, silently resolving duplicate object names before GenesisService semantic validation. This created a concrete wire-parser ambiguity because downstream validation cannot recover a discarded duplicate member.
+- external_research: RFC 8259 states JSON object names should be unique and duplicate-name behavior is unpredictable across implementations. OWASP guidance recommends rejecting duplicate JSON keys and validating untrusted input.
+- skill_discovery: external `secure-software-engineering` and OWASP `security-guidance` skills were inspected as advisory material. Canonical `fs-agent-core` remains authoritative.
+- decision: reject duplicate object names during transport parsing, before semantic dispatch. Existing framing, 1 MiB limit, loopback binding, semantic schema, and authority semantics remain unchanged.
 - implementation: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`
 - regression_tests: `9e8d04f96938d5f933204b92cb08b2f12ddc786b`
 - recon: `900e4605235be461eec927eb78f857ba8b05e476`
-- skill_update: pending
-- validation: not yet performed; GitHub Actions is authoritative and no local test runner is available
-- durable_learning: pending confirmation after implementation and CI
-- next_step: observe the full GitHub Actions matrix for the current head. If green, update the skill/log and close the boundary. If red, inspect the exact failing job before further source changes.
+- skill_update: `f0de30235f14a82e824f60013049208b217bd460`
+- validation: GitHub Actions run `35119552906` completed successfully with all 18 configured jobs. This validates the implementation/regression head; no local test runner was used. The subsequent skill/status documentation commits are documentation-only and are not presented as new implementation validation.
+- durable_learning: `[SECURITY] Control-plane JSON decoders must reject duplicate object member names before semantic dispatch; otherwise parser behavior can collapse ambiguous wire input and prevent downstream validators from seeing the discarded value.`
+- next_step: perform fresh reconnaissance for the next non-overlapping repository-level contract gap. Do not reopen this boundary without new evidence.
 
 ## Closed boundaries
+- localhost transport JSON parsing boundary: `9a7aad6106eca920e2d1820ea1ca5fca3ab07884`, regression `9e8d04f96938d5f933204b92cb08b2f12ddc786b`, recon `900e4605235be461eec927eb78f857ba8b05e476`, CI `35119552906` passed 18/18.
 - GenesisServer exception handling and response boundary: `3ee2b5570a0c329b3a20615ae170c9b3c51b2eff`, regression `4f7e3eac6a11ad464731b068bb2a8c7958d34c3f`, recon `dd08c0c18fae0d15052c8c99cd6b30ceb91e23da`, CI `35118749859` passed 18/18.
 - Genesis control-plane request schema integrity: `ee60096169ca9a7483b63004023000f3d9c23a6d`, regression `7a58f740ff1a23ba1d4916a49d6c11d7a71b7632`, recon `7f502834187661816f698e6a27ae6730745567e2`, CI `35117908370` passed 18/18.
 - EventLog durable schema/integrity hardening: `9b3bf2bc9905fcbf2fc0899c809d6a36c9caa253`, regressions `f864dea306b05f65fceeae6d868ec64ac3840794` + `88fc4500480510f2fd688aea96717ed07c36b590`, CI `35117483049` passed 18/18.
