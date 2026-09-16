@@ -39,6 +39,35 @@ def test_identity_and_capability_inspection():
     assert capabilities.data["cpu"]["capacity"] == 4
 
 
+def test_request_operation_must_be_a_string():
+    service = make_service()
+    response = service.handle({"operation": 1})
+    assert not response.ok
+    assert response.operation == ""
+    assert response.error == "operation must be a string"
+
+
+def test_request_rejects_unexpected_fields_before_dispatch():
+    service = make_service()
+    response = service.handle({"operation": "ping", "ready": True})
+    assert not response.ok
+    assert response.error == "unexpected request fields"
+
+
+def test_execute_request_rejects_unexpected_fields_before_authority_gate():
+    service = make_service()
+    response = service.handle(
+        {
+            "operation": "execute",
+            "argv": ["python", "-c", "print('blocked')"],
+            "admitted": True,
+        }
+    )
+    assert not response.ok
+    assert response.error == "unexpected request fields"
+    assert service.admitted is False
+
+
 def test_explicitly_admitted_local_service_can_execute_bounded_argv():
     service = make_service(admitted=True)
     result = service.handle({"operation": "execute", "argv": ["python", "-c", "print('genesis-ok')"]})
