@@ -2,30 +2,33 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
-- Latest validated implementation: `f7338c4dc0d647697b178528fab53af2c302b6bc`
+- Latest repository head: `8568a959b318a765f2db53de51d9f51d94da1817`
+- Latest validated implementation: `8568a959b318a765f2db53de51d9f51d94da1817`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T17:17:00Z`
-- base_commit: `ea9c57e81eb8a112077dd04ea539309c0fb4399c`
-- area: durable transaction commit-marker binding integrity
-- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_transaction_recovery.py`, `docs/AGENT_STEP_2026-09-16_transaction-commit-binding-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: determine whether `transaction_commit.object_ids` is authoritative recovery evidence that must match the staged commit records, and harden only if a concrete durable-integrity gap exists
+- started_at: `2026-09-16T17:24:00Z`
+- base_commit: `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
+- area: content-addressed manifest write immutability
+- claimed_files: `src/fs_overlay/storage_engine.py`, `tests/test_storage_integrity.py`, `docs/AGENT_STEP_2026-09-16_manifest-write-immutability-recon.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`
+- goal: ensure `put_manifest()` never reports a successful idempotent write when the existing durable manifest at that content address is malformed or corrupted
 - status: CLOSED
-- repository_research: `transaction_commit.object_ids` is schema-validated but is not used to select or mint inventory state; replay publishes only staged `commit` records belonging to the pending transaction. A mismatched marker can therefore degrade redundant evidence but cannot itself alter the recovered inventory set.
-- external_research: SQLite transaction/journal documentation ties commit state to actual durable transaction records and commit markers; OWASP Transaction Authorization and Business Logic Security recommend server-side validation of transaction state and meaningful field combinations.
-- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` guidance was inspected and treated as advisory.
-- decision: no code change. Treat `object_ids` as redundant transaction evidence until a stronger repository contract establishes it as authoritative. Do not add a new replay rejection rule merely for defense-in-depth without defining ordering, duplicate-ID, and historical-journal compatibility semantics.
-- recon: `docs/AGENT_STEP_2026-09-16_transaction-commit-binding-recon.md`, commit `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`
-- validation: source and test inspection plus current external transaction/journal research; no runtime implementation changed.
-- result: no concrete fail-open recovery-authority defect found in the `object_ids` marker path. Transaction lifecycle state-machine hardening remains the authoritative recovery control.
-- durable_learning: `[ARCHITECTURE] A durable field that is not consumed as authority should not be promoted into a new mandatory replay invariant without a defined semantic contract; distinguish redundant evidence from state that can actually mutate recovery.`
-- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state or duplicate-JSON parsing work.
+- repository_research: `ContentAddressedStore.put()` already verifies existing content bytes, but `put_manifest()` returned success for any existing manifest path without validating the stored manifest. `Manifest.from_bytes()` is already the canonical strict schema and identity validator, and `get_manifest()` already fails closed on corrupted persisted manifests.
+- external_research: SQLite atomic-commit documentation emphasizes durable state validation around commit/recovery; OWASP filesystem guidance requires explicit known-good filesystem targets; external secure-software-engineering guidance requires enforceable controls at the trust boundary. Sources were advisory and did not override FS semantics.
+- skill_discovery: canonical `fs-agent-core` was reread; external `secure-software-engineering` was inspected and treated as advisory.
+- decision: validate an existing manifest with `Manifest.from_bytes()` before returning success from `put_manifest()`. Do not overwrite the existing object and do not add platform-specific race handling to this small cross-platform change.
+- recon: `docs/AGENT_STEP_2026-09-16_manifest-write-immutability-recon.md`, commit `aaa784b949a95041dde11dcd0f669cef233bd18d`
+- implementation: `8568a959b318a765f2db53de51d9f51d94da1817`
+- regression_tests: `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`
+- validation: GitHub Actions run `35128250728` completed successfully across all 18 configured Python/platform and candidate crypto-provider jobs for implementation head `8568a959b318a765f2db53de51d9f51d94da1817`.
+- result: existing corrupted/malformed manifest targets are now rejected by `put_manifest()` instead of being reported as successful idempotent writes; valid repeated manifest writes remain idempotent.
+- durable_learning: `[SECURITY] Content-addressed write APIs must validate an already-existing object before declaring an idempotent success; read-time integrity checks alone are too late for a write contract that claims the durable target is valid.`
+- next_step: fresh reconnaissance for the next non-overlapping concrete storage/recovery fail-closed boundary; do not repeat transaction-state, duplicate-JSON, or manifest-schema work.
 
 ## Closed boundaries
+- manifest write immutability: implementation `8568a959b318a765f2db53de51d9f51d94da1817`, regression `e4aa3753ddc26dc04db7e24604ef22c4d4579ffd`, recon `aaa784b949a95041dde11dcd0f669cef233bd18d`, CI `35128250728` passed 18/18.
 - transaction commit-marker binding integrity: recon `24d5bbff9095e4f1a7ea55afdabcfccef4cbffec`, no code change required.
 - durable transaction state-transition recovery boundary: `f7338c4dc0d647697b178528fab53af2c302b6bc`, regressions `bbfc2712fb04d62d995a742c669cf8d731db857c`, lifecycle fix `fa83c9a635a06a99f1ac04289ba82304e527240e`, recon `05e09e84ef12843f63892761aef685176b3af33c`, CI `35126636530` passed 18/18.
 - durable trust-root JSON parsing boundary: `b57cbaf8646af55cde0e206ab77fa9c0ef01bcee`, regression `2ddc285cf95adc551e0ac59f8e648c943559316e`, recon `d79c0dff427083c0a8d473c4094ee26525a655f6`, CI `35125966644` passed 18/18.
@@ -45,7 +48,7 @@
 - durable admission record schema integrity: `908afdc49673e15fd86b641bc54bd60cacdef422`, CI `35113266230` passed 18/18.
 - durable trust-root record schema integrity: `ad288758b1004e0f32e32af78bff87affab52324`, CI `35112943359` passed 18/18.
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
-- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
+- manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f9`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
 - storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
 - key destruction/zeroization provider boundary: reconnaissance only.
