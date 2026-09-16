@@ -13,6 +13,14 @@ The reference storage layer is intentionally conservative: immutable data may be
 
 This is crash-consistent journal visibility. It is not a distributed transaction protocol.
 
+## Storage-root trust boundary
+
+`ContentAddressedStore` is the local storage-engine spine for a deployment-owned storage root. The storage root is not, by itself, the FS hostile-concurrency isolation boundary.
+
+The store validates logical object identifiers, uses immutable publication and verifies content after reads, but its current pathname-based write sequence is not qualified against concurrent replacement of storage-root descendants by an untrusted filesystem actor. Deployments that require that stronger guarantee must place the store behind an approved carrier boundary that provides the required descriptor-scoped/no-follow isolation.
+
+This distinction is deliberate: the carrier abstraction owns the explicit storage-isolation contract, while the content store owns content addressing, immutable publication, journal visibility and integrity checks. The content store must not be described as providing race-resistant isolation merely because it is content-addressed.
+
 ## Snapshots
 
 `SnapshotStore` records an immutable list of logical object IDs plus a deterministic Merkle root. Snapshot identity is derived from its canonical contents. A snapshot is therefore a versioned point-in-time catalog, not a second copy of the data.
