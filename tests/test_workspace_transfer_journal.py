@@ -316,6 +316,26 @@ def test_journal_replay_rejects_unexpected_field_even_when_digest_is_valid(tmp_p
         list(journal.replay())
 
 
+def test_journal_replay_rejects_duplicate_event_digest(tmp_path: Path) -> None:
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(_plan(tmp_path))
+    line = path.read_text().splitlines()[0]
+    path.write_text(f'{line[:-1]},"event_digest":"{"0" * 64}"}}\n')
+    with pytest.raises(TransferJournalCorruption, match="journal record is invalid"):
+        list(journal.replay())
+
+
+def test_journal_replay_rejects_duplicate_transaction_id(tmp_path: Path) -> None:
+    path = tmp_path / "journal.log"
+    journal = WorkspaceTransferJournal(path)
+    journal.begin(_plan(tmp_path))
+    line = path.read_text().splitlines()[0]
+    path.write_text(f'{line[:-1]},"transaction_id":"forged"}}\n')
+    with pytest.raises(TransferJournalCorruption, match="journal record is invalid"):
+        list(journal.replay())
+
+
 def test_journal_ignores_only_incomplete_eof_tail(tmp_path: Path) -> None:
     plan = _plan(tmp_path)
     path = tmp_path / "journal.log"
