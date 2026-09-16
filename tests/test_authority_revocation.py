@@ -1,3 +1,4 @@
+import json
 import multiprocessing
 from pathlib import Path
 
@@ -39,6 +40,46 @@ def test_revocation_replay_rejects_tampered_event(tmp_path: Path) -> None:
     line = path.read_text(encoding="utf-8")
     path.write_text(line.replace("cancelled", "tampered"), encoding="utf-8")
     with pytest.raises(ValueError, match="event digest mismatch"):
+        AuthorityRevocationRegistry(path)
+
+
+def test_revocation_replay_rejects_noncanonical_field_types(tmp_path: Path) -> None:
+    path = tmp_path / "revocations.log"
+    record = RevocationRecord.create(
+        sequence=1,
+        authority_id="authority-1",
+        reason="cancelled",
+        previous_digest="0" * 64,
+    )
+    data = json.loads(record.to_line())
+
+    for field, value in {
+        "sequence": True,
+        "authority_id": 1,
+        "reason": 1,
+        "previous_digest": 1,
+        "event_digest": 1,
+    }.items():
+        malformed = dict(data)
+        malformed[field] = value
+        path.write_text(json.dumps(malformed) + "\n", encoding="utf-8")
+        with pytest.raises(ValueError, match="malformed revocation record"):
+            AuthorityRevocationRegistry(path)
+
+
+def test_revocation_replay_rejects_unknown_fields(tmp_path: Path) -> None:
+    path = tmp_path / "revocations.log"
+    record = RevocationRecord.create(
+        sequence=1,
+        authority_id="authority-1",
+        reason="cancelled",
+        previous_digest="0" * 64,
+    )
+    data = json.loads(record.to_line())
+    data["unexpected"] = "ignored"
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="malformed revocation record"):
         AuthorityRevocationRegistry(path)
 
 
