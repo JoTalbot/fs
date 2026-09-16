@@ -112,6 +112,7 @@ Recent durable lessons:
 - [SECURITY] Control-plane JSON decoders must reject duplicate object member names before semantic dispatch; otherwise parser behavior can collapse ambiguous wire input and prevent downstream validators from seeing the discarded value.
 - [SECURITY] Durable JSON journals must reject duplicate object member names at every parse path, including helper paths that derive hash-chain state, before schema or digest validation; otherwise parser collapse can make ambiguous persisted records appear structurally valid.
 - [SECURITY] Persisted snapshot JSON must reject duplicate object member names before schema, identity, or Merkle validation; otherwise parser collapse can cause integrity checks to validate an ambiguous representation rather than the original record.
+- [SECURITY] A filesystem API must not claim durable publication when the final directory-entry persistence barrier fails; on platforms where directory fsync is part of the durability contract, propagate that failure instead of converting it into a successful write.
 
 ## FS engineering invariants
 
