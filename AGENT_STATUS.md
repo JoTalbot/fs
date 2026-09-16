@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `cdc87f1e0a874610abf4962d72e32004e53bc327`
+- Latest repository head: `6e93183d0f425bb5f59d59766ee9f8a90085af77`
 - Latest validated implementation: `d98f7b0365f0b8f5696dda37e67cccb2d933af29`
 - Updated: 2026-09-16
 
@@ -19,31 +19,27 @@
 - area: authenticated/encrypted transport provider boundary
 - claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/AGENT_STEP_2026-09-16_transport-provider-boundary-recon.md`
 - goal: determine whether the implemented AuthenticatedTransport contract contains a reproducible fail-open semantic defect beyond the already audited session binding/re-authentication boundary
-- status: CLAIMED / RESEARCHED
+- status: HANDED_OFF. No reproducible repository-level transport contract defect was found; no runtime implementation change was justified.
 - research: Fresh repository inspection covered `production_adapters.py`, `transport_gate.py`, `executor_preflight.py`, adapter conformance references, and transport gate tests. The gate validates provider authentication state and exact peer binding before send/receive, closes on provider state/send/receive failures, rejects malformed/replayed frames, and the executor performs transport validation only after identity/policy/authority/journal checks.
 - external_research: RFC 8446 TLS 1.3 and OWASP TLS/Web Service Security guidance emphasize authenticated encrypted transport, strong protocol/cipher configuration, certificate/trust validation, and explicit mutual authentication where required. External security-review skill guidance was inspected as untrusted methodology only.
-- decision: continue as a no-code provider-boundary reconnaissance unless a concrete contract mismatch is found. Do not implement generic TLS, certificate, trust, key custody, or deployment configuration in FS core merely to fill the production evidence gap.
-- evidence: current repository files cited in the recon; external sources include RFC 8446 and OWASP TLS/Web Service Security guidance. No runtime tests run yet because no implementation change has been made.
+- decision: preserve the provider boundary. Do not implement generic TLS, certificate, trust, key custody, or deployment configuration in FS core merely to fill the production evidence gap. The local frame sequence check is application-layer ordering/replay evidence, not transport cryptographic qualification.
+- evidence: `docs/AGENT_STEP_2026-09-16_transport-provider-boundary-recon.md`; documentation commit `6e93183d0f425bb5f59d59766ee9f8a90085af77`. No runtime tests were run because no implementation changed.
 - blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
-- next_step: complete the focused transport contract review, record the decision in a durable recon document/log, and hand off without speculative implementation if no reproducible defect exists.
+- next_step: perform fresh repository, internet, and skill reconnaissance for the next still-unqualified production boundary; modify code only if a reproducible fail-closed defect is found. Do not repeat closed lifecycle, transport re-authentication, trust-root, revocation-race, path-isolation, dependency-review, or OSV-gate topics.
 
 ## Latest work
 
+- `6e93183d0f425bb5f59d59766ee9f8a90085af77` — authenticated/encrypted transport provider-boundary reconnaissance; no current code defect found.
 - `cdc87f1e0a874610abf4962d72e32004e53bc327` — revocation/execution-race reconnaissance; no current code defect found.
 - `2a30ddef33440f2aab5bab1df943faf37d9de2bb` — trust-root binding reconnaissance; no code defect found.
 - `d98f7b0365f0b8f5696dda37e67cccb2d933af29` — corrected SecureKeyStore negative-test expectation; CI `35107370479` passed all 18 configured jobs.
-- `cb8d7917a80e084f3d6256c27692640e24a6c0a4` — durable log of the SecureKeyStore CI fixture failure and correction decision.
-- `e0609f077dd6a671b0449d9fb3153a1f32881730` — SecureKeyStore create-only conformance regression and intentionally overwriting-provider negative test.
-- `81036be292341e8e3d93ef3a8b22e73170c399a5` — SecureKeyStore protocol contract now explicitly documents create-only semantics.
-- `436e4721f4ce055a6863717d74c1fb50f851632a` — SecureKeyStore overwrite reconnaissance and decision record.
-- `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2` — durable fs-agent-core lesson for explicit key-storage replacement semantics.
 - `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening; validated by CI #718 and OSV run #2.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35107370479` is positive validation evidence for corrected implementation head `d98f7b0365f0b8f5696dda37e67cccb2d933af29`; all 18 configured Python and candidate crypto-provider jobs completed successfully. The earlier run `35107179255` is retained as negative evidence for the initial implementation: independent conformance/admission checks passed and the matrix exposed one outdated test expectation, with 488 tests passing in the failing Ubuntu 3.12 job. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35107370479` is positive validation evidence for corrected implementation head `d98f7b0365f0b8f5696dda37e67cccb2d933af29`; all 18 configured Python and candidate crypto-provider jobs completed successfully. The earlier run `35107179255` is retained as negative evidence for the initial implementation. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
-The Dependency Review workflow was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This validates that the workflow triggered and had read-only token permissions, but does not validate dependency-review functionality for this repository. The failure is retained as negative environment evidence.
+The Dependency Review workflow was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This is retained as negative environment evidence; the unsupported workflow was removed from main.
 
 OSV validation is positive CI evidence for the repository workflow, not production dependency provenance or security certification.
 
