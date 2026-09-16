@@ -2,7 +2,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2971a0fb39245c9226c1715674787d86063607e9`
+- Latest repository head: `2a7e26e06d05643ebd03b0357f5437de50bf4ae4`
 - Latest validated implementation: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`
 - Updated: 2026-09-16
 
@@ -14,13 +14,16 @@
 - area: snapshot deserialization schema integrity
 - claimed_files: `src/fs_overlay/storage_resilience.py`, `tests/test_storage_resilience.py`, `docs/AGENT_STEP_2026-09-16_snapshot-schema-recon.md`, `AGENT_STATUS.md`
 - goal: prevent malformed persisted snapshots from being coerced into authoritative snapshot state before identity and Merkle verification
-- status: CLAIMED
-- repository_research: `Snapshot.from_bytes()` validates object IDs and final identity/Merkle root, but currently coerces snapshot_id/generation/created_ns and does not enforce exact top-level fields or metadata types. `SnapshotStore.get()` separately validates the path key.
-- external_research: OWASP Input Validation recommends syntactic and semantic validation, exact types/ranges, and rejection of unexpected content; NIST key-management guidance reinforces integrity/audit treatment of durable security-relevant records.
+- status: VALIDATING
+- repository_research: `Snapshot.from_bytes()` validated object IDs and final identity/Merkle root, but coerced snapshot_id/generation/created_ns and did not enforce exact top-level fields or metadata types. `SnapshotStore.get()` separately validates the path key.
+- external_research: OWASP Input Validation recommends syntactic and semantic validation, exact types/ranges, and rejection of unexpected content; NIST key-management guidance reinforces lifecycle and protection of durable security-relevant records.
 - skill_discovery: canonical `fs-agent-core` inspected. No additional external skill with a materially better fit was identified during this reconnaissance.
 - decision: harden only `Snapshot.from_bytes()` with exact envelope/type/range validation, canonical SHA-256 identifiers, metadata validation, and no identity/Merkle semantic changes; add rejection-path regressions.
-- status_record: this claim is recorded before source mutation; current source/test SHAs were re-read from `main`.
-- next_step: implement the smallest snapshot parser hardening, add focused regressions, then observe CI before closing the boundary.
+- implementation: `4e90eedc7608f5541051ce5eda9a18ceafe9d5eb`
+- regression_tests: `2a7e26e06d05643ebd03b0357f5437de50bf4ae4`
+- validation: GitHub Actions CI run `35112228074` is queued; all 18 jobs are currently queued. No green result is claimed yet.
+- result: not yet validated.
+- next_step: observe CI `35112228074`; if green, record the validated head and close this boundary. If red, inspect the exact failing job/log before any further source changes.
 
 ## Closed boundaries
 - manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
