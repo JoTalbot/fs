@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `dfd02fde05bccd2a4c617333620ca122858c3469`
+- Latest repository head: `8a20ba5884c07af86f6df0b28ec3af92f272f982`
 - Latest validated implementation: `c3495f181431ce3bdf22c9318dfa6d56c66cfae2`
 - Updated: 2026-09-16
 
@@ -29,7 +29,7 @@
 ## Latest work
 
 - `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening and regressions; validated by CI #718 and OSV run #2.
-- `dfd02fde05bccd2a4c617333620ca122858c3469` — final coordination-state synchronization for the validated revocation-schema step.
+- `8a20ba5884c07af86f6df0b28ec3af92f272f982` — final coordination-state synchronization for the validated revocation-schema step.
 - `d2d8bbd11d823439c4b7be63b560215690b90c00` — merged PR #13, pinned OSV vulnerability gate.
 - `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
 
