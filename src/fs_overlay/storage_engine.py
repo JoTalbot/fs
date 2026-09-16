@@ -269,6 +269,7 @@ class AppendJournal:
             handle.write(f"{len(encoded):016x}".encode() + encoded + b"\n")
             handle.flush()
             os.fsync(handle.fileno())
+        _fsync_directory(self.path.parent)
         return record
 
     def replay(self) -> Iterator[dict[str, object]]:
