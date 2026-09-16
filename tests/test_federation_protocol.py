@@ -96,7 +96,7 @@ def test_envelope_from_bytes_rejects_duplicate_json_fields() -> None:
     envelope = signed()
     payload = envelope.to_bytes().decode()
     duplicate = payload.replace('"message_id":"m1"', '"message_id":"m1","message_id":"m2"', 1)
-    with pytest.raises(ValueError, match="duplicate JSON fields"):
+    with pytest.raises(ValueError, match="invalid federation envelope JSON"):
         FederationEnvelope.from_bytes(duplicate.encode())
 
 
