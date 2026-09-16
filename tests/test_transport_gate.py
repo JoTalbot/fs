@@ -1,3 +1,5 @@
+import concurrent.futures
+
 import pytest
 
 from fs_overlay.identity_verification import AuthenticatedPrincipal
@@ -67,6 +69,21 @@ def test_send_binds_peer_and_adds_monotonic_sequence():
     gate.send(b"one")
     gate.send(b"two")
     assert transport.sent == [frame(1, b"one"), frame(2, b"two")]
+
+
+def test_concurrent_sends_serialize_sequence_assignment():
+    transport = FakeTransport()
+    gate = FailClosedTransportGate(transport, principal())
+
+    def send(index: int) -> None:
+        gate.send(index.to_bytes(2, "big"))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+        list(executor.map(send, range(16)))
+
+    sequences = sorted(int.from_bytes(payload[:8], "big") for payload in transport.sent)
+    assert sequences == list(range(1, 17))
+    assert len(transport.sent) == 16
 
 
 def test_receive_accepts_next_sequence_only():
