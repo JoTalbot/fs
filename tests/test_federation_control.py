@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from fs_overlay.federation_control import (
     FederationDirectory,
     FederationReconciler,
@@ -124,3 +128,60 @@ def test_minimal_bootstrap_is_atomic(tmp_path):
     loaded = MinimalBootstrap(tmp_path / "node.json").load()
     assert loaded == config
     assert (tmp_path / "carrier").is_dir()
+
+
+def test_bootstrap_load_rejects_coerced_types(tmp_path):
+    config_path = tmp_path / "node.json"
+    MinimalBootstrap(config_path).initialize(root=tmp_path / "carrier", node_id="node-a")
+    data = json.loads(config_path.read_text())
+
+    data["protocol_version"] = "1"
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+    data["protocol_version"] = 1
+    data["initialized_ns"] = True
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+
+def test_bootstrap_load_rejects_unexpected_and_missing_fields(tmp_path):
+    config_path = tmp_path / "node.json"
+    MinimalBootstrap(config_path).initialize(root=tmp_path / "carrier", node_id="node-a")
+    data = json.loads(config_path.read_text())
+
+    data["unexpected"] = "value"
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+    data.pop("unexpected")
+    data.pop("root")
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+
+def test_bootstrap_load_rejects_invalid_semantic_values(tmp_path):
+    config_path = tmp_path / "node.json"
+    MinimalBootstrap(config_path).initialize(root=tmp_path / "carrier", node_id="node-a")
+    data = json.loads(config_path.read_text())
+
+    data["node_id"] = ""
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+    data["node_id"] = "node-a"
+    data["protocol_version"] = 0
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
+
+    data["protocol_version"] = 1
+    data["initialized_ns"] = -1
+    config_path.write_text(json.dumps(data))
+    with pytest.raises(ValueError, match="malformed bootstrap config"):
+        MinimalBootstrap(config_path).load()
