@@ -19,6 +19,15 @@ from .durable_coordination import FileAdmissionCoordinator
 from .workspace_migration import WorkspaceTransfer, WorkspaceTransferPlan
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    value: dict[str, object] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 class TransferJournalPhase(str, Enum):
     PREPARED = "prepared"
     MATERIALIZING = "materializing"
@@ -170,8 +179,10 @@ class WorkspaceTransferJournal:
                         raise TransferJournalCorruption("journal contains a malformed non-tail record")
                     return
                 try:
-                    raw = json.loads(line[:-1])
-                except json.JSONDecodeError as exc:
+                    raw = json.loads(
+                        line[:-1], object_pairs_hook=_reject_duplicate_object_keys
+                    )
+                except (json.JSONDecodeError, ValueError) as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
                 self._validate_record_schema(raw)
                 if raw["version"] != 2:
@@ -274,8 +285,10 @@ class WorkspaceTransferJournal:
                 if not line.endswith(b"\n"):
                     raise TransferJournalCorruption("journal contains a malformed non-tail record")
                 try:
-                    raw = json.loads(line[:-1])
-                except json.JSONDecodeError as exc:
+                    raw = json.loads(
+                        line[:-1], object_pairs_hook=_reject_duplicate_object_keys
+                    )
+                except (json.JSONDecodeError, ValueError) as exc:
                     raise TransferJournalCorruption("journal record is invalid") from exc
                 digest = raw.get("event_digest") if isinstance(raw, dict) else None
                 if not isinstance(digest, str):
