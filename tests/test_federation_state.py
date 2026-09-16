@@ -1,6 +1,7 @@
 import concurrent.futures
 import multiprocessing
 from contextlib import nullcontext
+import json
 import os
 
 from fs_overlay.durable_coordination import FileAdmissionCoordinator
@@ -242,6 +243,29 @@ def test_malformed_durable_admission_details_fail_closed(tmp_path) -> None:
         assert str(exc) == "event details are invalid"
     else:
         raise AssertionError("malformed durable admission details must fail closed")
+
+
+def test_malformed_durable_admission_boolean_sequence_fails_closed(tmp_path) -> None:
+    """A boolean JSON sequence must not become a valid integer high-water mark."""
+    path = tmp_path / "events.journal"
+    state = DurableFederationState(path)
+    state.events.emit(
+        "federation.accepted",
+        details={
+            "sender_node": "node-a",
+            "message_id": "bool-sequence",
+            "message_type": "OBSERVE",
+            "sequence": True,
+            "digest": message(1, "bool-sequence").digest(),
+        },
+    )
+
+    try:
+        DurableFederationState(path)
+    except ValueError as exc:
+        assert str(exc) == "invalid federation admission event state"
+    else:
+        raise AssertionError("boolean durable admission sequence must fail closed")
 
 
 def test_two_node_fixtures_converge_on_identical_ordered_stream(tmp_path) -> None:
