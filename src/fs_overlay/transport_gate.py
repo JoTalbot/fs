@@ -8,6 +8,7 @@ already-verified principal and rejects peer changes or replayed frames.
 from __future__ import annotations
 
 import struct
+import threading
 
 from .identity_verification import AuthenticatedPrincipal
 from .production_adapters import AuthenticatedTransport
@@ -28,6 +29,7 @@ class FailClosedTransportGate:
         self._send_sequence = 0
         self._receive_sequence = 0
         self._closed = False
+        self._state_lock = threading.RLock()
 
     @property
     def principal(self) -> AuthenticatedPrincipal:
@@ -66,39 +68,43 @@ class FailClosedTransportGate:
 
     def validate_session(self) -> None:
         """Validate the bound session immediately, without sending data."""
-        self._require_session()
+        with self._state_lock:
+            self._require_session()
 
     def send(self, payload: bytes) -> None:
-        self._require_session()
-        if not isinstance(payload, bytes):
-            raise TypeError("payload must be bytes")
-        sequence = self._send_sequence + 1
-        frame = _HEADER.pack(sequence) + payload
-        try:
-            self._transport.send(self._principal.node_id, frame)
-        except Exception:
-            self._close_after_provider_failure()
-            raise
-        self._send_sequence = sequence
+        with self._state_lock:
+            self._require_session()
+            if not isinstance(payload, bytes):
+                raise TypeError("payload must be bytes")
+            sequence = self._send_sequence + 1
+            frame = _HEADER.pack(sequence) + payload
+            try:
+                self._transport.send(self._principal.node_id, frame)
+            except Exception:
+                self._close_after_provider_failure()
+                raise
+            self._send_sequence = sequence
 
     def receive(self) -> bytes | None:
-        self._require_session()
-        try:
-            frame = self._transport.receive()
-        except Exception:
-            self._close_after_provider_failure()
-            raise
-        if frame is None:
-            return None
-        if not isinstance(frame, bytes) or len(frame) < _HEADER.size:
-            self._fail("malformed authenticated transport frame")
-        sequence = _HEADER.unpack(frame[:_HEADER.size])[0]
-        expected = self._receive_sequence + 1
-        if sequence != expected:
-            self._fail("authenticated transport replay or sequence violation")
-        self._receive_sequence = sequence
-        return frame[_HEADER.size:]
+        with self._state_lock:
+            self._require_session()
+            try:
+                frame = self._transport.receive()
+            except Exception:
+                self._close_after_provider_failure()
+                raise
+            if frame is None:
+                return None
+            if not isinstance(frame, bytes) or len(frame) < _HEADER.size:
+                self._fail("malformed authenticated transport frame")
+            sequence = _HEADER.unpack(frame[:_HEADER.size])[0]
+            expected = self._receive_sequence + 1
+            if sequence != expected:
+                self._fail("authenticated transport replay or sequence violation")
+            self._receive_sequence = sequence
+            return frame[_HEADER.size:]
 
     def close(self) -> None:
-        self._closed = True
-        self._transport.close()
+        with self._state_lock:
+            self._closed = True
+            self._transport.close()
