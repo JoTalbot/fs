@@ -113,6 +113,7 @@ Recent durable lessons:
 - [SECURITY] Durable JSON journals must reject duplicate object member names at every parse path, including helper paths that derive hash-chain state, before schema or digest validation; otherwise parser collapse can make ambiguous persisted records appear structurally valid.
 - [SECURITY] Persisted snapshot JSON must reject duplicate object member names before schema, identity, or Merkle validation; otherwise parser collapse can cause integrity checks to validate an ambiguous representation rather than the original record.
 - [SECURITY] A filesystem API must not claim durable publication when the final directory-entry persistence barrier fails; on platforms where directory fsync is part of the durability contract, propagate that failure instead of converting it into a successful write.
+- [SECURITY] Durable evidence ledgers must reject duplicate JSON object members before schema validation; strict field/type checks cannot recover a discarded duplicate and must not reinterpret ambiguous persisted evidence.
 
 ## FS engineering invariants
 
