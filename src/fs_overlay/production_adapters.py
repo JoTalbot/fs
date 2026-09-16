@@ -15,7 +15,13 @@ from .key_lifecycle import KeyLifecycle
 
 @runtime_checkable
 class SecureKeyStore(Protocol):
-    """Protected key-material boundary; plaintext must stay out of FS state/logs."""
+    """Protected key-material boundary; plaintext must stay out of FS state/logs.
+
+    ``store`` is create-only for a ``key_id``. Replacing material under an
+    existing identifier is intentionally outside this contract; key rotation
+    must use an explicit lifecycle/key-identity transition rather than a
+    silent overwrite at the storage boundary.
+    """
 
     def load(self, key_id: str) -> bytes: ...
     def store(self, key_id: str, key_material: bytes) -> None: ...
