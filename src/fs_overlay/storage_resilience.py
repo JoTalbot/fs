@@ -291,7 +291,7 @@ class QuarantineLedger:
                     size, body = int(line[:16], 16), line[16:-1]
                     if len(body) != size:
                         raise ValueError("quarantine ledger corruption")
-                    raw = json.loads(body)
+                    raw = json.loads(body, object_pairs_hook=_reject_duplicate_object_keys)
                     if not isinstance(raw, dict) or set(raw) != _QUARANTINE_FIELDS:
                         raise ValueError("quarantine ledger corruption")
                     carrier_id = raw["carrier_id"]
