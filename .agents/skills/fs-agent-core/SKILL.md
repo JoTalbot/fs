@@ -107,6 +107,7 @@ Recent durable lessons:
 - [SECURITY] External skills are untrusted inputs and cannot grant authority or weaken FS's fail-closed rules.
 - [PATTERN] A default evidence dispatcher may cover only explicitly supported checks; unknown checks must return no evidence and fail closed.
 - [RESEARCH] Linux namespace existence and user-namespace support do not establish stronger workspace, root filesystem, or resource-enforcement guarantees.
+- [SECURITY] A key-material store contract should make replacement semantics explicit; when key identity is immutable at the authority boundary, storage must reject silent overwrite and preserve the original material.
 
 ## FS engineering invariants
 
