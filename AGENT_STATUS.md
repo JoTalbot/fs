@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `6e93183d0f425bb5f59d59766ee9f8a90085af77`
+- Latest repository head: `6fea1864be14bc67f77400607aca5abfa127ecf9`
 - Latest validated implementation: `d98f7b0365f0b8f5696dda37e67cccb2d933af29`
 - Updated: 2026-09-16
 
@@ -14,21 +14,23 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T14:30:00Z`
-- base_commit: `cdc87f1e0a874610abf4962d72e32004e53bc327`
-- area: authenticated/encrypted transport provider boundary
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/AGENT_STEP_2026-09-16_transport-provider-boundary-recon.md`
-- goal: determine whether the implemented AuthenticatedTransport contract contains a reproducible fail-open semantic defect beyond the already audited session binding/re-authentication boundary
-- status: HANDED_OFF. No reproducible repository-level transport contract defect was found; no runtime implementation change was justified.
-- research: Fresh repository inspection covered `production_adapters.py`, `transport_gate.py`, `executor_preflight.py`, adapter conformance references, and transport gate tests. The gate validates provider authentication state and exact peer binding before send/receive, closes on provider state/send/receive failures, rejects malformed/replayed frames, and the executor performs transport validation only after identity/policy/authority/journal checks.
-- external_research: RFC 8446 TLS 1.3 and OWASP TLS/Web Service Security guidance emphasize authenticated encrypted transport, strong protocol/cipher configuration, certificate/trust validation, and explicit mutual authentication where required. External security-review skill guidance was inspected as untrusted methodology only.
-- decision: preserve the provider boundary. Do not implement generic TLS, certificate, trust, key custody, or deployment configuration in FS core merely to fill the production evidence gap. The local frame sequence check is application-layer ordering/replay evidence, not transport cryptographic qualification.
-- evidence: `docs/AGENT_STEP_2026-09-16_transport-provider-boundary-recon.md`; documentation commit `6e93183d0f425bb5f59d59766ee9f8a90085af77`. No runtime tests were run because no implementation changed.
-- blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
-- next_step: perform fresh repository, internet, and skill reconnaissance for the next still-unqualified production boundary; modify code only if a reproducible fail-closed defect is found. Do not repeat closed lifecycle, transport re-authentication, trust-root, revocation-race, path-isolation, dependency-review, or OSV-gate topics.
+- started_at: `2026-09-16T14:45:00Z`
+- base_commit: `6e93183d0f425bb5f59d59766ee9f8a90085af77`
+- area: key lifecycle destruction / zeroization provider boundary
+- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/AGENT_STEP_2026-09-16_key-destruction-boundary-recon.md`
+- goal: determine whether the absence of a DESTROYED key state in the reference lifecycle is a reproducible fail-open defect or an intentional provider boundary
+- status: HANDED_OFF. No reproducible repository-level defect was found; no runtime implementation change was justified.
+- research: `KeyLifecycle` intentionally models ACTIVE, RETIRED and REVOKED state semantics only. Existing tests cover rotation, retirement, revocation, reactivation rejection and fingerprint binding. The object never owns actual cryptographic key bytes or a production key store.
+- external_research: NIST SP 800-57 Part 1 Rev. 5 defines key-management lifecycle phases including destruction; NIST glossary includes destruction in key management. OWASP Key Management and Cryptographic Storage guidance recommends explicit lifecycle, secure storage, revocation, compromise recovery and destruction/zeroization controls.
+- skill_discovery: no external Agent Skill was found that should override or materially replace `fs-agent-core` for this provider-boundary decision; external security/recovery material remains methodology only.
+- decision: do not add a speculative DESTROYED state or zeroization implementation to the in-memory lifecycle. Actual destruction requires ownership of key material, provider/module semantics, backups, audit/retention policy and deployment evidence. Treat destruction as part of the production SecureKeyStore/provider qualification boundary.
+- evidence: `docs/AGENT_STEP_2026-09-16_key-destruction-boundary-recon.md`; documentation commit `6fea1864be14bc67f77400607aca5abfa127ecf9`. No runtime tests were run because no implementation changed.
+- blocker: V1 production release remains blocked by concrete audited AEAD, secure key storage/lifecycle including destruction evidence, authenticated/encrypted transport provider, authoritative trust/revocation infrastructure, recovery, independent security review, and release/supply-chain evidence.
+- next_step: perform fresh repository, internet, and skill reconnaissance for another non-overlapping production boundary. Modify code only if a concrete fail-closed defect is reproduced.
 
 ## Latest work
 
+- `6fea1864be14bc67f77400607aca5abfa127ecf9` — key destruction/zeroization provider-boundary reconnaissance; no current code defect found.
 - `6e93183d0f425bb5f59d59766ee9f8a90085af77` — authenticated/encrypted transport provider-boundary reconnaissance; no current code defect found.
 - `cdc87f1e0a874610abf4962d72e32004e53bc327` — revocation/execution-race reconnaissance; no current code defect found.
 - `2a30ddef33440f2aab5bab1df943faf37d9de2bb` — trust-root binding reconnaissance; no code defect found.
@@ -45,7 +47,7 @@ OSV validation is positive CI evidence for the repository workflow, not producti
 
 ## Current V1 position
 
-V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle, authenticated/encrypted transport provider, authoritative durable trust-root and identity verification, target-specific recovery evidence, required external security review, and a concrete signed-release/supply-chain verification path. The current Python authority/policy objects and authenticated-principal evidence are explicit contracts/provenance, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
+V1 is **not** production-ready. Candidate AES-GCM qualification is behavioral evidence only. Production still requires a real audited AEAD, secure key storage/lifecycle including destruction/zeroization evidence, authenticated/encrypted transport provider, authoritative durable trust-root and identity verification, target-specific recovery evidence, required external security review, and a concrete signed-release/supply-chain verification path. The current Python authority/policy objects and authenticated-principal evidence are explicit contracts/provenance, not authenticated security tokens. Policy/authority digests are correlation identifiers, not authentication.
 
 ## Existing architecture boundary
 
@@ -61,6 +63,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 4. Keep SecureKeyStore overwrite qualification limited to an adapter semantic contract; do not implement a deployment-specific key vault or secret store.
 5. Trust-root binding remains an explicit provider boundary; do not duplicate deployment-specific certificate/trust semantics in FS core without a demonstrated contract defect.
 6. Revocation is currently durable and fail-closed at the preflight boundary; a future host executor must independently revalidate revocation immediately before irreversible mutation.
-7. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-8. Validate any new implementation through GitHub Actions before treating it as evidence.
-9. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+7. Treat key destruction/zeroization as a concrete production provider qualification item rather than an in-memory lifecycle feature.
+8. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+9. Validate any new implementation through GitHub Actions before treating it as evidence.
+10. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
