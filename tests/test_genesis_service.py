@@ -2,9 +2,9 @@ from fs_overlay.genesis_runtime import build_local_service
 from fs_overlay.identity import NodeIdentity
 
 
-def make_service():
+def make_service(*, admitted=False):
     identity = NodeIdentity.from_public_key("node-a", b"test-public-key")
-    return build_local_service(identity, {"cpu": {"capacity": 4, "unit": "cores"}})
+    return build_local_service(identity, {"cpu": {"capacity": 4, "unit": "cores"}}, admitted=admitted)
 
 
 def test_bootstrap_boundary_is_not_ready_before_admission():
@@ -15,10 +15,18 @@ def test_bootstrap_boundary_is_not_ready_before_admission():
     assert response.error == "node is not admitted"
 
 
-def test_admission_is_bound_to_node_identity():
+def test_admission_cannot_be_granted_by_request_identity():
     service = make_service()
-    bad = service.handle({"operation": "admit", "node_id": "other-node"})
-    assert not bad.ok
+    response = service.handle({"operation": "admit", "node_id": "node-a"})
+    assert not response.ok
+    assert response.error == "unsupported operation: admit"
+    assert service.admitted is False
+
+
+def test_wrong_identity_cannot_change_admission_state():
+    service = make_service()
+    response = service.handle({"operation": "admit", "node_id": "other-node"})
+    assert not response.ok
     assert service.admitted is False
 
 
@@ -31,9 +39,8 @@ def test_identity_and_capability_inspection():
     assert capabilities.data["cpu"]["capacity"] == 4
 
 
-def test_admitted_service_can_execute_bounded_argv():
-    service = make_service()
-    assert service.handle({"operation": "admit", "node_id": "node-a"}).ok
+def test_explicitly_admitted_local_service_can_execute_bounded_argv():
+    service = make_service(admitted=True)
     result = service.handle({"operation": "execute", "argv": ["python", "-c", "print('genesis-ok')"]})
     assert result.ok
     assert result.data["status"] == "succeeded"
