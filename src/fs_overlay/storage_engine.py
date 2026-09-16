@@ -364,25 +364,38 @@ class Inventory:
     def load(self) -> None:
         self.records.clear()
         pending: dict[str, list[dict[str, object]]] = {}
+        closed: set[str] = set()
         for record in AppendJournal(self.path).replay():
             operation = record["operation"]
             payload = record["payload"]
             self._validate_payload(operation, payload)
             if operation == "transaction_begin":
-                pending[payload["transaction_id"]] = []
+                transaction_id = payload["transaction_id"]
+                if transaction_id in pending or transaction_id in closed:
+                    raise JournalCorruption("journal transaction begin is out of order")
+                pending[transaction_id] = []
                 continue
             if operation == "transaction_commit":
                 transaction_id = payload["transaction_id"]
-                for staged in pending.pop(transaction_id, []):
+                if transaction_id not in pending:
+                    raise JournalCorruption("journal transaction commit is out of order")
+                for staged in pending.pop(transaction_id):
                     self._apply_commit(staged)
+                closed.add(transaction_id)
                 continue
             if operation == "transaction_abort":
-                pending.pop(payload["transaction_id"], None)
+                transaction_id = payload["transaction_id"]
+                if transaction_id not in pending:
+                    raise JournalCorruption("journal transaction abort is out of order")
+                pending.pop(transaction_id)
+                closed.add(transaction_id)
                 continue
             if operation == "commit":
                 transaction_id = payload.get("transaction_id")
                 if transaction_id is not None:
-                    pending.setdefault(transaction_id, []).append(payload)
+                    if transaction_id not in pending:
+                        raise JournalCorruption("journal transaction commit record is out of order")
+                    pending[transaction_id].append(payload)
                 else:
                     self._apply_commit(payload)
             elif operation == "delete":
