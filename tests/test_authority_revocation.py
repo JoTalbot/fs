@@ -83,6 +83,36 @@ def test_revocation_replay_rejects_unknown_fields(tmp_path: Path) -> None:
         AuthorityRevocationRegistry(path)
 
 
+def test_revocation_replay_rejects_duplicate_top_level_field_before_schema_validation(tmp_path: Path) -> None:
+    path = tmp_path / "revocations.log"
+    registry = AuthorityRevocationRegistry(path)
+    registry.revoke("authority-1", reason="cancelled")
+    line = path.read_text(encoding="utf-8").strip()
+    duplicate = line.replace('"sequence":1}', '"sequence":1,"sequence":1}', 1)
+    assert duplicate != line
+    path.write_text(duplicate + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="malformed revocation record"):
+        AuthorityRevocationRegistry(path)
+
+
+def test_revocation_replay_rejects_duplicate_nested_field_before_digest_validation(tmp_path: Path) -> None:
+    path = tmp_path / "revocations.log"
+    registry = AuthorityRevocationRegistry(path)
+    registry.revoke("authority-1", reason="cancelled")
+    line = path.read_text(encoding="utf-8").strip()
+    duplicate = line.replace(
+        '"authority_id":"authority-1","event_digest"',
+        '"authority_id":"authority-1","authority_id":"authority-1","event_digest"',
+        1,
+    )
+    assert duplicate != line
+    path.write_text(duplicate + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="malformed revocation record"):
+        AuthorityRevocationRegistry(path)
+
+
 def test_revocation_replay_rejects_chain_break(tmp_path: Path) -> None:
     path = tmp_path / "revocations.log"
     registry = AuthorityRevocationRegistry(path)
