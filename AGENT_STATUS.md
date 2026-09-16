@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `2a30ddef33440f2aab5bab1df943faf37d9de2bb`
+- Latest repository head: `cdc87f1e0a874610abf4962d72e32004e53bc327`
 - Latest validated implementation: `d98f7b0365f0b8f5696dda37e67cccb2d933af29`
 - Updated: 2026-09-16
 
@@ -15,19 +15,21 @@
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T14:15:00Z`
-- base_commit: `e6eeba1d9aa39603a733465757fefedd5a2e09ea`
-- area: authenticated identity / trust-root provider boundary
-- claimed_files: `AGENT_STATUS.md`, `src/fs_overlay/identity_verification.py`, `src/fs_overlay/identity_preflight.py`, `src/fs_overlay/production_adapters.py`, `tests/test_identity_verification.py`, `docs/IDENTITY_VERIFICATION_BOUNDARY.md`, `docs/PRODUCTION_REFERENCE_PROFILE.md`, `docs/AGENT_STEP_2026-09-16_trust-root-binding-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
-- goal: determine whether the trust-root-to-principal binding has a reproducible repository-level fail-open gap without inventing deployment-specific trust infrastructure
-- status: HANDED_OFF. Reconnaissance found no reproducible fail-open defect and no code change was justified.
-- research: `TrustRootStore` performs authoritative issuer admission; `PrincipalVerifier` is explicitly responsible for cryptographic verification and binding signed claims to the trust-root context; node/key admission is a separate authoritative gate. NIST SP 800-57 Part 1 Rev. 5 treats trust anchors and revocation as key-management infrastructure that must remain authoritative.
-- decision: do not add a second core-side trust-root fingerprint interpretation. The apparent omission is not a demonstrated fail-open defect because the injected verifier contract already requires authoritative claim binding to the trust-root context.
-- evidence: reconnaissance document `docs/AGENT_STEP_2026-09-16_trust-root-binding-recon.md`; documentation commit `2a30ddef33440f2aab5bab1df943faf37d9de2bb`. No runtime tests were run because no implementation changed.
+- base_commit: `2a30ddef33440f2aab5bab1df943faf37d9de2bb`
+- area: revocation / future executor mutation boundary
+- claimed_files: `AGENT_STATUS.md`, `src/fs_overlay/authority_revocation.py`, `src/fs_overlay/workspace_transfer_materializer.py`, `src/fs_overlay/executor_preflight.py`, `src/fs_overlay/workspace_transfer_authority.py`, relevant revocation/executor tests, `docs/AGENT_STEP_2026-09-16_revocation-execution-race-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
+- goal: determine whether live authority revocation has a reproducible fail-open race in the implemented repository rather than merely in the explicitly unimplemented future host executor
+- status: HANDED_OFF. Reconnaissance found no current fail-open defect and no code change was justified.
+- research: `AuthorityRevocationRegistry` serializes replay and revocation checks through a shared cross-process lock and refreshes durable state while holding it. `executor_preflight()` performs live revocation validation. The current materializer is non-destructive, while the future executor contract explicitly requires revalidation immediately before mutation.
+- external_research: NIST SP 800-57 Part 1 Rev. 5 treats key-management lifecycle and trust infrastructure as authoritative security mechanisms; OWASP Secrets Management emphasizes revocation, rotation, lifecycle metadata, least privilege, and rapid containment. External security-review/secure-software-engineering skills were inspected as untrusted methodology references only.
+- decision: do not add a core-wide lock spanning an unspecified future executor and do not duplicate revocation state. The apparent TOCTOU risk becomes an implementation obligation only when an authority-bearing host executor exists; the current repository has no such mutation path.
+- evidence: `docs/AGENT_STEP_2026-09-16_revocation-execution-race-recon.md`; documentation commit `cdc87f1e0a874610abf4962d72e32004e53bc327`. No runtime tests were run because no implementation changed.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond semantic CI controls.
 - next_step: perform fresh repository, internet, and skill reconnaissance for the next concrete provider-boundary contract gap; modify code only if a reproducible fail-closed defect is found. Otherwise preserve the explicit production-evidence blocker and avoid speculative provider implementation.
 
 ## Latest work
 
+- `cdc87f1e0a874610abf4962d72e32004e53bc327` — revocation/execution-race reconnaissance; no current code defect found.
 - `2a30ddef33440f2aab5bab1df943faf37d9de2bb` — trust-root binding reconnaissance; no code defect found.
 - `d98f7b0365f0b8f5696dda37e67cccb2d933af29` — corrected SecureKeyStore negative-test expectation; CI `35107370479` passed all 18 configured jobs.
 - `cb8d7917a80e084f3d6256c27692640e24a6c0a4` — durable log of the SecureKeyStore CI fixture failure and correction decision.
@@ -63,6 +65,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 3. Keep the strict revocation record parser hardening on main; its CI validation is semantic/integrity evidence, not production trust qualification.
 4. Keep SecureKeyStore overwrite qualification limited to an adapter semantic contract; do not implement a deployment-specific key vault or secret store.
 5. Trust-root binding remains an explicit provider boundary; do not duplicate deployment-specific certificate/trust semantics in FS core without a demonstrated contract defect.
-6. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
-7. Validate any new implementation through GitHub Actions before treating it as evidence.
-8. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
+6. Revocation is currently durable and fail-closed at the preflight boundary; a future host executor must independently revalidate revocation immediately before irreversible mutation.
+7. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
+8. Validate any new implementation through GitHub Actions before treating it as evidence.
+9. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
