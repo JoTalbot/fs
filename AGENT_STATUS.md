@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head before validation: `3570c55d57f744c563689975713e8fc43b09a172`
-- Latest validated implementation: `94341ba38fa9f1beba3d8eb66408a941b134440`
+- Latest repository head before validation: `52ebd8104489651278831564aabbb447e021e17b`
+- Latest validated implementation: `3570c55d57f744c563689975713e8fc43b09a172`
 - Updated: 2026-09-16
 
 ## Active step
@@ -21,8 +21,8 @@
 - decision: keep the release path fail closed. Package artifacts and SBOM must pass local shape/checksum validation before attestation; evidence is uploaded only after provenance and SBOM verification succeeds.
 - change: `.github/workflows/release-provenance.yml` now requires exactly one wheel and one sdist, hashes only those release artifacts, verifies the checksum manifest, validates the CycloneDX JSON structure, performs provenance/SBOM attestation verification with retry, and moves the Actions artifact upload after successful verification.
 - implementation commit: `3570c55d57f744c563689975713e8fc43b09a172`.
-- validation: workflow content was re-read from `main` after the write. Ordinary CI for the preceding implementation `94341ba38fa9f1beba3d8eb66408a941b134440` completed successfully as run `35158337334`. The updated release workflow itself has not yet been executed, so no attestation verification success is claimed.
-- next_step: validate ordinary CI for `3570c55d57f744c563689975713e8fc43b09a172`, then execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event and inspect artifact plus attestation/SBOM verification evidence. Do not mark the release gate complete before observed verification.
+- validation: ordinary CI for implementation `3570c55d57f744c563689975713e8fc43b09a172` completed successfully as run `35158774476` with all 18 configured jobs successful. The subsequent status-only head `52ebd8104489651278831564aabbb447e021e17b` also completed ordinary CI successfully as run `35158789643` with all 18 configured jobs successful. The updated release workflow itself has not yet been executed, so no attestation verification success is claimed.
+- next_step: execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event and inspect the resulting artifact, SHA-256, SBOM, provenance-attestation, and SBOM-attestation verification evidence. Do not mark the release gate complete before observed verification.
 
 ## Completed step
 - durable federation admission replay schema: implementation `8ec5d67205400608746a163e344836e457b53f9f`, regression `c8f3ecc16c1a66ba9b83a888b787c0f6b3bd9456`, CI `35147076850` completed successfully.
