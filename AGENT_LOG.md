@@ -238,3 +238,28 @@ Learning:
 - [RULE] Supply-chain CI controls must be kept separate from production lockfile/toolchain selection, SBOM completeness, provider qualification, and release security gates.
 - [TOOLING] When repository Dependency Graph is unavailable, OSV-Scanner can provide a practical repository-level PR vulnerability signal without emulating Dependency Review authority.
 Next: Perform fresh reconnaissance for the next non-overlapping production-boundary issue; do not repeat lifecycle persistence, transport re-authentication, release provenance, snapshot/manifest path isolation, or this OSV gate.
+
+## 2026-09-16 | current-agent | revocation-record-schema-hardening
+Base: f22ed8eba1cde27db72795379899be250ea5ef98
+Area: durable authority revocation record schema
+Goal: Prevent malformed persisted revocation JSON from being coerced into authoritative in-memory state.
+Research:
+- Re-read `AGENT_STATUS.md`, `AGENT_LOG.md`, `AGENTS.md`, canonical `fs-agent-core`, `authority_revocation.py`, its tests, and related authority/recovery boundaries.
+- Fresh external research reviewed RFC 8785 and RFC 8259. Canonicalization and security guidance support parsing/validating structured input before relying on cryptographic digests, and malformed input must abort processing. NIST SP 800-57 Part 2 also emphasizes auditing key-management records.
+Skill discovery:
+- Repository `fs-agent-core` remained authoritative; no external skill was allowed to override the repository contract.
+Changes:
+- Hardened `RevocationRecord.from_line()` to require the exact persisted field set and exact JSON scalar types before constructing the record; `bool` is rejected for the integer sequence field.
+- Added regressions for noncanonical field types and unknown persisted fields.
+- Added `docs/AGENT_STEP_2026-09-16_revocation-record-schema-recon.md` documenting the finding and decision.
+Validation:
+- Validation-only PR #14 executed the real PR workflows against the implementation already on `main`.
+- CI run `35106280201` (run #718) completed successfully across all 18 configured Python and candidate crypto-provider jobs.
+- OSV run `35106280082` completed successfully; its dependency scan job completed successfully.
+- PR #14 was intentionally not merged because its only branch change was a temporary validation marker; it remains outside `main`.
+Result: implementation `c3495f181431ce3bdf22c9318dfa6d56c66cfae2`; CI and OSV validation passed for that implementation; validation-only PR #14 remains unmerged.
+Learning:
+- [SECURITY] Durable authoritative records need strict schema validation before digest/hash-chain verification; coercion can collapse malformed input into a valid internal representation.
+- [RULE] Integrity checks do not repair schema ambiguity. Validate structure and types first, then validate the digest and chain.
+- [RULE] Validation-only PR branches must never be merged when their sole purpose is to trigger CI; preserve the tested implementation independently on `main`.
+Next: Synchronize `AGENT_STATUS.md` and `AGENT_LOG.md` to the validated implementation head, then perform fresh reconnaissance for the next non-overlapping production-boundary issue.
