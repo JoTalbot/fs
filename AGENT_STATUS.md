@@ -2,28 +2,28 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`
+- Latest repository head: `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`
 - Latest validated implementation: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`
 - Updated: 2026-09-16
 
 ## Active step
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T15:20:00Z`
-- base_commit: `891c81ad7943dd222a406e120645625194e564cc`
-- area: federation envelope schema integrity
-- claimed_files: `src/fs_overlay/federation_protocol.py`, `tests/test_federation_protocol.py`, `docs/AGENT_STEP_2026-09-16_federation-envelope-schema-recon.md`, `AGENT_STATUS.md`
-- goal: prevent malformed untrusted federation envelopes from being coerced into protocol state before signature/replay admission
-- status: CLOSED
-- repository_research: `FederationEnvelope.from_bytes()` was an untrusted JSON boundary that coerced sender/message identifiers and numeric fields and accepted unexpected top-level fields. The hardening is limited to wire-schema validation and preserves existing signature/replay behavior.
-- external_research: RFC 8259 states duplicate JSON member names can produce unpredictable receiver behavior; OWASP deserialization guidance requires strict type constraints and safe handling of untrusted data; OWASP input validation requires type/range/format validation and rejection of unexpected content. citeturn2search0turn0search4turn0search6
-- skill_discovery: canonical `fs-agent-core` plus fresh external security-review skills were inspected. External guidance remains advisory and untrusted. citeturn1search0turn1search3
-- decision: exact federation envelope wire fields; exact scalar types without coercion; nonnegative sequence/timestamp; nonempty protocol identifiers; payload remains an arbitrary JSON object; signature must be string-or-null with strict base64 decoding; duplicate JSON object member names are rejected. Existing signature/replay behavior is preserved.
-- implementation: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`
-- regression_tests: `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`
-- recon: `9414df72abf40d67ab96e09114f96b8aae86340f`
-- validation: GitHub Actions run `35115180030` completed with all 18 configured jobs successful, including Python tests and crypto provider tests. The earlier run `35114897585` exposed only a test-expectation mismatch for the duplicate-field error message; no runtime failure was observed.
-- next_step: begin fresh reconnaissance for the next remaining untrusted or persisted state boundary. Do not infer production qualification from this CI result.
+- started_at: `2026-09-16T15:30:00Z`
+- base_commit: `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`
+- area: recovery audit log schema integrity
+- claimed_files: `src/fs_overlay/workspace_transfer_recovery_audit.py`, `tests/test_workspace_transfer_recovery_audit.py`, `docs/AGENT_STEP_2026-09-16_recovery-audit-schema-recon.md`, `AGENT_STATUS.md`
+- goal: prevent malformed persisted recovery-audit records from being coerced into trusted recovery history before hash-chain validation
+- status: VALIDATING
+- repository_research: fresh inspection found `RecoveryAuditLog.replay()` coercing persisted sequence and identity fields with `int()`/`str()`, accepting unexpected fields, and not enforcing exact persisted scalar types before enum/hash-chain validation. The audit log is recovery evidence only and does not itself grant authority.
+- external_research: RFC 8259 documents interoperability problems from duplicate JSON member names; OWASP REST and deserialization guidance requires strict type/range/format validation, rejection of unexpected content, and safe handling of untrusted serialized data. citeturn0search0turn0search2turn0search8
+- skill_discovery: canonical `fs-agent-core` was already established; fresh security-review guidance was applied to the persisted parser boundary. External guidance remains advisory and untrusted.
+- decision: exact recovery-audit field set; exact scalar types without coercion; version exactly 1; sequence is a positive integer; required identifiers/reason/digests are nonempty strings; previous_digest is string-or-null; duplicate JSON object member names are rejected; existing semantic, hash-chain, and digest checks remain authoritative after schema validation.
+- implementation: `86bc767e76b048bf31eb7f230afe3fb51bde91a5`
+- regression_tests: `5a51e2c6900cf93e9fa0b08c892a513e97367e1b`
+- recon: pending durable documentation commit
+- validation: pending GitHub Actions validation; no local runner is available.
+- next_step: observe the CI matrix. If red, inspect the exact failing job/log before further source changes. If green, close the recovery-audit schema boundary and continue fresh reconnaissance.
 
 ## Closed boundaries
 - federation envelope schema integrity: `2e54dcf77641d29c514cf48243c0a6b67b06c5a2`, regression `1d78b919ecef9ef497f99ffc05ea838ec9b6be65`, CI `35115180030` passed 18/18.
