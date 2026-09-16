@@ -2,8 +2,8 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `bc33eef704ee2834544c7f316054beb6cb1a8efc`
-- Latest validated implementation: `6827dd21096ede4c85d9076758e9fd2544bade74`
+- Latest repository head: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
+- Latest validated implementation: `9babfbdab1732493b384fb6a2283c8b378954d22`
 - Updated: 2026-09-16
 
 ## Active step
@@ -20,12 +20,12 @@
 - skill_discovery: canonical `fs-agent-core` remains authoritative; its durable JSON parsing lessons directly apply. External security/input-validation guidance was reviewed for this step.
 - decision: reject duplicate JSON object member names during `Manifest.from_bytes()` parsing before schema and identity validation, preserving storage, content-addressing, and authority semantics.
 - implementation: `9babfbdab1732493b384fb6a2283c8b378954d22`
-- regression_tests: `edcea4c6a7cf044cb90e6f533c1f49038ef5c073`
+- regression_tests: `932c36db3c58c1d0095b062f0d7056df90f1a71b`
 - recon: `bc33eef704ee2834544c7f316054beb6cb1a8efc`
 - skill_update: `0f06c7b9f15b8c8f633c48d02369c4244037c8f1` contains the general durable duplicate-JSON rule; no additional rule is required yet.
-- validation: first CI run `35121904812` failed 6 Python jobs. One failure was the duplicate-key test fixture (`ValueError: substring not found`). Five failures were caused by stale source replacement removing existing transaction-recovery APIs (`LocalStorageEngine._commit_manifest`) and one pre-existing journal-path expectation. The source was restored from the pre-step committed version while retaining only manifest parser hardening, the duplicate-key fixture was corrected, and the journal-path expectation was aligned. A fresh full matrix is now required.
-- durable_learning: `[FAILURE] Before replacing a large file through the GitHub contents API, a response truncated for display is not a safe complete source representation. Preserve the exact current blob/source state or reconstruct it from complete repository evidence before writing; otherwise concurrent or previously validated APIs can be silently removed.`
-- next_step: observe the new full GitHub Actions matrix for the corrected head. If green, close the boundary; if red, inspect exact logs before any further source mutation.
+- validation: CI `35122315961` failed 6 Python jobs. Logs showed two concrete regression-test defects: duplicate-key fixture assumed a comma after `size` although canonical sort puts `size` last, and rollback test incorrectly asserted `journal.log` did not exist although begin/abort journaling is durable. Source implementation and crypto-provider jobs were otherwise successful. Tests were corrected without source changes.
+- durable_learning: `[FAILURE] A failing security regression must be traced to the exact job log before source changes. Parser hardening was not the cause of the two observed failures; both were test expectation/fixture defects.`
+- next_step: observe the new full GitHub Actions matrix for the corrected test head. If green, close the boundary; if red, inspect exact logs before any source mutation.
 
 ## Closed boundaries
 - snapshot wire/deserialization JSON parsing boundary: `6827dd21096ede4c85d9076758e9fd2544bade74`, regression `744066a027a6e375beb501951bb827b66e93c9bc`, recon `bbfc4eecdfccb78b01c281005d4c98b8a93f61ac`, CI `35121226276` passed 18/18.
@@ -44,7 +44,7 @@
 - snapshot deserialization schema integrity: `61e7c2e3e06be51d4a88c9eddc4bba3c0dbd0ef0`, CI `35112519148` passed 18/18.
 - manifest deserialization schema integrity: `9ba6e3ed809772eb0fccf4195a5c2162ddb4cf0f`, CI `35111800923` passed 18/18.
 - transfer-journal schema hardening: `c51a7315cd832517d1f58c1b9196dde86f14dd3c`, CI `35110171327` passed 18/18.
-- storage-engine inventory journal schema integrity: `6dea4c9008caa323e4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
+- storage-engine inventory journal schema integrity: `6dea4c9008caa323ec4130ca4ce73233356d9bb3`, CI `35110887681` passed 18/18.
 - key destruction/zeroization provider boundary: reconnaissance only.
 - transport re-authentication/provider boundary: reconnaissance only.
 - trust-root binding: reconnaissance only.
