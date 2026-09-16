@@ -55,6 +55,39 @@ def test_replay_rejects_non_boolean_revocation_flag(tmp_path) -> None:
         DurableTrustRootStore(path)
 
 
+def test_replay_rejects_boolean_sequence(tmp_path) -> None:
+    path = tmp_path / "trust-roots.jsonl"
+    store = DurableTrustRootStore(path)
+    store.trust("issuer-1", FP1)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["sequence"] = True
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed trust-root record"):
+        DurableTrustRootStore(path)
+
+
+def test_replay_rejects_non_string_issuer(tmp_path) -> None:
+    path = tmp_path / "trust-roots.jsonl"
+    store = DurableTrustRootStore(path)
+    store.trust("issuer-1", FP1)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["issuer_id"] = 123
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed trust-root record"):
+        DurableTrustRootStore(path)
+
+
+def test_replay_rejects_unexpected_field(tmp_path) -> None:
+    path = tmp_path / "trust-roots.jsonl"
+    store = DurableTrustRootStore(path)
+    store.trust("issuer-1", FP1)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["unexpected"] = "value"
+    path.write_text(json.dumps(data) + "\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="malformed trust-root record"):
+        DurableTrustRootStore(path)
+
+
 def test_invalid_fingerprint_is_rejected_before_persistence(tmp_path) -> None:
     store = DurableTrustRootStore(tmp_path / "trust-roots.jsonl")
     with pytest.raises(ValueError, match="SHA-256 fingerprint"):
