@@ -14,17 +14,17 @@
 
 - agent_id: `gpt-5.6-luna`
 - machine_id: `GitHub connector`
-- started_at: `2026-09-16T13:45:00Z`
-- base_commit: `ed217b349f96b4773fa2f8893b2c37f067985dd8`
-- area: dependency supply-chain review
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`
-- goal: validate a narrowly scoped pull-request dependency vulnerability gate without leaving an always-failing workflow on main
-- status: PR #12 executed the dependency-review workflow successfully through checkout and action startup, but the action failed because GitHub reports Dependency Graph is disabled for `JoTalbot/fs`. This is an environment/configuration prerequisite, not a workflow syntax or permission failure. The repository cannot currently validate the dependency-review control through the available GitHub connector because repository security settings are not writable through the available API surface.
-- evidence: PR #12 head `4aa8aed2381e2e1701d1db1f97cf50fbae620ed5`; Dependency Review run `35103492845` failed with `Dependency review is not supported on this repository. Please ensure that Dependency graph is enabled`; the same commit's CI run `35103492850` passed. PR #12 is now closed unmerged. The unsupported workflow was removed from main in `a47308b3109ce9d89eade44aac83cb07e470eeb6`.
-- decision: do not leave an unvalidated, guaranteed-failing dependency-review workflow active on main. Preserve the failure as durable evidence. A future supply-chain gate can use a repository-supported scanner that does not require Dependency Graph, subject to fresh reconnaissance and validation.
-- research: GitHub documents dependency review as requiring the repository Dependency Graph and supports the current workflow shape. OSV-Scanner documents a PR workflow that compares target and feature vulnerability results and can operate from supported manifests/lockfiles without GitHub Dependency Graph. OSV-Scanner also notes that resolved lockfiles are preferred; FS currently has no selected production lockfile/toolchain.
+- started_at: `2026-09-16T14:00:00Z`
+- base_commit: `213ea8a962c9bd5181a0d7647630c89e52c3ed41`
+- area: dependency supply-chain review / OSV PR gate validation
+- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `.github/workflows/osv-scanner.yml`, `.github/workflows/osv-scanner-validation.yml`, `docs/AGENT_STEP_2026-09-16_osv-pr-gate-validation.md`
+- goal: validate a narrowly scoped OSV-based pull-request vulnerability gate without leaving duplicate or unvalidated workflows on main
+- status: Fresh repository and external reconnaissance completed. The intended OSV workflow is pinned to immutable action SHAs and matches current OSV guidance for recursive source scanning. The validation branch currently contains a redundant validation workflow that must be removed before opening the real PR, so only the intended gate is executed.
+- evidence: OSV official documentation states that the PR workflow compares target and feature scans and can fail on newly introduced vulnerabilities; current v2.6.0 documentation lists `--recursive` and repository-root scanning as the defaults. Validation branch `ci/osv-pr-gate-validation` contains the intended workflow at `f373bf1a7d3480d4c3c635497c18f30b6b874c48` plus a temporary duplicate validation workflow.
+- decision: remove the temporary duplicate workflow, then open a real PR into `main` and treat the resulting Actions run as the first execution evidence. Do not merge until the actual OSV workflow has been observed and its result recorded.
+- research: GitHub Dependency Review remains unusable because Dependency Graph is disabled. OSV-Scanner's maintained documentation provides a Dependency-Graph-independent PR workflow and documents recursive root scanning. The repository has no selected production lockfile/toolchain, so this CI control remains separate from production dependency provenance.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
-- next_step: perform fresh reconnaissance before any supply-chain replacement. If an OSV-based PR vulnerability gate is selected, implement and validate it independently; keep production lockfile/toolchain decisions separate.
+- next_step: remove the temporary validation workflow, open the validation PR, observe the OSV workflow run, then either merge only after successful validation or preserve negative evidence and remove the candidate gate from main.
 
 ## Latest work
 
@@ -53,7 +53,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 ## Next phase
 
 1. Keep the unsupported Dependency Review workflow removed from main; PR #12 is closed unmerged.
-2. If continuing supply-chain hardening, perform fresh reconnaissance for an OSV-based PR vulnerability gate that does not depend on GitHub Dependency Graph, without inventing a production lockfile/toolchain.
+2. Validate the OSV-based PR vulnerability gate through an actual pull request, without inventing a production lockfile/toolchain.
 3. Do not add speculative production security implementations.
 4. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
 5. Validate any new implementation through GitHub Actions before treating it as evidence.
