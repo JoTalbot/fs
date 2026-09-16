@@ -13,6 +13,15 @@ from typing import Any
 _MAX_MESSAGE = 1024 * 1024
 
 
+def _reject_duplicate_object_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
 def _pack(message: dict[str, Any]) -> bytes:
     payload = json.dumps(message, sort_keys=True, separators=(",", ":")).encode("utf-8")
     if len(payload) > _MAX_MESSAGE:
@@ -41,7 +50,10 @@ def recv_message(sock: socket.socket) -> dict[str, Any]:
     (size,) = struct.unpack("!I", header)
     if size > _MAX_MESSAGE:
         raise ValueError("incoming message exceeds transport limit")
-    value = json.loads(_recv_exact(sock, size).decode("utf-8"))
+    value = json.loads(
+        _recv_exact(sock, size).decode("utf-8"),
+        object_pairs_hook=_reject_duplicate_object_keys,
+    )
     if not isinstance(value, dict):
         raise ValueError("transport message must be a JSON object")
     return value
