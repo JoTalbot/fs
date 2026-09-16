@@ -64,6 +64,28 @@ def test_snapshot_rejects_noncanonical_object_ids_when_reading(tmp_path: Path) -
         store.get(valid.snapshot_id)
 
 
+def test_snapshot_rejects_duplicate_json_keys_when_reading(tmp_path: Path) -> None:
+    store = SnapshotStore(tmp_path / "snapshots")
+    valid = store.create(("a" * 64,), generation=1)
+    raw = (tmp_path / "snapshots" / valid.snapshot_id).read_text()
+    duplicate = raw[:-2] + ',"generation":1}\n'
+    (tmp_path / "snapshots" / valid.snapshot_id).write_text(duplicate)
+
+    with pytest.raises(ValueError, match="snapshot JSON is invalid"):
+        store.get(valid.snapshot_id)
+
+
+def test_snapshot_rejects_duplicate_nested_metadata_keys_when_reading(tmp_path: Path) -> None:
+    store = SnapshotStore(tmp_path / "snapshots")
+    valid = store.create(("a" * 64,), generation=1, metadata={"workspace_id": "ws-1"})
+    raw = (tmp_path / "snapshots" / valid.snapshot_id).read_text()
+    duplicate = raw.replace('"workspace_id":"ws-1"', '"workspace_id":"ws-1","workspace_id":"ws-2"')
+    (tmp_path / "snapshots" / valid.snapshot_id).write_text(duplicate)
+
+    with pytest.raises(ValueError, match="snapshot JSON is invalid"):
+        store.get(valid.snapshot_id)
+
+
 @pytest.mark.parametrize("snapshot_id", ["../outside", "../../etc/passwd", "/etc/passwd", "C:\\\\outside"])
 def test_snapshot_rejects_noncanonical_ids_before_path_lookup(tmp_path: Path, snapshot_id: str) -> None:
     store = SnapshotStore(tmp_path / "snapshots")
