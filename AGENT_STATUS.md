@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `98ca71af4cfa9093a8639f554b2097df30db77ee`
+- Latest repository head: `5f60ac90b2b3c57f00c343a7c112935e374c8f1d`
 - Latest validated implementation: `c3495f181431ce3bdf22c9318dfa6d56c66cfae2`
 - Updated: 2026-09-16
 
@@ -17,24 +17,28 @@
 - started_at: `2026-09-16T14:15:00Z`
 - base_commit: `98ca71af4cfa9093a8639f554b2097df30db77ee`
 - area: secure key-store overwrite semantics
-- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `src/fs_overlay/adapter_conformance.py`, `tests/test_adapter_conformance.py`, `docs/AGENT_STEP_2026-09-16_secure-key-store-overwrite-recon.md`
+- claimed_files: `AGENT_STATUS.md`, `AGENT_LOG.md`, `src/fs_overlay/production_adapters.py`, `src/fs_overlay/adapter_conformance.py`, `tests/test_adapter_conformance.py`, `docs/AGENT_STEP_2026-09-16_secure-key-store-overwrite-recon.md`, `.agents/skills/fs-agent-core/SKILL.md`
 - goal: prevent silent replacement of key material under an existing key ID at the SecureKeyStore qualification boundary while preserving explicit key rotation semantics
-- status: CLAIMED / RESEARCHED. Fresh repository and external reconnaissance completed; implementation is not yet validated.
-- research: current SecureKeyStore is an injected boundary with `store(key_id, key_material)` and no overwrite/replacement contract. The reusable conformance harness checks empty IDs/material and round-trip behavior but permits a provider to overwrite an existing key ID. Federation documentation states that reusing a key ID with different fingerprint is security-sensitive and must not happen silently. NIST SP 800-57 emphasizes protection and management of cryptographic keying material; OWASP recommends protected key storage and controlled rotation. External security-review skill guidance treats secret handling and unsafe rotation assumptions as security-review surfaces.
+- status: VALIDATING. Implementation and regression are committed; GitHub Actions validation is in progress.
+- research: current SecureKeyStore is an injected boundary whose prior contract did not define overwrite behavior. The reusable conformance harness previously checked empty IDs/material and round-trip behavior but permitted a provider to overwrite an existing key ID. Federation documentation treats key-ID reuse with different identity as security-sensitive and not something that may happen silently. NIST SP 800-57 emphasizes protection and management of cryptographic keying material; OWASP recommends protected key storage and controlled rotation. External security-review skill guidance treats secret handling and unsafe rotation assumptions as security-review surfaces.
 - decision: qualify `store()` as create-only for an existing key ID: a second store under the same ID must fail closed rather than silently replace material. Key rotation remains represented by explicit lifecycle/key IDs and is not implemented as a hidden overwrite mechanism. This is a semantic adapter contract, not production secure-storage certification.
+- evidence: implementation commits `81036be292341e8e3d93ef3a8b22e73170c399a5`, `da312fe43a65fa5d1831b2248ec40c2ae852411d`, `e0609f077dd6a671b0449d9fb3153a1f32881730`; research `436e4721f4ce055a6863717d74c1fb50f851632a`; skill learning `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2`; log `5f60ac90b2b3c57f00c343a7c112935e374c8f1d`. CI run `35107179255` (run #732) is the validation run for the implementation and was still in progress when last checked; no pass is claimed yet.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, independent security review, and release/supply-chain qualification beyond this CI control.
-- next_step: implement the smallest conformance regression and qualification hardening for SecureKeyStore create-only semantics, then validate through GitHub Actions and synchronize the resulting evidence.
+- next_step: inspect CI run `35107179255` until all 18 jobs complete; if successful, synchronize the validated implementation head and evidence; if any job fails, diagnose only the concrete failure before further changes.
 
 ## Latest work
 
-- `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening and regressions; validated by CI #718 and OSV run #2.
-- `98ca71af4cfa9093a8639f554b2097df30db77ee` — final coordination-state synchronization for the validated revocation-schema step.
-- `d2d8bbd11d823439c4b7be63b560215690b90c00` — merged PR #13, pinned OSV vulnerability gate.
-- `2519cc5620abed10cbc2b3c815f8f417fa6d6a68` — corrected malformed federation-details regression fixture; CI #699 passed across the configured matrix.
+- `e0609f077dd6a671b0449d9fb3153a1f32881730` — SecureKeyStore create-only conformance regression and intentionally overwriting-provider negative test; awaiting CI validation.
+- `81036be292341e8e3d93ef3a8b22e73170c399a5` — SecureKeyStore protocol contract now explicitly documents create-only semantics.
+- `436e4721f4ce055a6863717d74c1fb50f851632a` — SecureKeyStore overwrite reconnaissance and decision record.
+- `4deb51c602f2ca12939dd52177c1b5ac5c33a8d2` — durable fs-agent-core lesson for explicit key-storage replacement semantics.
+- `5f60ac90b2b3c57f00c343a7c112935e374c8f1d` — append-only agent log entry for this step.
+- `c3495f181431ce3bdf22c9318dfa6d56c66cfae2` — strict durable revocation record schema hardening; validated by CI #718 and OSV run #2.
+- `98ca71af4cfa9093a8639f554b2097df30db77ee` — previous final coordination-state synchronization.
 
 ## Validation boundary
 
-GitHub Actions is authoritative because no local checkout/test runner is available. CI run `35106280201` completed successfully for the validation PR head containing the exact implementation from `main`; all 18 configured Python and candidate crypto-provider jobs succeeded. OSV run `35106280082` also completed successfully. FreeBSD native CI remains intentionally disabled and outside the release gate.
+GitHub Actions is authoritative because no local checkout/test runner is available. Prior CI run `35106280201` completed successfully for the revocation implementation and is not evidence for the current SecureKeyStore change. Current CI run `35107179255` is the dedicated 18-job validation matrix for this step and must complete before the change is called validated. FreeBSD native CI remains intentionally disabled and outside the release gate.
 
 The Dependency Review workflow was executed on PR #12 and reached the action before failing on the repository Dependency Graph prerequisite. This validates that the workflow triggered and had read-only token permissions, but does not validate dependency-review functionality for this repository. The failure is retained as negative environment evidence.
 
@@ -55,7 +59,7 @@ Snapshot object IDs and snapshot IDs are schema/integrity identifiers. Their can
 1. Keep the unsupported Dependency Review workflow removed from main; PR #12 is closed unmerged.
 2. Keep the validated OSV vulnerability workflow on main as a CI control; do not treat it as production provenance.
 3. Keep the strict revocation record parser hardening on main; its CI validation is semantic/integrity evidence, not production trust qualification.
-4. Qualify SecureKeyStore overwrite behavior only as an adapter semantic contract; do not implement a deployment-specific key vault or secret store.
+4. Keep SecureKeyStore overwrite qualification limited to an adapter semantic contract; do not implement a deployment-specific key vault or secret store.
 5. For every new substantive step, repeat repository reconnaissance, current external research, and skill discovery before modifying code.
 6. Validate any new implementation through GitHub Actions before treating it as evidence.
 7. Keep recovery, provenance, audit evidence, and dependency-review evidence separate from authority issuance and host filesystem capability.
