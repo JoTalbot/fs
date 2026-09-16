@@ -6,7 +6,7 @@
 
 - Repository: `JoTalbot/fs`
 - Branch: `main`
-- Latest repository head: `434dda3ef77d58ee1f7ec91912e96cb3daea1d87`
+- Latest repository head: `67f547e8e66f754962d94bdc76f2afe8562b79c7`
 - Latest validated implementation head: `a68fe13bc761ab42b7757d769440e6a7314d368d`
 - Updated: 2026-09-16
 
@@ -16,16 +16,17 @@
 - machine_id: `GitHub connector`
 - started_at: `2026-09-16T12:52:00Z`
 - base_commit: `a68fe13bc761ab42b7757d769440e6a7314d368d`
-- area: secure key lifecycle persistence boundary
-- claimed_files: `AGENT_STATUS.md`, `docs/AGENT_STEP_2026-09-16_key-lifecycle-persistence-recon.md`
-- goal: preserve evidence-backed fail-closed qualification without implementing unaudited production security providers or host filesystem mutation
-- status: Focused reconnaissance found no repository-level fail-open restart path for retired/revoked key authority. The reference lifecycle and admission adapter are explicitly in-memory and non-durable; durable lifecycle persistence is delegated to a concrete deployment provider.
-- decision: no code change. Do not treat the reference lifecycle as durable production authority. Preserve the existing production-security blocker.
+- area: authenticated transport session re-authentication boundary
+- claimed_files: `AGENT_STATUS.md`, `docs/AGENT_STEP_2026-09-16_transport-session-reauth-recon.md`
+- goal: preserve evidence-backed fail-closed qualification without inventing generic re-authentication or production transport authority
+- status: Focused reconnaissance found no repository-level fail-open path for provider re-authentication, peer changes, session replacement, or transport sequence reset. The gate remains bound to one principal and one session instance; peer/authentication state is revalidated before every operation, and provider failures close the gate.
+- decision: no runtime code change. A provider-side session reset must not inherit the old gate's authorization or sequence state. Production re-authentication semantics remain the responsibility of a concrete authenticated/encrypted transport deployment contract.
 - blocker: V1 production release remains blocked by deployment-specific audited AEAD evidence, secure key storage/lifecycle evidence, authenticated/encrypted transport evidence, authoritative trust/revocation infrastructure, target-specific recovery evidence, and independent security review.
-- next_step: stop code changes unless a concrete provider/deployment package or reproducible repository-level contract defect appears.
+- next_step: continue only with a new, non-duplicative production-boundary reconnaissance or a concrete reproducible repository-level contract defect.
 
 ## Latest work
 
+- `67f547e8e66f754962d94bdc76f2afe8562b79c7` — record transport session re-authentication boundary reconnaissance and synchronize status.
 - `434dda3ef77d58ee1f7ec91912e96cb3daea1d87` — record key lifecycle persistence boundary reconnaissance.
 - `2ed72f33e093e9dd3c334e8c065fb4524c6fafda` — synchronize status after release-evidence review.
 - `fd010f13ae176eb423fca1f15d5b977cc8e7af91` — synchronize status after release-evidence review.
