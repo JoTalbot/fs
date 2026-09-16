@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from itertools import permutations
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from fs_overlay.storage_resilience import (
     QuarantineLedger,
     RecoveryGraph,
     RecoveryNode,
+    SnapshotStore,
     recovery_state,
 )
 
@@ -61,6 +63,69 @@ def test_placement_is_deterministic_and_honors_excluded_failure_domains() -> Non
     planner = PlacementPlanner()
     assert tuple(c.carrier_id for c in planner.rank(carriers)) == ("b", "a")
     assert tuple(c.carrier_id for c in planner.rank(carriers, excluded_domains=("d2",))) == ("a", "b")
+
+
+def test_snapshot_round_trip_preserves_valid_persisted_state(tmp_path: Path) -> None:
+    store = SnapshotStore(tmp_path / "snapshots")
+    snapshot = store.create((), generation=1, metadata={"source": "test"})
+
+    assert store.get(snapshot.snapshot_id) == snapshot
+
+
+def _snapshot_payload(tmp_path: Path) -> tuple[SnapshotStore, dict[str, object]]:
+    store = SnapshotStore(tmp_path / "snapshots")
+    snapshot = store.create((), generation=1, metadata={"source": "test"})
+    return store, json.loads(snapshot.to_bytes())
+
+
+def test_snapshot_rejects_boolean_numeric_fields(tmp_path: Path) -> None:
+    from fs_overlay.storage_resilience import Snapshot
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["generation"] = True
+    with pytest.raises(ValueError, match="invalid snapshot generation"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
+
+
+def test_snapshot_rejects_coercible_identity_and_merkle_types(tmp_path: Path) -> None:
+    from fs_overlay.storage_resilience import Snapshot
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["snapshot_id"] = 123
+    with pytest.raises(ValueError, match="invalid snapshot id"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["merkle_root"] = 123
+    with pytest.raises(ValueError, match="invalid snapshot object id"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
+
+
+def test_snapshot_rejects_unexpected_fields(tmp_path: Path) -> None:
+    from fs_overlay.storage_resilience import Snapshot
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["unexpected"] = "field"
+    with pytest.raises(ValueError, match="snapshot fields are invalid"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
+
+
+def test_snapshot_rejects_invalid_metadata_types(tmp_path: Path) -> None:
+    from fs_overlay.storage_resilience import Snapshot
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["metadata"] = {"source": 1}
+    with pytest.raises(ValueError, match="invalid snapshot metadata"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
+
+
+def test_snapshot_rejects_non_list_objects(tmp_path: Path) -> None:
+    from fs_overlay.storage_resilience import Snapshot
+
+    _, payload = _snapshot_payload(tmp_path)
+    payload["objects"] = {"not": "a-list"}
+    with pytest.raises(ValueError, match="invalid snapshot objects"):
+        Snapshot.from_bytes(json.dumps(payload).encode())
 
 
 def test_quarantine_is_append_only_and_replay_preserves_evidence(tmp_path: Path) -> None:
