@@ -33,6 +33,17 @@ verification:
       - "state_primitives.py: 63% -> 100%"
       - "storage_engine.py: -> 94%"
       - "cli.py: 21% -> 88%"
+  ci_observed:
+    pull_request: 17
+    head_commit: 3ec5395c3d3ebde9abdecf5d1c1f963edc40274a
+    ordinary_ci:
+      run_id: "35219752637"
+      conclusion: success
+      jobs: "18/18"
+      matrix: "ubuntu/windows/macos x Python 3.11/3.12/3.13 (tests + crypto provider)"
+    osv_scan:
+      run_id: "35219752654"
+      conclusion: success
   gates:
     - ".venv/bin/python tools/roadmap_evidence.py"
     - ".venv/bin/python tools/independent_conformance_consumer.py"
@@ -62,7 +73,7 @@ milestones:
   - id: M0
     name: "Green baseline, coordination substrate, evidence discipline"
     definition: docs/M0.md
-    status: in_progress
+    status: done
   - id: M1
     name: "Defect repair and primitive qualification"
     status: done
@@ -108,12 +119,16 @@ tasks:
   - id: M0-07
     title: "CI evidence for the session branch"
     milestone: M0
-    status: in_progress
-    evidence: "branch pushed; PR required because CI triggers on main push and pull_request"
+    status: done
+    evidence: >-
+      PR #17 head 3ec5395c3d3ebde9abdecf5d1c1f963edc40274a: CI run 35219752637
+      success with 18/18 jobs; OSV run 35219752654 success; PR state OPEN,
+      mergeable MERGEABLE
   - id: M0-08
     title: "Synchronise AGENT_STATUS.md and AGENT_LOG.md"
     milestone: M0
-    status: in_progress
+    status: done
+    evidence: "synchronised in the commit that records CI run 35219752637"
 
   - id: M1-01
     title: "Repair unimportable fs_overlay.policy and gate the import surface"
@@ -201,12 +216,15 @@ blockers:
       alone; they require external review and deployment qualification.
 
 resume_point:
-  next_task: M0-07
+  next_task: M3-01
   exact_next_action: >-
-    Open a pull request from arena/01a0af2b-fs into main so the ordinary CI
-    matrix and the OSV PR gate execute against this batch, record the run IDs in
-    AGENT_STATUS.md, and keep the two release-gate blockers open.
+    PR #17 carries green CI (run 35219752637, 18/18) and OSV (run 35219752654)
+    evidence and stays open for maintainer merge. Continue with M3-01: qualify
+    production_crypto.py (37%), windows_job.py (41%), freebsd_capsicum.py (53%)
+    and workspace_boundary.py (56%), then reconcile roadmap Phase 2 and Phase 5
+    claims through tools/roadmap_evidence.py.
   do_not_repeat:
     - "re-running the release-provenance dispatch from this integration (403 is deterministic)"
     - "re-creating the coordination documents created in this session"
     - "marking V1 release gate items closed without observed evidence"
+    - "re-requesting CI for head 3ec5395; it is already green"

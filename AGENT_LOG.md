@@ -351,3 +351,20 @@ Learning:
 - [TOOLING] Host interpreters may reject pip installs (PEP 668); use a venv with an editable install so local runs mirror CI.
 - [FAILURE] Tests that spawn interpreters must export `PYTHONPATH`, otherwise they pass in CI and fail in a source checkout.
 Next: Open a PR from `arena/01a0af2b-fs` to obtain real CI/OSV evidence for this batch; then M3-01 (weakest coverage modules) and evidence reconciliation for roadmap Phases 2 and 5. Do not retry the workflow dispatch from this integration.
+
+## 2026-09-17 | arena-01a0af2b-fs | ci-evidence-capture-for-baseline-batch
+Base: 3ec5395c3d3ebde9abdecf5d1c1f963edc40274a
+Area: verification evidence and coordination state
+Goal: Convert the pushed baseline batch into observed CI evidence and close M0.
+Research:
+- `gh run list` / `gh run view` for branch `arena/01a0af2b-fs`; `gh pr view 17 --json statusCheckRollup`.
+Validation:
+- PR #17 head `3ec5395c3d3ebde9abdecf5d1c1f963edc40274a`: ordinary CI run `35219752637` completed **success with 18/18 jobs** (ubuntu/windows/macos x Python 3.11/3.12/3.13, tests plus crypto-provider qualification).
+- OSV Vulnerability Scan run `35219752654` completed **success**.
+- PR state OPEN, `mergeable: MERGEABLE`; all 19 reported checks SUCCESS.
+- Local re-run before this commit: 842 passed, 3 skipped, 14 deselected; roadmap evidence 33/33.
+Result: M0 exit criteria 1-11 satisfied; `agent/state/current.yml` records the run IDs, M0-07/M0-08 done, M0 done, resume point moved to M3-01.
+Learning:
+- [RULE] A branch push does not trigger this repository's CI (push trigger is `main` only); a pull request is the way to obtain matrix and OSV evidence for an agent batch.
+- [RULE] Record run IDs against the exact head commit, so later agents do not re-request CI for an already-green head.
+Next: M3-01 qualification of the weakest modules, then Phase 2 and Phase 5 roadmap evidence reconciliation.

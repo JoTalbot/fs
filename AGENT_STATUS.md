@@ -1,7 +1,7 @@
 # Agent Status
 
 ## Current state
-DEVELOPING (M0 in progress; M1 complete; release gate still open)
+DEVELOPING (M0 and M1 complete; M2 release gate blocked on human-only evidence; next M3-01)
 
 ## Current repository head
 `49e53b3efb144974438b9cce25fcaff7c2624ef6` on `main` (shallow clone, depth 1)
@@ -22,6 +22,13 @@ DEVELOPING (M0 in progress; M1 complete; release gate still open)
 - `a7e5b29` direct qualification of state/storage primitives;
   `tools/roadmap_evidence.py`; 33 roadmap items reconciled against evidence.
 
+## Observed CI evidence for this batch
+- Pull request: [#17](https://github.com/JoTalbot/fs/pull/17) (open, mergeable),
+  head `3ec5395c3d3ebde9abdecf5d1c1f963edc40274a`.
+- Ordinary CI run `35219752637`: **success, 18/18 jobs** (ubuntu/windows/macos x
+  Python 3.11/3.12/3.13, tests and crypto-provider qualification).
+- OSV Vulnerability Scan run `35219752654`: **success**.
+
 ## Validation actually performed (local, Python 3.11.2)
 - `python -m pytest`: 842 passed, 3 skipped, 14 deselected (`crypto_provider`
   marker; executed as a separate CI job).
@@ -30,8 +37,7 @@ DEVELOPING (M0 in progress; M1 complete; release gate still open)
 - `tools/roadmap_evidence.py`: 33/33 registered claims verified.
 - `tools/independent_conformance_consumer.py` and
   `tools/independent_admission_conformance.py`: PASS.
-- Not observed here: the 18-job GitHub CI matrix on this batch (a pull request is
-  required to trigger it) and the release-provenance workflow.
+- Not observed here: the release-provenance workflow (dispatch denied, see below).
 
 ## Latest ordinary CI evidence on record
 CI run `35161274938` / #962 validated `85ce41cd6921abab41b464c3f7c65f92612ed6a7`
@@ -66,9 +72,10 @@ No other agent claim was found in this working copy. Files listed in
 were owned by `arena-01a0af2b-fs` for this session.
 
 ## Next action
-Open a pull request from `arena/01a0af2b-fs` into `main` so the ordinary CI
-matrix and the OSV PR gate execute against this batch, then record the run IDs
-here. Continue with M3-01 (weakest coverage: `production_crypto.py` 37%,
-`windows_job.py` 41%, `freebsd_capsicum.py` 53%, `workspace_boundary.py` 56%)
-and with evidence reconciliation for roadmap Phases 2 and 5. Do not retry the
-workflow dispatch from this integration; the 403 is deterministic.
+PR #17 already carries green CI and OSV evidence and stays open for maintainer
+merge (merging `main` is not an autonomous batch action - PD-013). Continue with
+M3-01: qualify the weakest modules (`production_crypto.py` 37%,
+`windows_job.py` 41%, `freebsd_capsicum.py` 53%, `workspace_boundary.py` 56%),
+then reconcile roadmap Phase 2 and Phase 5 claims through
+`tools/roadmap_evidence.py`. Do not retry the release-provenance dispatch from
+this integration; the 403 is deterministic.
