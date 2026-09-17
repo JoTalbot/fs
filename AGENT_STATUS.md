@@ -4,12 +4,12 @@
 DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement evidence reconciled)
 
 ## Current repository head
-`81544e20e368bc406d180d0571ceaa202934ec26` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`ab2a60aacceacd31ad9cab9e182eb35885a05a98` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
 - branch: `arena/01a0af2b-fs` (pushed to `origin`)
-- base_commit: `49e53b3efb144974974438b9cce25fcaff7c2624ef6`
+- base_commit: `49e53b3efb144974438b9cce25fcaff7c2624ef6`
 - machine-readable task graph and resume point: `agent/state/current.yml`
 - task discipline: `docs/TASK-PROTOCOL.md`; loop: `docs/AUTONOMOUS-DEVELOPMENT-MASTER.md`
 
@@ -31,7 +31,7 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - CI #1015 (`35237261163`) for `7dfd28794eedf378d3d3060be8af0d63cb7c7f8c`: failed only in the three macOS Python test jobs because the regular-file IPC regression test used pytest's long macOS temporary path and hit the Unix socket path-length guard before reaching the intended assertion. Linux/Windows Python jobs and all six crypto-provider jobs passed; both independent conformance checks passed.
 - OSV Vulnerability Scan #51 (`35237261007`) for that head: success.
 - The IPC regression-test path issue is fixed in `8e8bb21746dd6abb859cd896aed342d875a29544` by isolating the path-length guard in the test seam.
-- The current evidence/roadmap head is `81544e20e368bc406d180d0571ceaa202934ec26`; its PR workflow has not yet appeared through the connected endpoint.
+- The current evidence/status head is `ab2a60aacceacd31ad9cab9e182eb35885a05a98`; its PR workflow has not yet appeared through the connected endpoint.
 - CI #992 (`35235227069`) for `24c133e1738333d35634593adb0622c7c39f2b40`: success; all 18 listed Python/crypto/conformance jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
 
 ## Validation boundaries
