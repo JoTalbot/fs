@@ -14,10 +14,6 @@ import pytest
 from fs_overlay.storage_engine import AppendJournal, JournalCorruption, LocalStorageEngine, Manifest
 
 
-def _manifest_bytes() -> tuple[LocalStorageEngine, Manifest, bytes]:
-    raise AssertionError("helper must be called with a temporary path")
-
-
 def test_manifest_single_byte_mutations_fail_closed(tmp_path: Path) -> None:
     engine = LocalStorageEngine(tmp_path, chunk_size=8)
     manifest = engine.put(b"deterministic corruption corpus")
@@ -59,17 +55,19 @@ def test_manifest_schema_mutation_corpus_fails_closed(tmp_path: Path) -> None:
             Manifest.from_bytes(json.dumps(mutated, sort_keys=True).encode())
 
 
+def _frame(body: bytes) -> bytes:
+    return f"{len(body):016x}".encode() + body + b"\n"
+
+
 def test_journal_corruption_corpus_rejects_complete_bad_frames(tmp_path: Path) -> None:
     path = tmp_path / "journal.log"
     journal = AppendJournal(path)
     journal.append("event", {"value": "valid"})
-    original = path.read_bytes()
 
     cases = [
-        b"g" * 16 + original[16:],
-        original[:16] + b"{bad-json}\n",
-        original[:16] + b"{}\n",
-        original[:16] + b'[{"not":"an object"}]\n',
+        _frame(b"{bad-json}"),
+        _frame(b"{}"),
+        _frame(b'[{"not":"an object"}]'),
     ]
     for corrupted in cases:
         path.write_bytes(corrupted)
@@ -82,7 +80,7 @@ def test_journal_tail_truncation_is_distinguished_from_corruption(tmp_path: Path
     journal = AppendJournal(path)
     journal.append("first", {"value": 1})
     complete = path.read_bytes()
-    path.write_bytes(complete + b"0000000000000010{" )
+    path.write_bytes(complete + b"0000000000000010{")
 
     records = list(journal.replay())
     assert records == [{"version": 1, "operation": "first", "payload": {"value": 1}}]
