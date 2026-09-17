@@ -1,3 +1,4 @@
+import ctypes
 import platform
 import subprocess
 import sys
@@ -76,3 +77,72 @@ def test_capsicum_native_entrypoint_is_not_used_off_platform(monkeypatch):
     assert not result.available
     assert not result.verified
     assert result.reason == "host is not FreeBSD"
+
+
+class _FakeCFunction:
+    def __init__(self, implementation):
+        self.implementation = implementation
+        self.argtypes = None
+        self.restype = None
+
+    def __call__(self, *args):
+        return self.implementation(*args)
+
+
+class _FakeLibc:
+    def __init__(self, cap_enter, cap_getmode):
+        self.cap_enter = _FakeCFunction(cap_enter)
+        self.cap_getmode = _FakeCFunction(cap_getmode)
+
+
+def _fake_freebsd(monkeypatch, libc):
+    monkeypatch.setattr("fs_overlay.freebsd_capsicum.platform.system", lambda: "FreeBSD")
+    monkeypatch.setattr("fs_overlay.freebsd_capsicum.ctypes.CDLL", lambda *args, **kwargs: libc)
+
+
+def test_capsicum_handles_missing_libc_api(monkeypatch):
+    monkeypatch.setattr("fs_overlay.freebsd_capsicum.platform.system", lambda: "FreeBSD")
+
+    class MissingLibc:
+        cap_enter = _FakeCFunction(lambda: 0)
+
+    monkeypatch.setattr("fs_overlay.freebsd_capsicum.ctypes.CDLL", lambda *args, **kwargs: MissingLibc())
+    result = FreeBSDCapsicumBackend().enter_current_process()
+    assert not result.available
+    assert not result.verified
+    assert result.reason == "Capsicum libc API unavailable"
+
+
+def test_capsicum_reports_cap_enter_errno(monkeypatch):
+    libc = _FakeLibc(lambda: -1, lambda pointer: 0)
+    _fake_freebsd(monkeypatch, libc)
+    monkeypatch.setattr("fs_overlay.freebsd_capsicum.ctypes.get_errno", lambda: 77)
+
+    result = FreeBSDCapsicumBackend().enter_current_process()
+    assert not result.available
+    assert not result.verified
+    assert result.reason == "cap_enter_failed:77"
+
+
+def test_capsicum_handles_cap_getmode_failure(monkeypatch):
+    libc = _FakeLibc(lambda: 0, lambda pointer: -1)
+    _fake_freebsd(monkeypatch, libc)
+
+    result = FreeBSDCapsicumBackend().enter_current_process()
+    assert not result.available
+    assert not result.verified
+    assert result.reason == "capability_mode_readback_failed"
+
+
+def test_capsicum_handles_unverified_capability_mode(monkeypatch):
+    def cap_getmode(pointer):
+        pointer._obj.value = 0
+        return 0
+
+    libc = _FakeLibc(lambda: 0, cap_getmode)
+    _fake_freebsd(monkeypatch, libc)
+
+    result = FreeBSDCapsicumBackend().enter_current_process()
+    assert not result.available
+    assert not result.verified
+    assert result.reason == "capability_mode_readback_failed"
