@@ -1,17 +1,4 @@
-"""Evidence registry for ``docs/ROADMAP.md`` completion claims.
-
-A roadmap checkbox is a claim that something exists and is exercised. This tool
-makes that claim checkable: every registered roadmap item must name the modules
-that define it, the top-level symbols that constitute it, and at least one test
-file that references those symbols.
-
-Usage::
-
-    python tools/roadmap_evidence.py
-
-Exits non-zero and prints every inconsistency, so the check can run in CI and in
-an agent's local loop.
-"""
+"""Evidence registry for ``docs/ROADMAP.md`` completion claims."""
 from __future__ import annotations
 
 import ast
@@ -25,8 +12,6 @@ ROADMAP_PATH = REPOSITORY_ROOT / "docs" / "ROADMAP.md"
 
 @dataclass(frozen=True)
 class RoadmapEvidence:
-    """One roadmap item bound to verifiable repository evidence."""
-
     item: str
     modules: tuple[str, ...]
     symbols: tuple[str, ...]
@@ -34,49 +19,48 @@ class RoadmapEvidence:
 
 
 ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
-    # Phase 1 - local reference engine
-    RoadmapEvidence(item="manifest model", modules=("src/fs_overlay/storage_engine.py",), symbols=("Manifest",), tests=("tests/test_storage_primitives.py",)),
-    RoadmapEvidence(item="deterministic chunker", modules=("src/fs_overlay/storage_engine.py",), symbols=("DeterministicChunker",), tests=("tests/test_storage_primitives.py",)),
-    RoadmapEvidence(item="authenticated encryption interface", modules=("src/fs_overlay/storage_engine.py",), symbols=("AuthenticatedEncryption", "HMACIntegrityEnvelope"), tests=("tests/test_storage_primitives.py", "tests/test_storage_crypto_boundary.py")),
-    RoadmapEvidence(item="erasure-coding interface", modules=("src/fs_overlay/storage_engine.py",), symbols=("ErasureCoder",), tests=("tests/test_storage_primitives.py",)),
-    RoadmapEvidence(item="carrier adapter interface", modules=("src/fs_overlay/carrier.py",), symbols=("CarrierAdapter", "LocalDirectoryCarrier"), tests=("tests/test_carrier.py",)),
-    RoadmapEvidence(item="atomic append protocol", modules=("src/fs_overlay/storage_engine.py",), symbols=("AppendJournal",), tests=("tests/test_append_journal_durability.py",)),
-    RoadmapEvidence(item="inventory database with redundant recovery records", modules=("src/fs_overlay/storage_engine.py",), symbols=("Inventory",), tests=("tests/test_storage_primitives.py",)),
-    RoadmapEvidence(item="content-addressed object store", modules=("src/fs_overlay/storage_engine.py",), symbols=("ContentAddressedStore",), tests=("tests/test_storage_engine.py",)),
-    RoadmapEvidence(item="Merkle DAG implementation", modules=("src/fs_overlay/storage_engine.py",), symbols=("MerkleDAG",), tests=("tests/test_storage_primitives.py",)),
-    RoadmapEvidence(item="event log", modules=("src/fs_overlay/event_log.py",), symbols=("EventLog",), tests=("tests/test_event_log_recovery.py",)),
-    RoadmapEvidence(item="audit command", modules=("src/fs_overlay/storage_engine.py", "src/fs_overlay/cli.py"), symbols=("LocalStorageEngine", "main"), tests=("tests/test_cli.py", "tests/test_storage_integrity.py")),
-    RoadmapEvidence(item="recovery command", modules=("src/fs_overlay/storage_engine.py", "src/fs_overlay/cli.py"), symbols=("LocalStorageEngine", "main"), tests=("tests/test_cli.py", "tests/test_storage_transaction_recovery.py")),
-    RoadmapEvidence(item="transaction engine implementation", modules=("src/fs_overlay/storage_engine.py",), symbols=("StorageTransaction",), tests=("tests/test_storage_transaction_recovery.py", "tests/test_storage_transaction_commit_failure.py")),
-    RoadmapEvidence(item="state/reconciliation engine implementation", modules=("src/fs_overlay/state_primitives.py", "src/fs_overlay/federation_control.py"), symbols=("reconcile", "ControlLoopResult", "safe_stop", "FederationReconciler", "ReconciliationDecision"), tests=("tests/test_state_primitives.py", "tests/test_federation_control.py")),
-    RoadmapEvidence(item="resource ownership/lease primitives", modules=("src/fs_overlay/state_primitives.py", "src/fs_overlay/resource_control.py"), symbols=("Lease", "ResourceLease"), tests=("tests/test_state_primitives.py", "tests/test_resource_control.py")),
-    RoadmapEvidence(item="causal event metadata", modules=("src/fs_overlay/event_log.py",), symbols=("EventLog",), tests=("tests/test_event_log_recovery.py",)),
-    RoadmapEvidence(item="universal object contract implementation", modules=("src/fs_overlay/state_primitives.py",), symbols=("ObjectContract",), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="provenance records", modules=("src/fs_overlay/state_primitives.py",), symbols=("ProvenanceRecord",), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="dependency graph primitives", modules=("src/fs_overlay/state_primitives.py",), symbols=("DependencyGraph", "Dependency"), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="knowledge record primitives", modules=("src/fs_overlay/state_primitives.py",), symbols=("KnowledgeRecord",), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="decision record primitives", modules=("src/fs_overlay/state_primitives.py",), symbols=("DecisionRecord",), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="world-state snapshot primitives", modules=("src/fs_overlay/state_primitives.py",), symbols=("WorldStateSnapshot",), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="unified control-loop primitives", modules=("src/fs_overlay/state_primitives.py",), symbols=("ControlLoopResult", "safe_stop"), tests=("tests/test_state_primitives.py",)),
-    RoadmapEvidence(item="capability negotiation", modules=("src/fs_overlay/capability_negotiation.py",), symbols=("CapabilitySet", "NegotiatedCapabilities", "negotiate"), tests=("tests/test_capability_negotiation.py", "tests/test_capability_negotiation_extra.py")),
-    RoadmapEvidence(item="local node identity store", modules=("src/fs_overlay/node_identity_store.py",), symbols=("LocalNodeIdentityStore", "SCHEMA_VERSION"), tests=("tests/test_node_identity_store.py",)),
-    RoadmapEvidence(item="versioned backend contracts", modules=("src/fs_overlay/backend_contract.py",), symbols=("BackendContract", "BACKEND_CONTRACT_VERSION"), tests=("tests/test_backend_contract.py",)),
-    RoadmapEvidence(item="hardware abstraction adapter", modules=("src/fs_overlay/hardware_profile.py",), symbols=("HardwareCapabilityAdapter", "HardwareProfile"), tests=("tests/test_hardware_profile.py",)),
-    RoadmapEvidence(item="hardware capability fingerprint", modules=("src/fs_overlay/hardware_profile.py",), symbols=("hardware_capability_fingerprint",), tests=("tests/test_hardware_profile.py",)),
-    RoadmapEvidence(item="platform time adapter", modules=("src/fs_overlay/time_fabric.py",), symbols=("PlatformTimeAdapter",), tests=("tests/test_time_fabric.py",)),
-    RoadmapEvidence(item="monotonic/logical time adapter", modules=("src/fs_overlay/time_fabric.py",), symbols=("LogicalClock",), tests=("tests/test_time_fabric.py",)),
-    # Phase 3 - managed workspaces
-    RoadmapEvidence(item="workspace registration", modules=("src/fs_overlay/workspace_registry.py",), symbols=("WorkspaceRegistry", "WorkspaceRecord"), tests=("tests/test_workspace_registry.py",)),
-    RoadmapEvidence(item="workspace health state", modules=("src/fs_overlay/workspace_registry.py", "src/fs_overlay/workspace_state.py"), symbols=("WorkspaceHealth", "workspace_health", "WorkspaceState"), tests=("tests/test_workspace_registry.py", "tests/test_workspace_state.py")),
-    RoadmapEvidence(item="migration/import workflow", modules=("src/fs_overlay/workspace_migration.py",), symbols=("plan_import", "plan_export", "plan_registered_migration"), tests=("tests/test_workspace_migration.py",)),
-    RoadmapEvidence(item="workspace snapshots", modules=("src/fs_overlay/storage_resilience.py",), symbols=("Snapshot", "SnapshotStore"), tests=("tests/test_snapshot_provenance.py",)),
-    RoadmapEvidence(item="transactional rollback", modules=("src/fs_overlay/storage_engine.py",), symbols=("StorageTransaction",), tests=("tests/test_storage_transaction_recovery.py",)),
-    # Phase 5 - resilience
-    RoadmapEvidence(item="self-healing", modules=("src/fs_overlay/self_healing.py",), symbols=("SelfHealingPlanner", "ReplicaObservation"), tests=("tests/test_self_healing.py",)),
-    RoadmapEvidence(item="carrier quarantine", modules=("src/fs_overlay/storage_resilience.py",), symbols=("QuarantineLedger", "QuarantineRecord"), tests=("tests/test_storage_resilience.py", "tests/test_quarantine_ledger_json_boundary.py")),
-    RoadmapEvidence(item="recovery graph", modules=("src/fs_overlay/storage_resilience.py",), symbols=("RecoveryGraph", "RecoveryNode"), tests=("tests/test_storage_resilience.py",)),
-    RoadmapEvidence(item="deterministic recovery planner", modules=("src/fs_overlay/storage_resilience.py",), symbols=("PlacementPlanner", "recovery_state"), tests=("tests/test_storage_resilience.py",)),
-    RoadmapEvidence(item="transactional recovery journal", modules=("src/fs_overlay/storage_engine.py",), symbols=("AppendJournal", "StorageTransaction"), tests=("tests/test_storage_transaction_recovery.py", "tests/test_append_journal_durability.py")),
+    RoadmapEvidence("manifest model", ("src/fs_overlay/storage_engine.py",), ("Manifest",), ("tests/test_storage_primitives.py",)),
+    RoadmapEvidence("deterministic chunker", ("src/fs_overlay/storage_engine.py",), ("DeterministicChunker",), ("tests/test_storage_primitives.py",)),
+    RoadmapEvidence("authenticated encryption interface", ("src/fs_overlay/storage_engine.py",), ("AuthenticatedEncryption", "HMACIntegrityEnvelope"), ("tests/test_storage_primitives.py", "tests/test_storage_crypto_boundary.py")),
+    RoadmapEvidence("erasure-coding interface", ("src/fs_overlay/storage_engine.py",), ("ErasureCoder",), ("tests/test_storage_primitives.py",)),
+    RoadmapEvidence("carrier adapter interface", ("src/fs_overlay/carrier.py",), ("CarrierAdapter", "LocalDirectoryCarrier"), ("tests/test_carrier.py",)),
+    RoadmapEvidence("atomic append protocol", ("src/fs_overlay/storage_engine.py",), ("AppendJournal",), ("tests/test_append_journal_durability.py",)),
+    RoadmapEvidence("inventory database with redundant recovery records", ("src/fs_overlay/storage_engine.py",), ("Inventory",), ("tests/test_storage_primitives.py",)),
+    RoadmapEvidence("content-addressed object store", ("src/fs_overlay/storage_engine.py",), ("ContentAddressedStore",), ("tests/test_storage_engine.py",)),
+    RoadmapEvidence("Merkle DAG implementation", ("src/fs_overlay/storage_engine.py",), ("MerkleDAG",), ("tests/test_storage_primitives.py",)),
+    RoadmapEvidence("event log", ("src/fs_overlay/event_log.py",), ("EventLog",), ("tests/test_event_log_recovery.py",)),
+    RoadmapEvidence("audit command", ("src/fs_overlay/storage_engine.py", "src/fs_overlay/cli.py"), ("LocalStorageEngine", "main"), ("tests/test_cli.py", "tests/test_storage_integrity.py")),
+    RoadmapEvidence("recovery command", ("src/fs_overlay/storage_engine.py", "src/fs_overlay/cli.py"), ("LocalStorageEngine", "main"), ("tests/test_cli.py", "tests/test_storage_transaction_recovery.py")),
+    RoadmapEvidence("transaction engine implementation", ("src/fs_overlay/storage_engine.py",), ("StorageTransaction",), ("tests/test_storage_transaction_recovery.py", "tests/test_storage_transaction_commit_failure.py")),
+    RoadmapEvidence("state/reconciliation engine implementation", ("src/fs_overlay/state_primitives.py", "src/fs_overlay/federation_control.py"), ("reconcile", "ControlLoopResult", "safe_stop", "FederationReconciler", "ReconciliationDecision"), ("tests/test_state_primitives.py", "tests/test_federation_control.py")),
+    RoadmapEvidence("resource ownership/lease primitives", ("src/fs_overlay/state_primitives.py", "src/fs_overlay/resource_control.py"), ("Lease", "ResourceLease"), ("tests/test_state_primitives.py", "tests/test_resource_control.py")),
+    RoadmapEvidence("causal event metadata", ("src/fs_overlay/event_log.py",), ("EventLog",), ("tests/test_event_log_recovery.py",)),
+    RoadmapEvidence("universal object contract implementation", ("src/fs_overlay/state_primitives.py",), ("ObjectContract",), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("provenance records", ("src/fs_overlay/state_primitives.py",), ("ProvenanceRecord",), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("dependency graph primitives", ("src/fs_overlay/state_primitives.py",), ("DependencyGraph", "Dependency"), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("knowledge record primitives", ("src/fs_overlay/state_primitives.py",), ("KnowledgeRecord",), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("decision record primitives", ("src/fs_overlay/state_primitives.py",), ("DecisionRecord",), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("world-state snapshot primitives", ("src/fs_overlay/state_primitives.py",), ("WorldStateSnapshot",), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("unified control-loop primitives", ("src/fs_overlay/state_primitives.py",), ("ControlLoopResult", "safe_stop"), ("tests/test_state_primitives.py",)),
+    RoadmapEvidence("capability negotiation", ("src/fs_overlay/capability_negotiation.py",), ("CapabilitySet", "NegotiatedCapabilities", "negotiate"), ("tests/test_capability_negotiation.py", "tests/test_capability_negotiation_extra.py")),
+    RoadmapEvidence("local node identity store", ("src/fs_overlay/node_identity_store.py",), ("LocalNodeIdentityStore", "SCHEMA_VERSION"), ("tests/test_node_identity_store.py",)),
+    RoadmapEvidence("versioned backend contracts", ("src/fs_overlay/backend_contract.py",), ("BackendContract", "BACKEND_CONTRACT_VERSION"), ("tests/test_backend_contract.py",)),
+    RoadmapEvidence("hardware abstraction adapter", ("src/fs_overlay/hardware_profile.py",), ("HardwareCapabilityAdapter", "HardwareProfile"), ("tests/test_hardware_profile.py",)),
+    RoadmapEvidence("hardware capability fingerprint", ("src/fs_overlay/hardware_profile.py",), ("hardware_capability_fingerprint",), ("tests/test_hardware_profile.py",)),
+    RoadmapEvidence("platform time adapter", ("src/fs_overlay/time_fabric.py",), ("PlatformTimeAdapter",), ("tests/test_time_fabric.py",)),
+    RoadmapEvidence("monotonic/logical time adapter", ("src/fs_overlay/time_fabric.py",), ("LogicalClock",), ("tests/test_time_fabric.py",)),
+    RoadmapEvidence("semantic ABI adapters", ("src/fs_overlay/semantic_abi.py",), ("SemanticABIAdapter",), ("tests/test_semantic_abi.py",)),
+    RoadmapEvidence("semantic verification adapters", ("src/fs_overlay/semantic_verification.py",), ("SemanticVerificationAdapter",), ("tests/test_semantic_verification.py",)),
+    RoadmapEvidence("workspace registration", ("src/fs_overlay/workspace_registry.py",), ("WorkspaceRegistry", "WorkspaceRecord"), ("tests/test_workspace_registry.py",)),
+    RoadmapEvidence("workspace health state", ("src/fs_overlay/workspace_registry.py", "src/fs_overlay/workspace_state.py"), ("WorkspaceHealth", "workspace_health", "WorkspaceState"), ("tests/test_workspace_registry.py", "tests/test_workspace_state.py")),
+    RoadmapEvidence("migration/import workflow", ("src/fs_overlay/workspace_migration.py",), ("plan_import", "plan_export", "plan_registered_migration"), ("tests/test_workspace_migration.py",)),
+    RoadmapEvidence("workspace snapshots", ("src/fs_overlay/storage_resilience.py",), ("Snapshot", "SnapshotStore"), ("tests/test_snapshot_provenance.py",)),
+    RoadmapEvidence("transactional rollback", ("src/fs_overlay/storage_engine.py",), ("StorageTransaction",), ("tests/test_storage_transaction_recovery.py",)),
+    RoadmapEvidence("self-healing", ("src/fs_overlay/self_healing.py",), ("SelfHealingPlanner", "ReplicaObservation"), ("tests/test_self_healing.py",)),
+    RoadmapEvidence("carrier quarantine", ("src/fs_overlay/storage_resilience.py",), ("QuarantineLedger", "QuarantineRecord"), ("tests/test_storage_resilience.py", "tests/test_quarantine_ledger_json_boundary.py")),
+    RoadmapEvidence("recovery graph", ("src/fs_overlay/storage_resilience.py",), ("RecoveryGraph", "RecoveryNode"), ("tests/test_storage_resilience.py",)),
+    RoadmapEvidence("deterministic recovery planner", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "recovery_state"), ("tests/test_storage_resilience.py",)),
+    RoadmapEvidence("transactional recovery journal", ("src/fs_overlay/storage_engine.py",), ("AppendJournal", "StorageTransaction"), ("tests/test_storage_transaction_recovery.py", "tests/test_append_journal_durability.py")),
 )
 
 
@@ -96,7 +80,6 @@ def _top_level_names(source: str) -> set[str]:
 
 
 def _roadmap_items(text: str) -> dict[str, bool]:
-    """Map roadmap item text to its checked state."""
     items: dict[str, bool] = {}
     for line in text.splitlines():
         stripped = line.strip()
@@ -109,8 +92,7 @@ def _roadmap_items(text: str) -> dict[str, bool]:
 
 def check() -> list[str]:
     problems: list[str] = []
-    roadmap_text = ROADMAP_PATH.read_text(encoding="utf-8")
-    roadmap_items = _roadmap_items(roadmap_text)
+    roadmap_items = _roadmap_items(ROADMAP_PATH.read_text(encoding="utf-8"))
     seen: set[str] = set()
     for entry in ROADMAP_EVIDENCE:
         if entry.item in seen:

@@ -129,8 +129,8 @@ implemented, but no verified evidence has been recorded for them yet.
 - [x] hardware capability fingerprint
 - [x] platform time adapter
 - [x] monotonic/logical time adapter
-- [ ] semantic ABI adapters
-- [ ] semantic verification adapters
+- [x] semantic ABI adapters
+- [x] semantic verification adapters
 - [x] FS-IR backend lowering
 - [ ] Genesis bootstrap executable
 - [x] local node identity store
