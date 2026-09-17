@@ -125,10 +125,10 @@ implemented, but no verified evidence has been recorded for them yet.
 - [ ] structured JSON logs
 - [x] conservative local capability discovery
 - [x] capability negotiation
-- [ ] hardware abstraction adapter
-- [ ] hardware capability fingerprint
-- [ ] platform time adapter
-- [ ] monotonic/logical time adapter
+- [x] hardware abstraction adapter
+- [x] hardware capability fingerprint
+- [x] platform time adapter
+- [x] monotonic/logical time adapter
 - [ ] semantic ABI adapters
 - [ ] semantic verification adapters
 - [x] FS-IR backend lowering
