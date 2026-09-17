@@ -8,6 +8,7 @@ import uuid
 
 import pytest
 
+import fs_overlay.ipc as ipc
 from fs_overlay.genesis_service import GenesisService
 from fs_overlay.identity import NodeIdentity
 from fs_overlay.ipc import UnixSocketServer, UnixSocketTransport
@@ -50,7 +51,10 @@ def test_unix_socket_round_trip_and_restricted_mode(tmp_path):
 
 
 @pytest.mark.skipif(not hasattr(socket, "AF_UNIX"), reason="Unix-domain sockets unavailable")
-def test_unix_socket_does_not_replace_regular_file(tmp_path):
+def test_unix_socket_does_not_replace_regular_file(tmp_path, monkeypatch):
+    # pytest's macOS temp root can itself consume most of sockaddr_un's path
+    # budget, so relax only the test seam to exercise the replacement guard.
+    monkeypatch.setattr(ipc, "_UNIX_SOCKET_PATH_LIMIT", 4096)
     path = tmp_path / "fs.sock"
     path.write_text("do not delete", encoding="utf-8")
     with pytest.raises(FileExistsError, match="not a socket"):
