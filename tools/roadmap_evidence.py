@@ -115,9 +115,9 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     ),
     RoadmapEvidence(
         item="state/reconciliation engine implementation",
-        modules=("src/fs_overlay/state_primitives.py",),
-        symbols=("reconcile", "ControlLoopResult", "safe_stop"),
-        tests=("tests/test_state_primitives.py",),
+        modules=("src/fs_overlay/state_primitives.py", "src/fs_overlay/federation_control.py"),
+        symbols=("reconcile", "ControlLoopResult", "safe_stop", "FederationReconciler", "ReconciliationDecision"),
+        tests=("tests/test_state_primitives.py", "tests/test_federation_control.py"),
     ),
     RoadmapEvidence(
         item="resource ownership/lease primitives",

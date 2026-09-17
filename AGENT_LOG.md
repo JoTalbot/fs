@@ -319,3 +319,35 @@ Learning:
 - [PATTERN] Generate SBOMs from an isolated environment containing the actual target package so build/SBOM tooling is not falsely represented as a runtime dependency.
 - [RULE] A release-provenance workflow is not complete until it has executed and its artifact digests, SBOM and attestation verification results have been observed.
 Next: Execute the release-provenance workflow through `workflow_dispatch` or a controlled `v*` tag event, inspect the resulting artifacts and attestations, and only then update the production release evidence.
+
+## 2026-09-17 | arena-01a0af2b-fs | baseline-restoration-and-primitive-qualification
+Base: 49e53b3efb144974438b9cce25fcaff7c2624ef6 (shallow clone, depth 1)
+Area: repository baseline, CLI, storage/state primitives, roadmap evidence, coordination substrate
+Goal: Restore an evidence-based baseline, repair real defects found by measurement, and make roadmap completion claims mechanically checkable.
+Research:
+- Re-read `AGENTS.md`, `AGENT_STATUS.md`, `AGENT_LOG.md`, `docs/ROADMAP.md`, `docs/ROADMAP_V1.md`, `docs/V1_RELEASE_GATE.md`, `pyproject.toml`, `.github/workflows/*`, and every module touched.
+- `docs/AUTONOMOUS-DEVELOPMENT-MASTER.md`, `docs/TASK-PROTOCOL.md`, `docs/M0.md`, `docs/PRODUCT-DECISIONS.md` and `agent/state/current.yml` did not exist; they were created as extensions of the existing `AGENTS.md` protocol, not replacements (PD-006).
+- Measured instead of assumed: `pkgutil.iter_modules` import census (85 modules, 1 unimportable) and `coverage.py --source=src` (85% -> 88%).
+- Skill discovery: local `fs-agent-core` applies; no external skill adopted.
+Changes:
+- `3776407` fixed `fs_overlay/policy.py` (unclosed parenthesis made the module unimportable while CI stayed green); made `CarrierPolicy` deny lists component-wise so `.ssh/id_rsa.log` is rejected; added `tests/test_policy.py` and `tests/test_package_import_surface.py`; made crash/restart child processes export `PYTHONPATH`.
+- `fc5910c` CLI `--admit` is now local configuration (`build_local_service(..., admitted=True)`) instead of an `admit` request that `GenesisService` rejects by design; malformed `--metadata` returns structured JSON with exit 2 instead of a traceback; added `tests/test_cli.py`.
+- `de29ee6` added `.gitignore` (the repository had none).
+- `a7e5b29` added `tests/test_state_primitives.py` (18 cases) and `tests/test_storage_primitives.py` (46 cases); added `tools/roadmap_evidence.py` + `tests/test_roadmap_evidence.py`; reconciled 33 roadmap items.
+- Added `agent/state/current.yml`, `docs/TASK-PROTOCOL.md`, `docs/AUTONOMOUS-DEVELOPMENT-MASTER.md`, `docs/M0.md`, `docs/PRODUCT-DECISIONS.md`, and the step record `docs/AGENT_STEP_2026-09-17_baseline-restoration-and-primitive-qualification.md`.
+Validation:
+- `.venv/bin/python -m pytest`: 842 passed, 3 skipped, 14 deselected (Python 3.11.2). On the untouched tree the same command produced 3 failures and 576 passes without an installed package.
+- `coverage report`: total 88%; `state_primitives.py` 63% -> 100%, `storage_engine.py` -> 94%, `cli.py` 21% -> 88%, `policy.py` -> 96%.
+- `tools/roadmap_evidence.py`: 33/33 verified. `tools/independent_conformance_consumer.py` and `tools/independent_admission_conformance.py`: PASS.
+- Observed CLI behaviour post-fix: `genesis ping` -> `ready: false`; `genesis ping --admit` -> `ready: true`, exit 0; malformed metadata -> structured stderr error, exit 2.
+- Not observed: 18-job CI matrix on this batch (PR required); release-provenance workflow (403).
+- Reproduced blocker: `gh workflow run release-provenance.yml --repo JoTalbot/fs --ref main` -> `HTTP 403 Resource not accessible by integration` on `/actions/workflows/360042142/dispatches`.
+Result: four implementation commits on `arena/01a0af2b-fs` plus the coordination batch; M1 complete, M0 nearly complete, M2 blocked on human-only evidence.
+Learning:
+- [FAILURE] A packaged module can be unimportable while the entire matrix is green; the import surface must itself be a tested contract.
+- [SECURITY] A deny list that can never match reads as protection while providing none; verify that safety branches are reachable.
+- [SECURITY] Admission must never be grantable over a request transport; a CLI flag that attempts it is a broken control surface.
+- [RULE] Roadmap checkboxes are claims; bind them to modules, symbols and tests and check them mechanically.
+- [TOOLING] Host interpreters may reject pip installs (PEP 668); use a venv with an editable install so local runs mirror CI.
+- [FAILURE] Tests that spawn interpreters must export `PYTHONPATH`, otherwise they pass in CI and fail in a source checkout.
+Next: Open a PR from `arena/01a0af2b-fs` to obtain real CI/OSV evidence for this batch; then M3-01 (weakest coverage modules) and evidence reconciliation for roadmap Phases 2 and 5. Do not retry the workflow dispatch from this integration.
