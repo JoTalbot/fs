@@ -9,3 +9,11 @@ def test_negotiation_intersects_features_deterministically() -> None:
 
 def test_negotiation_rejects_protocol_mismatch() -> None:
     assert negotiate(CapabilitySet(1, frozenset()), CapabilitySet(2, frozenset())) is None
+
+
+def test_negotiation_rejects_boolean_protocol_versions() -> None:
+    assert negotiate(CapabilitySet(True, frozenset()), CapabilitySet(True, frozenset())) is None
+
+
+def test_negotiation_rejects_empty_feature_names() -> None:
+    assert negotiate(CapabilitySet(1, frozenset({""})), CapabilitySet(1, frozenset({""}))) is None
