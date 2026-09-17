@@ -122,7 +122,7 @@ implemented, but no verified evidence has been recorded for them yet.
 - [ ] foreground runtime
 - [ ] native service installers where appropriate
 - [ ] local IPC control API
-- [ ] structured JSON logs
+- [x] structured JSON logs
 - [x] conservative local capability discovery
 - [x] capability negotiation
 - [x] hardware abstraction adapter
