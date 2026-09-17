@@ -76,7 +76,7 @@
 - [x] failure-domain aware placement
 - [x] power-loss recovery tests
 - [x] corruption/fuzz tests
-- [ ] workspace disaster recovery
+- [x] workspace disaster recovery
 - [x] transactional recovery journal
 - [x] deterministic recovery planner
 - [x] recovery graph
