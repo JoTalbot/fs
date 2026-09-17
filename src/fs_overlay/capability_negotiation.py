@@ -22,6 +22,7 @@ class NegotiatedCapabilities:
 def _valid_capability_set(value: CapabilitySet) -> bool:
     return (
         type(value.protocol_version) is int
+        and value.protocol_version >= 1
         and all(isinstance(feature, str) and feature for feature in value.features)
     )
 
