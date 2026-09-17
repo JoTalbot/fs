@@ -119,7 +119,7 @@ implemented, but no verified evidence has been recorded for them yet.
 - [ ] Windows adapter
 - [ ] macOS adapter
 - [ ] POSIX/BSD baseline adapter
-- [ ] foreground runtime
+- [x] foreground runtime
 - [ ] native service installers where appropriate
 - [x] local IPC control API
 - [x] structured JSON logs
