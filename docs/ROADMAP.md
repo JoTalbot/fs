@@ -191,7 +191,7 @@ implemented, but no verified evidence has been recorded for them yet.
 - [ ] metadata redundancy
 - [x] self-healing
 - [x] carrier quarantine
-- [ ] failure-domain aware placement
+- [x] failure-domain aware placement
 - [ ] power-loss recovery tests
 - [ ] corruption/fuzz tests
 - [ ] workspace disaster recovery
