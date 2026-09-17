@@ -66,6 +66,7 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     RoadmapEvidence("power-loss recovery tests", ("src/fs_overlay/storage_engine.py",), ("ContentAddressedStore", "AppendJournal", "StorageTransaction"), ("tests/test_storage_integrity.py", "tests/test_storage_transaction_commit_failure.py", "tests/test_append_journal_durability.py")),
     RoadmapEvidence("corruption/fuzz tests", ("src/fs_overlay/storage_engine.py",), ("Manifest", "AppendJournal", "JournalCorruption"), ("tests/test_storage_corruption_fuzz.py",)),
     RoadmapEvidence("metadata redundancy", ("src/fs_overlay/metadata_redundancy.py",), ("MetadataRedundancy", "MetadataReplica", "MetadataCorruption"), ("tests/test_metadata_redundancy.py",)),
+    RoadmapEvidence("Reed-Solomon implementation or audited dependency", ("src/fs_overlay/reed_solomon.py",), ("ReedSolomonCoder",), ("tests/test_reed_solomon.py",)),
     RoadmapEvidence("recovery graph", ("src/fs_overlay/storage_resilience.py",), ("RecoveryGraph", "RecoveryNode"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("deterministic recovery planner", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "recovery_state"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("transactional recovery journal", ("src/fs_overlay/storage_engine.py",), ("AppendJournal", "StorageTransaction"), ("tests/test_storage_transaction_recovery.py", "tests/test_append_journal_durability.py")),
