@@ -19,21 +19,22 @@ SCHEMA_VERSION = 1
 
 
 def _validate_identity(identity: NodeIdentity) -> None:
-    errors = identity.validate()
-    if errors:
-        raise ValueError("invalid node identity: " + "; ".join(errors))
+    if not isinstance(identity.node_id, str) or not identity.node_id:
+        raise ValueError("invalid node identity: node id must be a non-empty string")
+    if not isinstance(identity.public_key_fingerprint, str):
+        raise ValueError("invalid node identity: fingerprint must be a string")
+    if len(identity.public_key_fingerprint) != 64:
+        raise ValueError("invalid node identity: fingerprint must be SHA-256")
     try:
         int(identity.public_key_fingerprint, 16)
     except ValueError as exc:
         raise ValueError("invalid node identity: fingerprint is not hexadecimal") from exc
-    if len(identity.public_key_fingerprint) != 64:
-        raise ValueError("invalid node identity: fingerprint must be SHA-256")
-    if not isinstance(identity.protocol_version, str):
-        raise ValueError("invalid node identity: protocol version must be a string")
+    if not isinstance(identity.protocol_version, str) or not identity.protocol_version:
+        raise ValueError("invalid node identity: protocol version must be a non-empty string")
 
 
 class LocalNodeIdentityStore:
-    """Persist and recover a single local :class:`NodeIdentity` atomically."""
+    """Persist and recover a single :class:`NodeIdentity` atomically."""
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -63,7 +64,10 @@ class LocalNodeIdentityStore:
             )
         except (KeyError, TypeError) as exc:
             raise ValueError("invalid node identity store identity") from exc
-        _validate_identity(identity)
+        try:
+            _validate_identity(identity)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("invalid node identity store identity") from exc
         return identity
 
     def save(self, identity: NodeIdentity) -> None:
