@@ -62,6 +62,7 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     RoadmapEvidence("transactional rollback", ("src/fs_overlay/storage_engine.py",), ("StorageTransaction",), ("tests/test_storage_transaction_recovery.py",)),
     RoadmapEvidence("self-healing", ("src/fs_overlay/self_healing.py",), ("SelfHealingPlanner", "ReplicaObservation"), ("tests/test_self_healing.py",)),
     RoadmapEvidence("carrier quarantine", ("src/fs_overlay/storage_resilience.py",), ("QuarantineLedger", "QuarantineRecord"), ("tests/test_storage_resilience.py", "tests/test_quarantine_ledger_json_boundary.py")),
+    RoadmapEvidence("failure-domain aware placement", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "CarrierState"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("recovery graph", ("src/fs_overlay/storage_resilience.py",), ("RecoveryGraph", "RecoveryNode"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("deterministic recovery planner", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "recovery_state"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("transactional recovery journal", ("src/fs_overlay/storage_engine.py",), ("AppendJournal", "StorageTransaction"), ("tests/test_storage_transaction_recovery.py", "tests/test_append_journal_durability.py")),
