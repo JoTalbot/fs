@@ -4,9 +4,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import threading
 from pathlib import Path
 
+from .foreground_runtime import ForegroundRuntime
 from .genesis_runtime import build_local_service
 from .genesis_server import GenesisServer
 from .identity import NodeIdentity
@@ -90,15 +90,15 @@ def main(argv: list[str] | None = None) -> int:
 
     service = _make_service(args.node_id, admitted=args.admit)
     if args.operation == "serve":
-        server = GenesisServer(service, port=args.port)
-        host, port = server.start()
+        runtime = ForegroundRuntime(GenesisServer(service, port=args.port))
+        host, port = runtime.start()
         print(json.dumps({"ok": True, "operation": "serve", "host": host, "port": port}, sort_keys=True), flush=True)
         try:
-            threading.Event().wait()
+            runtime.wait()
         except KeyboardInterrupt:
             return 0
         finally:
-            server.stop()
+            runtime.stop()
         return 0
 
     return _print_response(service.handle({"operation": args.operation}))
