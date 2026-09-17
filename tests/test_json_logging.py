@@ -24,7 +24,7 @@ def test_json_formatter_emits_structured_fields_deterministically():
 def test_log_event_keeps_fields_out_of_message():
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
-    logger = configure_json_logging(logging.getLogger("fs_overlay.test"), handler=handler)
+    logger = configure_json_logging(logging.getLogger("fs_overlay.test.event"), handler=handler)
     try:
         log_event(logger, logging.INFO, "snapshot created", snapshot_id="s1", generation=3)
         payload = json.loads(stream.getvalue())
@@ -41,3 +41,20 @@ def test_formatter_rejects_non_mapping_fields():
 
     with pytest.raises(TypeError, match="fs_fields"):
         JsonLogFormatter().format(record)
+
+
+def test_json_logging_configuration_is_idempotent():
+    logger = logging.getLogger("fs_overlay.test.idempotent")
+    logger.handlers.clear()
+    first = io.StringIO()
+    second = io.StringIO()
+    configure_json_logging(logger, handler=logging.StreamHandler(first))
+    configure_json_logging(logger, handler=logging.StreamHandler(second))
+
+    try:
+        assert len(logger.handlers) == 1
+        log_event(logger, logging.INFO, "one event")
+        assert len(first.getvalue().splitlines()) == 1
+        assert second.getvalue() == ""
+    finally:
+        logger.handlers.clear()
