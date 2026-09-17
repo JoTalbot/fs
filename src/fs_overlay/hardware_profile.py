@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 import os
+from pathlib import Path
 import platform
 from typing import Mapping
 
@@ -39,7 +40,7 @@ class HardwareCapabilityAdapter:
         memory_bytes: int | None = None
         if platform.system().lower() == "linux":
             try:
-                for line in open("/proc/meminfo", encoding="utf-8"):
+                for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
                     if line.startswith("MemTotal:"):
                         memory_bytes = int(line.split()[1]) * 1024
                         break
