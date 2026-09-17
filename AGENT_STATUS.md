@@ -1,10 +1,10 @@
 # Agent Status
 
 ## Current state
-DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic adapter slice implemented)
+DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging adapter slice implemented)
 
 ## Current repository head
-`24c133e1738333d35634593adb0622c7c39f2b40` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`99cf62b0992a2acfee816f34cb7d81825c2d1f4e` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
@@ -22,16 +22,18 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - Added `PlatformTimeAdapter` for UTC wall time and monotonic nanoseconds plus a fail-closed `LogicalClock`.
 - Added `SemanticABIAdapter` bridging versioned backend contracts and negotiated semantic capabilities.
 - Added `SemanticVerificationAdapter` over the explicit evidence-based verification contract.
-- Reconciled Phase 2 roadmap evidence for hardware abstraction, hardware capability fingerprint, platform time, monotonic/logical time, semantic ABI adapters and semantic verification adapters.
+- Added an idempotent structured JSON logging adapter with deterministic event fields and qualification tests.
+- Reconciled roadmap evidence for the new Phase 2 capability/time/semantic/logging slices and the existing Genesis bootstrap CLI entry point.
 
 ## Observed CI evidence
-- CI #973 (`35231525552`) for `12340d0b697fc7ee60aa914269850e1871ffccc7`: success, 18/18 jobs across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider qualification and independent conformance/admission checks.
-- OSV Vulnerability Scan #9 (`35231525440`) for the same head: success.
+- CI #992 (`35235227069`) for `24c133e1738333d35634593adb0622c7c39f2b40`: success; all 18 listed Python/crypto/conformance jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
+- OSV Vulnerability Scan #28 (`35235226972`) for the same head: success.
+- CI #973 (`35231525552`) and OSV #9 (`35231525440`) for the preceding Capsicum qualification head: success.
 - CI #972 (`35231314069`) and OSV #8 (`35231314057`) for the preceding crypto qualification head: success.
-- Heads `75f444bb763886e6446e844e94ddd264180fc622` and `24c133e1738333d35634593adb0622c7c39f2b40` have been pushed to PR #17; the connected workflow-run endpoint currently exposes no run for these heads, so no new CI result is claimed.
+- Documentation/evidence-only heads may not expose PR workflow runs through the connected endpoint; no unobserved run is claimed.
 
 ## Validation boundaries
-The new capability, time, semantic ABI and semantic verification layers are repository-level semantic contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
+The capability, time, semantic ABI, semantic verification and JSON logging layers are repository-level contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
 
 ## Release provenance status
 `.github/workflows/release-provenance.yml` remains implemented but has no observed execution. Dispatch from the connected integration previously returned `HTTP 403 Resource not accessible by integration`; issues #15 and #16 track the blocker. Do not retry that dispatch from this integration.
@@ -49,4 +51,4 @@ Ordinary CI, candidate provider tests, and implementation presence do not substi
 - `AGENT_LOG.md` remains append-only durable coordination history.
 
 ## Next action
-Inspect the current CI/OSV state when exposed, then continue the Phase 2/Phase 5 contract-gap audit. Prefer existing semantic foundations and working vertical slices over speculative abstraction layers.
+Continue the Phase 2/Phase 5 contract-gap audit. Prefer existing semantic foundations and working vertical slices over speculative abstraction layers; only mark roadmap items checked when implementation and tests provide direct evidence.
