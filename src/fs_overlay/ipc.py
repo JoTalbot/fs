@@ -7,6 +7,7 @@ loopback server; IPC does not grant authority by itself.
 from __future__ import annotations
 
 import os
+import platform
 import socket
 import stat
 import threading
@@ -15,6 +16,10 @@ from typing import Any
 
 from .genesis_service import GenesisService
 from .transport import recv_message, send_message
+
+
+# sockaddr_un.sun_path is 104 bytes on Darwin/BSD and 108 on Linux.
+_UNIX_SOCKET_PATH_LIMIT = 104 if platform.system() in {"Darwin", "FreeBSD", "OpenBSD", "NetBSD"} else 108
 
 
 class UnixSocketServer:
@@ -26,7 +31,7 @@ class UnixSocketServer:
         socket_path = Path(path)
         if not socket_path.is_absolute():
             raise ValueError("Unix socket path must be absolute")
-        if len(str(socket_path).encode()) >= 108:
+        if len(os.fsencode(str(socket_path))) >= _UNIX_SOCKET_PATH_LIMIT:
             raise ValueError("Unix socket path is too long")
         self.service = service
         self.path = socket_path
@@ -129,6 +134,8 @@ class UnixSocketTransport:
         socket_path = Path(path)
         if not socket_path.is_absolute():
             raise ValueError("Unix socket path must be absolute")
+        if len(os.fsencode(str(socket_path))) >= _UNIX_SOCKET_PATH_LIMIT:
+            raise ValueError("Unix socket path is too long")
         self.path = socket_path
 
     def request(self, message: dict[str, Any], timeout: float = 5.0) -> dict[str, Any]:
