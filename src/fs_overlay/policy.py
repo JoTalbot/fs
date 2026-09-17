@@ -18,6 +18,7 @@ class CarrierPolicy:
     max_file_size: int = 1 << 30
     allowed_suffixes: frozenset[str] = field(
         default_factory=lambda: frozenset({".ini", ".conf", ".cfg", ".log", ".dat", ".bin", ".cache"})
+    )
     denied_names: frozenset[str] = field(
         default_factory=lambda: frozenset({".git", ".ssh", "id_rsa", "authorized_keys"})
     )
@@ -33,7 +34,7 @@ class CarrierPolicy:
             resolved = path.resolve(strict=True)
         except OSError:
             return False
-        if not resolved.is_file() or resolved.name in self.denied_names:
+        if not resolved.is_file() or self._is_denied(resolved):
             return False
         if resolved.suffix.lower() not in self.allowed_suffixes:
             return False
@@ -44,6 +45,17 @@ class CarrierPolicy:
         if not self.min_file_size <= size <= self.max_file_size:
             return False
         return any(self._under_root(resolved, root) for root in self.roots)
+
+    def _is_denied(self, path: Path) -> bool:
+        """Reject a path when any component of it is denied.
+
+        Comparing only ``path.name`` makes the deny list unreachable, because a
+        name such as ``id_rsa`` or ``.ssh`` carries no suffix and therefore can
+        never satisfy ``allowed_suffixes``. Checking every component keeps
+        sensitive material fail-closed even when it is renamed with an allowed
+        suffix, for example ``.ssh/id_rsa.log``.
+        """
+        return any(component in self.denied_names for component in path.parts)
 
     @staticmethod
     def _under_root(path: Path, root: Path) -> bool:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -56,25 +57,49 @@ os._exit(19)
 """
 
 
+# The child processes must be able to import ``fs_overlay`` whether or not the
+# distribution is installed into the interpreter that runs pytest. Without this
+# the crash/restart qualification silently depends on an installed package while
+# the parent process is served by ``pythonpath = ["src"]``.
+_SRC_PATH = str(Path(__file__).resolve().parents[1] / "src")
+_EXISTING_PYTHONPATH = os.environ.get("PYTHONPATH")
+_CHILD_ENV = {
+    **os.environ,
+    "PYTHONPATH": os.pathsep.join(
+        part for part in (_SRC_PATH, _EXISTING_PYTHONPATH) if part
+    ),
+}
+
+
+def _run_child(script: str, root: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-c", script, str(root)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=_CHILD_ENV,
+    )
+
+
 def test_incomplete_transaction_is_not_published_after_process_crash(tmp_path: Path) -> None:
-    result = subprocess.run([sys.executable, "-c", _CHILD_CRASH_SCRIPT, str(tmp_path)], check=False)
-    assert result.returncode == 17
+    result = _run_child(_CHILD_CRASH_SCRIPT, tmp_path)
+    assert result.returncode == 17, result.stderr
     recovered = LocalStorageEngine(tmp_path, chunk_size=4)
     assert recovered.inventory.records == {}
     assert recovered.audit() == {"ok": True, "objects_checked": 0, "corrupt_objects": []}
 
 
 def test_partial_multi_object_transaction_is_not_published_after_crash(tmp_path: Path) -> None:
-    result = subprocess.run([sys.executable, "-c", _CHILD_PARTIAL_MULTI_OBJECT_CRASH_SCRIPT, str(tmp_path)], check=False)
-    assert result.returncode == 21
+    result = _run_child(_CHILD_PARTIAL_MULTI_OBJECT_CRASH_SCRIPT, tmp_path)
+    assert result.returncode == 21, result.stderr
     recovered = LocalStorageEngine(tmp_path, chunk_size=4)
     assert recovered.inventory.records == {}
     assert recovered.audit() == {"ok": True, "objects_checked": 0, "corrupt_objects": []}
 
 
 def test_committed_transaction_is_recovered_after_process_crash_before_memory_publish(tmp_path: Path) -> None:
-    result = subprocess.run([sys.executable, "-c", _CHILD_POST_COMMIT_CRASH_SCRIPT, str(tmp_path)], check=False)
-    assert result.returncode == 19
+    result = _run_child(_CHILD_POST_COMMIT_CRASH_SCRIPT, tmp_path)
+    assert result.returncode == 19, result.stderr
     recovered = LocalStorageEngine(tmp_path, chunk_size=4)
     assert len(recovered.inventory.records) == 1
     manifest = next(iter(recovered.inventory.records.values()))
