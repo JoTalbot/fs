@@ -44,6 +44,18 @@ verification:
     osv_scan:
       run_id: "35219752654"
       conclusion: success
+    documentation_head:
+      head_commit: 707c0892791976abf06cc4896c820772b90e81a9
+      ordinary_ci:
+        run_id: "35221062062"
+        conclusion: success
+        jobs: "18/18"
+      osv_scan:
+        run_id: "35221062041"
+        conclusion: success
+      note: >-
+        Docs/state-only head; the commit that records this evidence is itself
+        docs-only, so no further CI run is required by the release gate.
   gates:
     - ".venv/bin/python tools/roadmap_evidence.py"
     - ".venv/bin/python tools/independent_conformance_consumer.py"

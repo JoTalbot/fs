@@ -28,6 +28,9 @@ DEVELOPING (M0 and M1 complete; M2 release gate blocked on human-only evidence; 
 - Ordinary CI run `35219752637`: **success, 18/18 jobs** (ubuntu/windows/macos x
   Python 3.11/3.12/3.13, tests and crypto-provider qualification).
 - OSV Vulnerability Scan run `35219752654`: **success**.
+- Documentation head `707c0892791976abf06cc4896c820772b90e81a9` (the commit that
+  recorded the evidence above) re-validated: CI run `35221062062` **success,
+  18/18 jobs**, OSV run `35221062041` **success**.
 
 ## Validation actually performed (local, Python 3.11.2)
 - `python -m pytest`: 842 passed, 3 skipped, 14 deselected (`crypto_provider`
