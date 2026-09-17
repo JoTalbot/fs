@@ -1,5 +1,17 @@
 # FS Roadmap
 
+## Completion evidence rule
+
+A checked item is a claim that the capability exists in the repository and is
+exercised by tests. Every claim reconciled against implementation evidence is
+registered in `tools/roadmap_evidence.py`, which binds the roadmap line to the
+defining modules, the top-level symbols that constitute it, and the test files
+that reference those symbols. `python tools/roadmap_evidence.py` (also executed
+by `tests/test_roadmap_evidence.py`) fails when a claim loses its evidence.
+
+Items without a registry entry are not yet reconciled: they may be partially
+implemented, but no verified evidence has been recorded for them yet.
+
 ## Phase 0 - foundation
 
 - [x] architecture
@@ -65,29 +77,29 @@
 
 ## Phase 1 - local reference engine
 
-- [ ] manifest model
-- [ ] deterministic chunker
-- [ ] authenticated encryption interface
-- [ ] erasure-coding interface
-- [ ] carrier adapter interface
-- [ ] atomic append protocol
-- [ ] inventory database with redundant recovery records
-- [ ] content-addressed object store
-- [ ] Merkle DAG implementation
-- [ ] event log
-- [ ] audit command
-- [ ] recovery command
-- [ ] transaction engine implementation
-- [ ] state/reconciliation engine implementation
-- [ ] resource ownership/lease primitives
-- [ ] causal event metadata
-- [ ] universal object contract implementation
-- [ ] provenance records
-- [ ] dependency graph primitives
-- [ ] knowledge record primitives
-- [ ] decision record primitives
-- [ ] world-state snapshot primitives
-- [ ] unified control-loop primitives
+- [x] manifest model
+- [x] deterministic chunker
+- [x] authenticated encryption interface
+- [x] erasure-coding interface
+- [x] carrier adapter interface
+- [x] atomic append protocol
+- [x] inventory database with redundant recovery records
+- [x] content-addressed object store
+- [x] Merkle DAG implementation
+- [x] event log
+- [x] audit command
+- [x] recovery command
+- [x] transaction engine implementation
+- [x] state/reconciliation engine implementation
+- [x] resource ownership/lease primitives
+- [x] causal event metadata
+- [x] universal object contract implementation
+- [x] provenance records
+- [x] dependency graph primitives
+- [x] knowledge record primitives
+- [x] decision record primitives
+- [x] world-state snapshot primitives
+- [x] unified control-loop primitives
 - [x] computation/transition primitives
 - [x] Plan DAG representation
 - [x] universal state transition primitives
@@ -127,16 +139,16 @@
 
 ## Phase 3 - managed workspaces
 
-- [ ] workspace registration
-- [ ] workspace health state
-- [ ] migration/import workflow
+- [x] workspace registration
+- [x] workspace health state
+- [x] migration/import workflow
 - [ ] observed mode
 - [ ] managed mode
 - [ ] detach/export workflow
 - [ ] adaptive carrier placement
 - [ ] content-addressed workspace state
-- [ ] workspace snapshots
-- [ ] transactional rollback
+- [x] workspace snapshots
+- [x] transactional rollback
 - [ ] copy-on-write snapshots
 - [ ] environment branching
 - [ ] environment diff/merge
@@ -177,15 +189,15 @@
 
 - [ ] Reed-Solomon implementation or audited dependency
 - [ ] metadata redundancy
-- [ ] self-healing
-- [ ] carrier quarantine
+- [x] self-healing
+- [x] carrier quarantine
 - [ ] failure-domain aware placement
 - [ ] power-loss recovery tests
 - [ ] corruption/fuzz tests
 - [ ] workspace disaster recovery
-- [ ] transactional recovery journal
-- [ ] deterministic recovery planner
-- [ ] recovery graph
+- [x] transactional recovery journal
+- [x] deterministic recovery planner
+- [x] recovery graph
 - [ ] failure injection suite
 - [ ] reality snapshots
 - [ ] confidence-aware observations
