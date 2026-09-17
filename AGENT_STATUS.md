@@ -1,10 +1,10 @@
 # Agent Status
 
 ## Current state
-DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement and deterministic failure-injection evidence reconciled)
+DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement, deterministic failure injection, and deterministic corruption qualification reconciled)
 
 ## Current repository head
-`47af321708b97afc9187a7f7adf9d1d9d3a4a6e1` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`dd7759ed1809c2531c9ff4daade755481bbf5d07` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
@@ -27,16 +27,19 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - Added a reusable foreground lifecycle runtime and wired the Genesis CLI server through it.
 - Reconciled roadmap evidence for the new Phase 2 slices and for failure-domain-aware placement backed by `PlacementPlanner`/`CarrierState` tests.
 - Added a deterministic, opt-in `FailureInjector` with one-shot and bounded repeated failure semantics, invalid-input rejection, and dedicated qualification tests.
+- Added a bounded, deterministic storage corruption corpus covering manifest byte mutations, truncation, schema mutations, and complete journal-frame corruption versus incomplete EOF-tail handling.
 
 ## Observed CI evidence
 - CI #1015 (`35237261163`) for `7dfd28794eedf378d3d3060be8af0d63cb7c7f8c`: failed only in the three macOS Python test jobs because the regular-file IPC regression test used pytest's long macOS temporary path and hit the Unix socket path-length guard before reaching the intended assertion. Linux/Windows Python jobs and all six crypto-provider jobs passed; both independent conformance checks passed.
 - OSV Vulnerability Scan #51 (`35237261007`) for that head: success.
 - The IPC regression-test path issue is fixed in `8e8bb21746dd6abb859cd896aed342d875a29544` by isolating the path-length guard in the test seam.
-- Later heads are awaiting their corresponding PR workflow publication through the connected endpoint; no newer conclusion is recorded here unless observed.
 - CI #992 (`35235227069`) for `24c133e1738333d35634593adb0622c7c39f2b40`: success; all 18 listed Python/crypto/conformance jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
+- CI #1020 (`35237869617`) for `934be9967084f89b2c7ad3f7beb00f8829392211`: success; all 18 listed jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider and independent conformance jobs.
+- OSV #56 (`35237869653`) for that head: success.
+- No PR workflow runs are currently published for the newer head `dd7759ed1809c2531c9ff4daade755481bbf5d07` through the connected workflow endpoint, so no CI conclusion is recorded for the corruption corpus yet.
 
 ## Validation boundaries
-The capability, time, semantic ABI, semantic verification, JSON logging, IPC, foreground lifecycle, placement and failure-injection layers are repository-level contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
+The capability, time, semantic ABI, semantic verification, JSON logging, IPC, foreground lifecycle, placement, failure-injection and corruption-qualification layers are repository-level contracts. The corruption corpus is bounded deterministic mutation testing, not exhaustive fuzzing and not a substitute for long-running fuzz campaigns. CI evidence does not certify production hardware, isolation, cryptographic providers, physical power-loss behavior, or deployment security.
 
 ## Release provenance status
 `.github/workflows/release-provenance.yml` remains implemented but has no observed execution. Dispatch from the connected integration previously returned `HTTP 403 Resource not accessible by integration`; issues #15 and #16 track the blocker. Do not retry that dispatch from this integration.
@@ -54,4 +57,4 @@ Ordinary CI, candidate provider tests, and implementation presence do not substi
 - `AGENT_LOG.md` remains append-only durable coordination history.
 
 ## Next action
-Continue the Phase 5 contract-gap audit, prioritizing corruption/fuzz qualification and power-loss/recovery boundaries around existing durable storage primitives. Prefer deterministic, dependency-free tests and only mark roadmap items checked when implementation and tests provide direct evidence.
+Continue the Phase 5 contract-gap audit, prioritizing power-loss/recovery boundaries around existing durable storage primitives and then reviewing remaining resilience claims. Prefer deterministic, dependency-free tests and only mark roadmap items checked when implementation and tests provide direct evidence.
