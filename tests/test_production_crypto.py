@@ -84,10 +84,7 @@ def test_aes_gcm_requires_256_bit_key() -> None:
 
 @pytest.mark.parametrize(
     ("method", "args"),
-    [
-        ("encrypt", ("payload",)),
-        ("decrypt", ("ciphertext",)),
-    ],
+    [("encrypt", ("payload",)), ("decrypt", ("ciphertext",))],
 )
 def test_aes_gcm_rejects_non_bytes_payload(provider: CryptographyAESGCM, method: str, args: tuple[str]) -> None:
     with pytest.raises(TypeError, match="must be bytes"):
@@ -102,9 +99,13 @@ def test_aes_gcm_rejects_non_bytes_associated_data(provider: CryptographyAESGCM)
 
 
 @pytest.mark.parametrize("bad_nonce", [b"", b"short", b"n" * 13])
-def test_aes_gcm_rejects_invalid_nonce_source(
-    provider: CryptographyAESGCM, monkeypatch: pytest.MonkeyPatch, bad_nonce: bytes
-) -> None:
+def test_aes_gcm_rejects_invalid_nonce_source(provider: CryptographyAESGCM, monkeypatch: pytest.MonkeyPatch, bad_nonce: bytes) -> None:
     monkeypatch.setattr(production_crypto.os, "urandom", lambda size: bad_nonce)
     with pytest.raises(RuntimeError, match="invalid AES-GCM nonce"):
         provider.encrypt(b"payload")
+
+
+def test_aes_gcm_accepts_empty_payload_and_aad(provider: CryptographyAESGCM) -> None:
+    ciphertext = provider.encrypt(b"", associated_data=b"")
+    assert len(ciphertext) == provider.nonce_size + provider.tag_size
+    assert provider.decrypt(ciphertext, associated_data=b"") == b""
