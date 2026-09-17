@@ -69,7 +69,7 @@
 
 ## Phase 5 - resilience
 
-- [ ] Reed-Solomon implementation or audited dependency
+- [x] Reed-Solomon implementation or audited dependency
 - [x] metadata redundancy
 - [x] self-healing
 - [x] carrier quarantine
