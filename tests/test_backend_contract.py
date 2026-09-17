@@ -16,6 +16,11 @@ def test_contract_rejects_unknown_version():
     assert not LINUX_CGROUP_V2_CONTRACT.compatible_with(BACKEND_CONTRACT_VERSION + 1)
 
 
+def test_contract_rejects_boolean_version():
+    assert not LINUX_CGROUP_V2_CONTRACT.compatible_with(True)
+    assert not LINUX_CGROUP_V2_CONTRACT.compatible_with(False)
+
+
 def test_resource_contracts_advertise_only_verified_types():
     assert LINUX_CGROUP_V2_CONTRACT.resource_types == ("cpu_millis", "memory_bytes", "pids")
     assert WINDOWS_JOB_OBJECT_CONTRACT.resource_types == ("cpu_millis", "memory_bytes", "pids")
