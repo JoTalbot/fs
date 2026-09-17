@@ -1,6 +1,6 @@
-# FS Overlay Roadmap
+# Roadmap
 
-## Phase 1 - storage foundation
+## Phase 1 - storage and recovery foundations
 
 - [x] manifest model
 - [x] deterministic chunker
@@ -25,27 +25,15 @@
 - [x] decision record primitives
 - [x] world-state snapshot primitives
 - [x] unified control-loop primitives
-- [x] computation/transition primitives
-- [x] Plan DAG representation
-- [x] universal state transition primitives
-- [x] FS-IR schema and validation
-- [x] Genesis node primitives
-- [x] capability matching engine
-- [x] application session primitives
-- [x] presentation endpoint primitives
-- [x] localhost semantic transport
-- [x] node identity primitive
-- [x] bounded native process adapter
 
-## Phase 2 - cross-platform runtime
+## Phase 2 - execution and platform foundations
 
 - [x] Linux isolation backend planning
-- [ ] Linux adapter
-- [ ] Windows adapter
-- [ ] macOS adapter
+- [x] Windows Job Objects backend
+- [ ] macOS process/service backend
 - [ ] POSIX/BSD baseline adapter
 - [x] foreground runtime
-- [ ] native service installers where appropriate
+- [ ] native service installers
 - [x] local IPC control API
 - [x] structured JSON logs
 - [x] conservative local capability discovery
@@ -61,43 +49,12 @@
 - [x] local node identity store
 - [x] platform capability adapter baseline
 - [x] versioned backend contracts
+- [ ] Linux adapter
+- [ ] Windows adapter
+- [ ] macOS adapter
 
-## Phase 3 - managed workspaces
+## Phase 3 - execution semantics
 
-- [x] workspace registration
-- [x] workspace health state
-- [x] migration/import workflow
-- [ ] observed mode
-- [ ] managed mode
-- [ ] detach/export workflow
-- [ ] adaptive carrier placement
-- [ ] content-addressed workspace state
-- [x] workspace snapshots
-- [x] transactional rollback
-- [ ] copy-on-write snapshots
-- [ ] environment branching
-- [ ] environment diff/merge
-- [ ] historical/time-travel views
-- [ ] provenance-aware workspace history
-
-## Phase 4 - execution runtime
-
-- [x] declarative workload model
-- [ ] process supervisor
-- [ ] resource policy engine
-- [ ] restart/recovery policies
-- [ ] native process backend
-- [ ] Linux namespaces/cgroups backend
-- [ ] Windows Job Objects backend
-- [ ] macOS process/service backend
-- [ ] capability-based filesystem access
-- [ ] workload lifecycle API
-- [ ] resource reservations
-- [x] resource lease planning contract
-- [ ] resource leases
-- [ ] workload priorities
-- [ ] data-locality-aware placement
-- [ ] universal application manifest
 - [ ] universal execution API
 - [ ] application compatibility matrix
 - [ ] execution semantics adapter contract
@@ -118,7 +75,7 @@
 - [x] carrier quarantine
 - [x] failure-domain aware placement
 - [ ] power-loss recovery tests
-- [ ] corruption/fuzz tests
+- [x] corruption/fuzz tests
 - [ ] workspace disaster recovery
 - [x] transactional recovery journal
 - [x] deterministic recovery planner
