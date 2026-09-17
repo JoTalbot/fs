@@ -51,6 +51,7 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     RoadmapEvidence("monotonic/logical time adapter", ("src/fs_overlay/time_fabric.py",), ("LogicalClock",), ("tests/test_time_fabric.py",)),
     RoadmapEvidence("semantic ABI adapters", ("src/fs_overlay/semantic_abi.py",), ("SemanticABIAdapter",), ("tests/test_semantic_abi.py",)),
     RoadmapEvidence("semantic verification adapters", ("src/fs_overlay/semantic_verification.py",), ("SemanticVerificationAdapter",), ("tests/test_semantic_verification.py",)),
+    RoadmapEvidence("Genesis bootstrap executable", ("src/fs_overlay/cli.py",), ("main",), ("tests/test_cli.py",)),
     RoadmapEvidence("workspace registration", ("src/fs_overlay/workspace_registry.py",), ("WorkspaceRegistry", "WorkspaceRecord"), ("tests/test_workspace_registry.py",)),
     RoadmapEvidence("workspace health state", ("src/fs_overlay/workspace_registry.py", "src/fs_overlay/workspace_state.py"), ("WorkspaceHealth", "workspace_health", "WorkspaceState"), ("tests/test_workspace_registry.py", "tests/test_workspace_state.py")),
     RoadmapEvidence("migration/import workflow", ("src/fs_overlay/workspace_migration.py",), ("plan_import", "plan_export", "plan_registered_migration"), ("tests/test_workspace_migration.py",)),
