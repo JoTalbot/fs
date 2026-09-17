@@ -132,7 +132,7 @@ implemented, but no verified evidence has been recorded for them yet.
 - [x] semantic ABI adapters
 - [x] semantic verification adapters
 - [x] FS-IR backend lowering
-- [ ] Genesis bootstrap executable
+- [x] Genesis bootstrap executable
 - [x] local node identity store
 - [x] platform capability adapter baseline
 - [x] versioned backend contracts
