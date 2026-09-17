@@ -173,6 +173,25 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
         symbols=("ControlLoopResult", "safe_stop"),
         tests=("tests/test_state_primitives.py",),
     ),
+    # Phase 2 - cross-platform runtime
+    RoadmapEvidence(
+        item="capability negotiation",
+        modules=("src/fs_overlay/capability_negotiation.py",),
+        symbols=("CapabilitySet", "NegotiatedCapabilities", "negotiate"),
+        tests=("tests/test_capability_negotiation.py", "tests/test_capability_negotiation_extra.py"),
+    ),
+    RoadmapEvidence(
+        item="local node identity store",
+        modules=("src/fs_overlay/node_identity_store.py",),
+        symbols=("LocalNodeIdentityStore", "SCHEMA_VERSION"),
+        tests=("tests/test_node_identity_store.py",),
+    ),
+    RoadmapEvidence(
+        item="versioned backend contracts",
+        modules=("src/fs_overlay/backend_contract.py",),
+        symbols=("BackendContract", "BACKEND_CONTRACT_VERSION"),
+        tests=("tests/test_backend_contract.py",),
+    ),
     # Phase 3 - managed workspaces
     RoadmapEvidence(
         item="workspace registration",
