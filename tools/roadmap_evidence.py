@@ -54,6 +54,7 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     RoadmapEvidence("Genesis bootstrap executable", ("src/fs_overlay/cli.py",), ("main",), ("tests/test_cli.py",)),
     RoadmapEvidence("structured JSON logs", ("src/fs_overlay/json_logging.py",), ("JsonLogFormatter", "configure_json_logging", "log_event"), ("tests/test_json_logging.py",)),
     RoadmapEvidence("local IPC control API", ("src/fs_overlay/ipc.py",), ("UnixSocketServer", "UnixSocketTransport"), ("tests/test_ipc.py",)),
+    RoadmapEvidence("foreground runtime", ("src/fs_overlay/foreground_runtime.py",), ("ForegroundRuntime",), ("tests/test_foreground_runtime.py",)),
     RoadmapEvidence("workspace registration", ("src/fs_overlay/workspace_registry.py",), ("WorkspaceRegistry", "WorkspaceRecord"), ("tests/test_workspace_registry.py",)),
     RoadmapEvidence("workspace health state", ("src/fs_overlay/workspace_registry.py", "src/fs_overlay/workspace_state.py"), ("WorkspaceHealth", "workspace_health", "WorkspaceState"), ("tests/test_workspace_registry.py", "tests/test_workspace_state.py")),
     RoadmapEvidence("migration/import workflow", ("src/fs_overlay/workspace_migration.py",), ("plan_import", "plan_export", "plan_registered_migration"), ("tests/test_workspace_migration.py",)),
