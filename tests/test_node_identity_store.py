@@ -76,9 +76,30 @@ def test_identity_store_rejects_boolean_schema_version(tmp_path):
         LocalNodeIdentityStore(path).load()
 
 
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("node_id", []),
+        ("public_key_fingerprint", ["0"] * 64),
+        ("protocol_version", 1),
+    ],
+)
+def test_identity_store_rejects_wrong_identity_field_types(tmp_path, field, value):
+    identity = {
+        "node_id": "node-a",
+        "public_key_fingerprint": _identity().public_key_fingerprint,
+        "protocol_version": "1",
+    }
+    identity[field] = value
+    path = tmp_path / "identity.json"
+    path.write_text(json.dumps({"schema_version": 1, "identity": identity}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="identity"):
+        LocalNodeIdentityStore(path).load()
+
+
 def test_identity_store_rejects_invalid_identity_on_save(tmp_path):
-    identity = NodeIdentity("node-a", "x" * 64, "1")
-    identity = NodeIdentity(identity.node_id, "not-hex" + "0" * 57, identity.protocol_version)
+    identity = NodeIdentity("node-a", "not-hex" + "0" * 57, "1")
 
     with pytest.raises(ValueError, match="hexadecimal"):
         LocalNodeIdentityStore(tmp_path / "identity.json").save(identity)
