@@ -1,10 +1,10 @@
 # Agent Status
 
 ## Current state
-DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement, deterministic failure injection, deterministic corruption/power-loss-boundary qualification, metadata redundancy, and Reed-Solomon implementation qualification reconciled)
+DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement, deterministic failure injection, deterministic corruption/power-loss-boundary qualification, metadata redundancy, Reed-Solomon, and workspace disaster recovery qualification reconciled)
 
 ## Current repository head
-`9c0366147a979400dfbf3978908a763f2eeef61d` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`ddbf3e40bc482ae15e9fb594cc69d6fc52b9d83a` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
@@ -31,7 +31,9 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - Added simulated durability-boundary tests covering object publication failure, directory fsync failure, and transaction commit-marker failure, including restart/recovery assertions.
 - Added deterministic metadata redundancy primitives with canonical encoding, per-replica SHA-256 verification, replica mismatch detection, and schema validation.
 - Added a dependency-free systematic Reed-Solomon coder over GF(256), with deterministic encoding, recovery from arbitrary missing shards up to the parity budget, malformed-input rejection, and dedicated qualification tests.
-- Reconciled `docs/ROADMAP.md` and `tools/roadmap_evidence.py` so metadata redundancy and the Reed-Solomon implementation are explicitly evidence-bound rather than merely described.
+- Added an idempotent managed-store workspace disaster-recovery path that reconstructs snapshot manifests and chunks, verifies object identities and the Merkle commitment, and publishes recovered inventory through the normal storage commit path.
+- Added direct workspace disaster-recovery tests for successful reconstruction, tampered snapshots, corrupt source manifests, and repeat recovery.
+- Reconciled `docs/ROADMAP.md` and `tools/roadmap_evidence.py` so metadata redundancy, Reed-Solomon, and workspace disaster recovery are explicitly evidence-bound.
 
 ## Observed CI evidence
 - CI #1015 (`35237261163`) for `7dfd28794eedf378d3d3060be8af0d63cb7c7f8c`: failed only in the three macOS Python test jobs because the regular-file IPC regression test used pytest's long macOS temporary path and hit the Unix socket path-length guard before reaching the intended assertion. Linux/Windows Python jobs and all six crypto-provider jobs passed; both independent conformance checks passed.
@@ -40,13 +42,13 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - CI #992 (`35235227069`) for `24c133e1738333d35634593adb0622c7c39f2b40`: success; all 18 listed Python/crypto/conformance jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
 - CI #1020 (`35237869617`) for `934be9967084f89b2c7ad3f7beb00f8829392211`: success; all 18 listed jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider and independent conformance jobs.
 - OSV #56 (`35237869653`) for that head: success.
-- No PR workflow runs are currently published for the newer head `9c0366147a979400dfbf3978908a763f2eeef61d` through the connected workflow endpoint, so no CI conclusion is recorded for the new Reed-Solomon or metadata-roadmap reconciliation commits yet.
+- No PR workflow runs are currently published for the newer workspace-recovery head `ddbf3e40bc482ae15e9fb594cc69d6fc52b9d83a` through the connected workflow endpoint, so no CI conclusion is recorded for the new workspace disaster-recovery tests yet.
 
 ## Validation boundaries
-The capability, time, semantic ABI, semantic verification, JSON logging, IPC, foreground lifecycle, placement, failure-injection, corruption-qualification, simulated durability-boundary, metadata-redundancy and Reed-Solomon layers are repository-level contracts. The corruption corpus is bounded deterministic mutation testing, not exhaustive fuzzing and not a substitute for long-running fuzz campaigns. The power-loss item represents simulated filesystem durability-boundary failures, not physical power-loss testing or deployment certification. Metadata redundancy verifies replicated metadata values in a logical replica set; it does not claim independent physical failure domains or external replicated storage. The Reed-Solomon implementation is dependency-free and repository-qualified, but erasure coding alone does not provide authentication, independent failure domains, or production durability certification. CI evidence does not certify production hardware, isolation, cryptographic providers, physical power-loss behavior, or deployment security.
+The capability, time, semantic ABI, semantic verification, JSON logging, IPC, foreground lifecycle, placement, failure-injection, corruption-qualification, simulated durability-boundary, metadata-redundancy, Reed-Solomon and workspace disaster-recovery layers are repository-level contracts. The corruption corpus is bounded deterministic mutation testing, not exhaustive fuzzing and not a substitute for long-running fuzz campaigns. The power-loss item represents simulated filesystem durability-boundary failures, not physical power-loss testing or deployment certification. Metadata redundancy verifies replicated metadata values in a logical replica set; it does not claim independent physical failure domains or external replicated storage. The Reed-Solomon implementation is dependency-free and repository-qualified, but erasure coding alone does not provide authentication, independent failure domains, or production durability certification. Workspace disaster recovery is an idempotent logical-store reconstruction path; it does not yet materialize an arbitrary host workspace path and does not claim atomic multi-host failover or physical disaster testing. CI evidence does not certify production hardware, isolation, cryptographic providers, physical power-loss behavior, or deployment security.
 
 ## Workspace disaster recovery boundary
-Workspace migration remains plan-only. `workspace_migration.py` produces non-destructive export/import/migration intent and explicitly preserves the source; it does not yet materialize a crash-safe disaster-recovery restore. Therefore the Phase 5 `workspace disaster recovery` roadmap item remains unchecked.
+`workspace_migration.py` remains plan-only for host-path migration. `workspace_disaster_recovery.py` now provides an executable, idempotent reconstruction of a verified workspace snapshot into a managed `LocalStorageEngine` root. The implementation copies manifests and chunks, verifies content-addressed identities and the snapshot Merkle root, and publishes inventory through the normal durable storage path. Host filesystem materialization remains a separate authority-bearing operation.
 
 ## Release provenance status
 `.github/workflows/release-provenance.yml` remains implemented but has no observed execution. Dispatch from the connected integration previously returned `HTTP 403 Resource not accessible by integration`; issues #15 and #16 track the blocker. Do not retry that dispatch from this integration.
@@ -64,4 +66,4 @@ Ordinary CI, candidate provider tests, and implementation presence do not substi
 - `AGENT_LOG.md` remains append-only durable coordination history.
 
 ## Next action
-Continue the Phase 5 contract-gap audit, with workspace disaster recovery as the next concrete resilience gap. Do not mark it complete until there is an executable, crash-safe restore path with direct qualification tests; do not manufacture production or physical-failure evidence.
+Continue the Phase 5 contract-gap audit across the remaining resilience claims: reality snapshots, confidence-aware observations, provenance-aware recovery, dependency-aware recovery ordering, world-state recovery checkpoints, transition-level compensation, and plan-level recovery. Do not manufacture production or physical-failure evidence.
