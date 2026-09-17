@@ -74,7 +74,7 @@
 - [x] self-healing
 - [x] carrier quarantine
 - [x] failure-domain aware placement
-- [ ] power-loss recovery tests
+- [x] power-loss recovery tests
 - [x] corruption/fuzz tests
 - [ ] workspace disaster recovery
 - [x] transactional recovery journal
