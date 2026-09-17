@@ -1,15 +1,15 @@
 # Agent Status
 
 ## Current state
-DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging adapter slice implemented)
+DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic/logging/IPC/foreground slices implemented; Phase 5 failure-domain placement evidence reconciled)
 
 ## Current repository head
-`99cf62b0992a2acfee816f34cb7d81825c2d1f4e` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`81544e20e368bc406d180d0571ceaa202934ec26` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
 - branch: `arena/01a0af2b-fs` (pushed to `origin`)
-- base_commit: `49e53b3efb144974438b9cce25fcaff7c2624ef6`
+- base_commit: `49e53b3efb144974974438b9cce25fcaff7c2624ef6`
 - machine-readable task graph and resume point: `agent/state/current.yml`
 - task discipline: `docs/TASK-PROTOCOL.md`; loop: `docs/AUTONOMOUS-DEVELOPMENT-MASTER.md`
 
@@ -23,17 +23,19 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - Added `SemanticABIAdapter` bridging versioned backend contracts and negotiated semantic capabilities.
 - Added `SemanticVerificationAdapter` over the explicit evidence-based verification contract.
 - Added an idempotent structured JSON logging adapter with deterministic event fields and qualification tests.
-- Reconciled roadmap evidence for the new Phase 2 capability/time/semantic/logging slices and the existing Genesis bootstrap CLI entry point.
+- Added Unix-domain local IPC with restrictive socket permissions, safe path handling, and admission separation.
+- Added a reusable foreground lifecycle runtime and wired the Genesis CLI server through it.
+- Reconciled roadmap evidence for the new Phase 2 slices and for failure-domain-aware placement backed by `PlacementPlanner`/`CarrierState` tests.
 
 ## Observed CI evidence
+- CI #1015 (`35237261163`) for `7dfd28794eedf378d3d3060be8af0d63cb7c7f8c`: failed only in the three macOS Python test jobs because the regular-file IPC regression test used pytest's long macOS temporary path and hit the Unix socket path-length guard before reaching the intended assertion. Linux/Windows Python jobs and all six crypto-provider jobs passed; both independent conformance checks passed.
+- OSV Vulnerability Scan #51 (`35237261007`) for that head: success.
+- The IPC regression-test path issue is fixed in `8e8bb21746dd6abb859cd896aed342d875a29544` by isolating the path-length guard in the test seam.
+- The current evidence/roadmap head is `81544e20e368bc406d180d0571ceaa202934ec26`; its PR workflow has not yet appeared through the connected endpoint.
 - CI #992 (`35235227069`) for `24c133e1738333d35634593adb0622c7c39f2b40`: success; all 18 listed Python/crypto/conformance jobs passed across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13.
-- OSV Vulnerability Scan #28 (`35235226972`) for the same head: success.
-- CI #973 (`35231525552`) and OSV #9 (`35231525440`) for the preceding Capsicum qualification head: success.
-- CI #972 (`35231314069`) and OSV #8 (`35231314057`) for the preceding crypto qualification head: success.
-- Documentation/evidence-only heads may not expose PR workflow runs through the connected endpoint; no unobserved run is claimed.
 
 ## Validation boundaries
-The capability, time, semantic ABI, semantic verification and JSON logging layers are repository-level contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
+The capability, time, semantic ABI, semantic verification, JSON logging, IPC, foreground lifecycle and placement layers are repository-level contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
 
 ## Release provenance status
 `.github/workflows/release-provenance.yml` remains implemented but has no observed execution. Dispatch from the connected integration previously returned `HTTP 403 Resource not accessible by integration`; issues #15 and #16 track the blocker. Do not retry that dispatch from this integration.
