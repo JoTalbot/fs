@@ -49,3 +49,13 @@ def test_logical_clock_rejects_invalid_observed_value():
         assert "non-negative integer" in str(exc)
     else:
         raise AssertionError("invalid logical clock value was accepted")
+
+
+def test_logical_clock_rejects_boolean_observation():
+    clock = LogicalClock()
+    try:
+        clock.observe(True)
+    except ValueError as exc:
+        assert "non-negative integer" in str(exc)
+    else:
+        raise AssertionError("boolean logical clock value was accepted")
