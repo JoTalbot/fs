@@ -61,7 +61,7 @@ def test_identity_store_rejects_invalid_identity(tmp_path):
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="fingerprint"):
+    with pytest.raises(ValueError, match="invalid node identity store identity"):
         LocalNodeIdentityStore(path).load()
 
 
