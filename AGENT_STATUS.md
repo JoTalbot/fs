@@ -4,7 +4,7 @@
 DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-01 primitive qualification substantially complete; Phase 2 capability/time/semantic adapter slice implemented)
 
 ## Current repository head
-`75f444bb763886e6446e844e94ddd264180fc622` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
+`24c133e1738333d35634593adb0622c7c39f2b40` on `arena/01a0af2b-fs`; PR #17 targets `main` at `49e53b3efb144974438b9cce25fcaff7c2624ef6`.
 
 ## Active session
 - agent_id: `arena-01a0af2b-fs`
@@ -28,7 +28,7 @@ DEVELOPING (M0/M1 complete; M2 release gate blocked on human-only evidence; M3-0
 - CI #973 (`35231525552`) for `12340d0b697fc7ee60aa914269850e1871ffccc7`: success, 18/18 jobs across Ubuntu/Windows/macOS and Python 3.11/3.12/3.13, including candidate crypto-provider qualification and independent conformance/admission checks.
 - OSV Vulnerability Scan #9 (`35231525440`) for the same head: success.
 - CI #972 (`35231314069`) and OSV #8 (`35231314057`) for the preceding crypto qualification head: success.
-- New head `75f444bb763886e6446e844e94ddd264180fc622` has been pushed to PR #17; its checks are pending/not yet exposed by the connected workflow-run endpoint.
+- Heads `75f444bb763886e6446e844e94ddd264180fc622` and `24c133e1738333d35634593adb0622c7c39f2b40` have been pushed to PR #17; the connected workflow-run endpoint currently exposes no run for these heads, so no new CI result is claimed.
 
 ## Validation boundaries
 The new capability, time, semantic ABI and semantic verification layers are repository-level semantic contracts. CI evidence does not certify production hardware, isolation, cryptographic providers, or deployment security.
@@ -49,4 +49,4 @@ Ordinary CI, candidate provider tests, and implementation presence do not substi
 - `AGENT_LOG.md` remains append-only durable coordination history.
 
 ## Next action
-Wait for and inspect CI/OSV evidence for the current head, then continue the Phase 2/Phase 5 contract-gap audit. Prefer existing semantic foundations and working vertical slices over speculative abstraction layers.
+Inspect the current CI/OSV state when exposed, then continue the Phase 2/Phase 5 contract-gap audit. Prefer existing semantic foundations and working vertical slices over speculative abstraction layers.
