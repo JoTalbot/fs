@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import socket
+import stat
 import threading
 from pathlib import Path
 from typing import Any
@@ -42,9 +43,13 @@ class UnixSocketServer:
         if self._socket is not None:
             raise RuntimeError("server is already started")
         try:
-            self.path.unlink()
+            mode = self.path.lstat().st_mode
         except FileNotFoundError:
-            pass
+            mode = None
+        if mode is not None:
+            if not stat.S_ISSOCK(mode):
+                raise FileExistsError("IPC path exists and is not a socket")
+            self.path.unlink()
         listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             listener.bind(str(self.path))
@@ -54,8 +59,9 @@ class UnixSocketServer:
         except Exception:
             listener.close()
             try:
-                self.path.unlink()
-            except FileNotFoundError:
+                if self.path.is_socket():
+                    self.path.unlink()
+            except (FileNotFoundError, OSError):
                 pass
             raise
         self._socket = listener
@@ -73,8 +79,9 @@ class UnixSocketServer:
             self._thread.join(timeout=1.0)
             self._thread = None
         try:
-            self.path.unlink()
-        except FileNotFoundError:
+            if self.path.is_socket():
+                self.path.unlink()
+        except (FileNotFoundError, OSError):
             pass
 
     def _serve(self) -> None:
