@@ -20,7 +20,8 @@ class BackendContract:
     resource_types: tuple[str, ...] = ()
 
     def compatible_with(self, version: int = BACKEND_CONTRACT_VERSION) -> bool:
-        return self.version == version
+        """Accept only an actual integer protocol version, never bool coercion."""
+        return type(version) is int and self.version == version
 
 
 LINUX_BUBBLEWRAP_CONTRACT = BackendContract(
