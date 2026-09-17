@@ -1,0 +1,242 @@
+# Machine-readable agent state for JoTalbot/fs.
+#
+# This file is the resume point for autonomous development. It is a coordination
+# artifact, not authority: `AGENT_STATUS.md` remains the human-readable global
+# status required by AGENTS.md, and the repository itself remains the only
+# source of truth. Update both in the same commit whenever a batch lands.
+schema_version: 1
+
+updated_at: "2026-09-17"
+
+agent:
+  id: arena-01a0af2b-fs
+  environment: "arena.ai agent mode sandbox (Linux, Python 3.11.2, no host SSH)"
+  branch: arena/01a0af2b-fs
+  base_commit: 49e53b3efb144974438b9cce25fcaff7c2624ef6
+  github:
+    adapter: "gh CLI as arena-ai-coding-agent[bot]"
+    push_to_branch: verified
+    workflow_dispatch: "denied (HTTP 403 Resource not accessible by integration)"
+
+verification:
+  environment_setup:
+    - "python3 -m venv .venv"
+    - ".venv/bin/pip install -e '.[test,crypto]'"
+    - "system python rejects pip installs (PEP 668); use the venv"
+  command: ".venv/bin/python -m pytest"
+  last_local_result: "842 passed, 3 skipped, 14 deselected"
+  deselected_reason: "crypto_provider marker; executed as a separate CI job"
+  coverage:
+    tool: "coverage.py (--source=src)"
+    total: "88%"
+    notes:
+      - "state_primitives.py: 63% -> 100%"
+      - "storage_engine.py: -> 94%"
+      - "cli.py: 21% -> 88%"
+  ci_observed:
+    pull_request: 17
+    head_commit: 3ec5395c3d3ebde9abdecf5d1c1f963edc40274a
+    ordinary_ci:
+      run_id: "35219752637"
+      conclusion: success
+      jobs: "18/18"
+      matrix: "ubuntu/windows/macos x Python 3.11/3.12/3.13 (tests + crypto provider)"
+    osv_scan:
+      run_id: "35219752654"
+      conclusion: success
+    documentation_head:
+      head_commit: 707c0892791976abf06cc4896c820772b90e81a9
+      ordinary_ci:
+        run_id: "35221062062"
+        conclusion: success
+        jobs: "18/18"
+      osv_scan:
+        run_id: "35221062041"
+        conclusion: success
+      note: >-
+        Docs/state-only head; the commit that records this evidence is itself
+        docs-only, so no further CI run is required by the release gate.
+  gates:
+    - ".venv/bin/python tools/roadmap_evidence.py"
+    - ".venv/bin/python tools/independent_conformance_consumer.py"
+    - ".venv/bin/python tools/independent_admission_conformance.py"
+
+roadmap:
+  file: docs/ROADMAP.md
+  items_checked: 116
+  items_total: 353
+  evidence_registry: tools/roadmap_evidence.py
+  evidence_bound_items: 33
+  phases:
+    phase_0_foundation: "60/60"
+    phase_1_local_reference_engine: "34/34"
+    phase_2_cross_platform_runtime: "4/26"
+    phase_3_managed_workspaces: "5/20"
+    phase_4_execution_runtime: "2/29"
+    phase_5_resilience: "5/24"
+    phase_6_isolation_platform: "0/12"
+    phase_7_fs_control_plane: "2/43"
+    phase_8_federation_and_resource_mesh: "4/38"
+    phase_9_autonomous_optimization: "0/26"
+    phase_10_simulation_and_digital_twin: "0/27"
+    phase_11_production: "0/36"
+
+milestones:
+  - id: M0
+    name: "Green baseline, coordination substrate, evidence discipline"
+    definition: docs/M0.md
+    status: done
+  - id: M1
+    name: "Defect repair and primitive qualification"
+    status: done
+  - id: M2
+    name: "V1 release gate closure"
+    definition: docs/V1_RELEASE_GATE.md
+    status: blocked
+  - id: M3
+    name: "Coverage and phase-evidence expansion"
+    status: todo
+
+tasks:
+  - id: M0-01
+    title: "Analyse actual repository state instead of assumed state"
+    milestone: M0
+    status: done
+    evidence: "344 tracked files, 85 modules, 96 test files; last commit 49e53b3"
+  - id: M0-02
+    title: "Reproducible local verification environment"
+    milestone: M0
+    status: done
+    evidence: "venv + editable install; PEP 668 blocks system installs"
+  - id: M0-03
+    title: "Full local test-suite baseline"
+    milestone: M0
+    status: done
+    evidence: "842 passed, 3 skipped, 14 deselected"
+  - id: M0-04
+    title: "Task protocol and autonomous master loop documentation"
+    milestone: M0
+    status: done
+    evidence: "docs/TASK-PROTOCOL.md, docs/AUTONOMOUS-DEVELOPMENT-MASTER.md"
+  - id: M0-05
+    title: "Machine-readable resume point"
+    milestone: M0
+    status: done
+    evidence: "agent/state/current.yml"
+  - id: M0-06
+    title: "Reconcile roadmap claims against implementation evidence"
+    milestone: M0
+    status: done
+    evidence: "tools/roadmap_evidence.py: 33/33 entries verified"
+  - id: M0-07
+    title: "CI evidence for the session branch"
+    milestone: M0
+    status: done
+    evidence: >-
+      PR #17 head 3ec5395c3d3ebde9abdecf5d1c1f963edc40274a: CI run 35219752637
+      success with 18/18 jobs; OSV run 35219752654 success; PR state OPEN,
+      mergeable MERGEABLE
+  - id: M0-08
+    title: "Synchronise AGENT_STATUS.md and AGENT_LOG.md"
+    milestone: M0
+    status: done
+    evidence: "synchronised in the commit that records CI run 35219752637"
+
+  - id: M1-01
+    title: "Repair unimportable fs_overlay.policy and gate the import surface"
+    milestone: M1
+    status: done
+    commits: ["3776407"]
+    evidence: "tests/test_package_import_surface.py: 85 modules parse and import"
+  - id: M1-02
+    title: "Repair CLI admission path and argument error reporting"
+    milestone: M1
+    status: done
+    commits: ["fc5910c"]
+    evidence: "tests/test_cli.py: 12 cases; cli.py 21% -> 88%"
+  - id: M1-03
+    title: "Make crash/restart child processes independent of an installed package"
+    milestone: M1
+    status: done
+    commits: ["3776407"]
+    evidence: "3 previously failing tests pass in a src-layout checkout"
+  - id: M1-04
+    title: "Qualify semantic state primitives"
+    milestone: M1
+    status: done
+    commits: ["a7e5b29"]
+    evidence: "tests/test_state_primitives.py: 18 cases"
+  - id: M1-05
+    title: "Qualify local storage primitives"
+    milestone: M1
+    status: done
+    commits: ["a7e5b29"]
+    evidence: "tests/test_storage_primitives.py: 46 cases"
+
+  - id: M2-01
+    title: "Observed release-provenance execution with verified attestations"
+    milestone: M2
+    status: blocked
+    blocker: B-01
+    evidence: "gh workflow run -> HTTP 403 Resource not accessible by integration"
+  - id: M2-02
+    title: "Audited production AEAD provider"
+    milestone: M2
+    status: blocked
+    blocker: B-02
+  - id: M2-03
+    title: "Qualified secure key store and authenticated transport adapters"
+    milestone: M2
+    status: blocked
+    blocker: B-02
+
+  - id: M3-01
+    title: "Raise coverage of the weakest modules"
+    milestone: M3
+    status: todo
+    scope:
+      - "production_crypto.py 37%"
+      - "windows_job.py 41%"
+      - "freebsd_capsicum.py 53%"
+      - "workspace_boundary.py 56%"
+      - "presentation.py 67%"
+  - id: M3-02
+    title: "Evidence reconciliation for Phase 2 (cross-platform runtime)"
+    milestone: M3
+    status: todo
+  - id: M3-03
+    title: "Evidence reconciliation for Phase 5 (resilience)"
+    milestone: M3
+    status: todo
+
+blockers:
+  - id: B-01
+    type: human
+    summary: "release-provenance.yml cannot be dispatched from the connected GitHub integration"
+    detail: >-
+      `gh workflow run release-provenance.yml --repo JoTalbot/fs --ref main`
+      returned HTTP 403 "Resource not accessible by integration" against
+      /actions/workflows/360042142/dispatches. The gate needs a maintainer with
+      Actions write access, or a `v*` tag pushed by an identity that may trigger
+      workflows. Tracked by issues #15 and #16.
+  - id: B-02
+    type: human
+    summary: "Production security qualification requires external audit evidence"
+    detail: >-
+      An audited AEAD provider, a qualified secure key store and an
+      authenticated transport adapter cannot be produced by repository work
+      alone; they require external review and deployment qualification.
+
+resume_point:
+  next_task: M3-01
+  exact_next_action: >-
+    PR #17 carries green CI (run 35219752637, 18/18) and OSV (run 35219752654)
+    evidence and stays open for maintainer merge. Continue with M3-01: qualify
+    production_crypto.py (37%), windows_job.py (41%), freebsd_capsicum.py (53%)
+    and workspace_boundary.py (56%), then reconcile roadmap Phase 2 and Phase 5
+    claims through tools/roadmap_evidence.py.
+  do_not_repeat:
+    - "re-running the release-provenance dispatch from this integration (403 is deterministic)"
+    - "re-creating the coordination documents created in this session"
+    - "marking V1 release gate items closed without observed evidence"
+    - "re-requesting CI for head 3ec5395; it is already green"

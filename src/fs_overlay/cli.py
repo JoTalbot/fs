@@ -4,9 +4,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import threading
 from pathlib import Path
 
+from .foreground_runtime import ForegroundRuntime
 from .genesis_runtime import build_local_service
 from .genesis_server import GenesisServer
 from .identity import NodeIdentity
@@ -32,9 +32,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _make_service(node_id: str):
+def _make_service(node_id: str, *, admitted: bool = False):
+    """Assemble the local service.
+
+    Admission is a local process-configuration decision, never a transport
+    request. ``GenesisService`` deliberately refuses ``admit`` over the request
+    path, so this is the only place where admission may be granted.
+    """
     identity = NodeIdentity.from_public_key(node_id, node_id.encode("utf-8"))
-    return build_local_service(identity, None)
+    return build_local_service(identity, None, admitted=admitted)
 
 
 def _print_response(response) -> int:
@@ -63,7 +69,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "storage":
         engine = LocalStorageEngine(args.root)
         if args.operation == "snapshot":
-            metadata = _metadata(args.metadata)
+            try:
+                metadata = _metadata(args.metadata)
+            except ValueError as exc:
+                print(json.dumps({"ok": False, "operation": "snapshot", "error": str(exc)}, sort_keys=True), file=sys.stderr)
+                return 2
             snapshot = SnapshotStore(args.root / "snapshots").create(
                 engine.inventory.records.keys(), generation=args.generation,
                 metadata=metadata or None,
@@ -78,27 +88,17 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"operation": args.operation, **result}, sort_keys=True))
         return 0 if result.get("ok") else 1
 
-    service = _make_service(args.node_id)
+    service = _make_service(args.node_id, admitted=args.admit)
     if args.operation == "serve":
-        if args.admit:
-            admission = service.handle({"operation": "admit", "node_id": args.node_id})
-            if not admission.ok:
-                print(json.dumps({"ok": False, "error": admission.error}), file=sys.stderr)
-                return 1
-        server = GenesisServer(service, port=args.port)
-        host, port = server.start()
+        runtime = ForegroundRuntime(GenesisServer(service, port=args.port))
+        host, port = runtime.start()
         print(json.dumps({"ok": True, "operation": "serve", "host": host, "port": port}, sort_keys=True), flush=True)
         try:
-            threading.Event().wait()
+            runtime.wait()
         except KeyboardInterrupt:
             return 0
         finally:
-            server.stop()
+            runtime.stop()
         return 0
 
-    if args.admit:
-        admission = service.handle({"operation": "admit", "node_id": args.node_id})
-        if not admission.ok:
-            print(json.dumps({"ok": False, "error": admission.error}), file=sys.stderr)
-            return 1
     return _print_response(service.handle({"operation": args.operation}))

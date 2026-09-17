@@ -13,12 +13,30 @@ def lease():
     return ResourceLease("lease-1", "scope-1", "fs")
 
 
+def test_windows_backend_without_limits_is_planned_without_enforcement(monkeypatch):
+    backend = WindowsJobObjectBackend()
+    monkeypatch.setattr("fs_overlay.windows_job.os.name", "posix")
+    plan = backend.plan(lease(), ResourceBudget())
+    assert plan.settings == {}
+    assert plan.enforceable
+    assert not plan.available
+
+
 def test_windows_backend_is_fail_closed_off_windows(monkeypatch):
     backend = WindowsJobObjectBackend()
     monkeypatch.setattr("fs_overlay.windows_job.os.name", "posix")
     plan = backend.plan(lease(), ResourceBudget(memory_bytes=1024))
     assert not plan.enforceable
     assert "windows_required" in plan.reasons
+
+
+def test_windows_apply_is_fail_closed_off_windows(monkeypatch):
+    backend = WindowsJobObjectBackend()
+    monkeypatch.setattr("fs_overlay.windows_job.os.name", "posix")
+    result = backend.apply(123, lease(), ResourceBudget(memory_bytes=1024))
+    assert not result.applied
+    assert not result.verified
+    assert result.reasons == ("windows_required",)
 
 
 def test_windows_backend_requires_lease_on_windows(monkeypatch):
@@ -35,6 +53,23 @@ def test_windows_backend_rejects_invalid_lease_on_windows(monkeypatch):
     plan = backend.plan(ResourceLease("", "scope-1", "fs"), ResourceBudget(memory_bytes=1024))
     assert not plan.enforceable
     assert "lease_id is required" in plan.reasons
+
+
+@pytest.mark.parametrize(
+    ("budget", "reason"),
+    [
+        (ResourceBudget(cpu_millis=0), "cpu_millis_out_of_range"),
+        (ResourceBudget(cpu_millis=1001), "cpu_millis_out_of_range"),
+        (ResourceBudget(memory_bytes=0), "memory_bytes_must_be_positive"),
+        (ResourceBudget(pids=0), "pids_must_be_positive"),
+    ],
+)
+def test_windows_backend_rejects_invalid_budget_on_windows(monkeypatch, budget, reason):
+    backend = WindowsJobObjectBackend()
+    monkeypatch.setattr("fs_overlay.windows_job.os.name", "nt")
+    plan = backend.plan(lease(), budget)
+    assert not plan.enforceable
+    assert plan.reasons == (reason,)
 
 
 def test_windows_disk_limit_is_explicitly_unsupported_on_windows(monkeypatch):
@@ -66,3 +101,10 @@ def test_windows_job_object_native_kernel_round_trip():
     finally:
         backend.release(process.pid)
         process.wait(timeout=5)
+
+
+def test_windows_release_is_safe_without_kernel(monkeypatch):
+    backend = WindowsJobObjectBackend()
+    monkeypatch.setattr("fs_overlay.windows_job.os.name", "posix")
+    backend.release(None)
+    backend.release(123)

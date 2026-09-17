@@ -1,4 +1,4 @@
-"""Integrity qualification for content-addressed storage and manifests."""
+"""Integrity and simulated durability-failure qualification for storage."""
 from __future__ import annotations
 
 import json
@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import fs_overlay.storage_engine as storage_engine
 from fs_overlay.storage_engine import LocalStorageEngine, StorageTransaction
 
 
@@ -18,11 +19,7 @@ def test_corrupted_chunk_is_detected_on_read(tmp_path: Path) -> None:
 
     with pytest.raises(IOError, match="object integrity check failed"):
         engine.get(manifest.object_id)
-    assert engine.audit() == {
-        "ok": False,
-        "objects_checked": 1,
-        "corrupt_objects": [manifest.object_id],
-    }
+    assert engine.audit() == {"ok": False, "objects_checked": 1, "corrupt_objects": [manifest.object_id]}
 
 
 def test_tampered_manifest_is_rejected(tmp_path: Path) -> None:
@@ -31,9 +28,7 @@ def test_tampered_manifest_is_rejected(tmp_path: Path) -> None:
     manifest_path = engine.store.manifests / manifest.object_id
     raw = json.loads(manifest_path.read_text())
     raw["size"] += 1
-    manifest_path.write_text(
-        json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    )
+    manifest_path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
 
     with pytest.raises(ValueError, match="manifest identity verification failed"):
         engine.store.get_manifest(manifest.object_id)
@@ -45,9 +40,7 @@ def test_repeated_manifest_write_rejects_existing_corruption(tmp_path: Path) -> 
     manifest_path = engine.store.manifests / manifest.object_id
     raw = json.loads(manifest_path.read_text())
     raw["size"] += 1
-    manifest_path.write_text(
-        json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    )
+    manifest_path.write_text(json.dumps(raw, sort_keys=True, separators=(",", ":"), ensure_ascii=False))
 
     with pytest.raises(ValueError, match="manifest identity verification failed"):
         engine.store.put_manifest(manifest)
@@ -164,7 +157,6 @@ def test_rollback_leaves_no_published_inventory_record(tmp_path: Path) -> None:
 
 
 def test_failed_transaction_commit_marker_does_not_publish_after_restart(tmp_path: Path) -> None:
-    """Staged records remain unpublished when the durable commit marker is absent."""
     engine = LocalStorageEngine(tmp_path, chunk_size=4)
     tx = StorageTransaction(engine)
     first = tx.prepare(b"staged one")
@@ -182,7 +174,47 @@ def test_failed_transaction_commit_marker_does_not_publish_after_restart(tmp_pat
 
     assert first.object_id not in engine.inventory.records
     assert second.object_id not in engine.inventory.records
-
     restored = LocalStorageEngine(tmp_path, chunk_size=4)
     assert restored.inventory.records == {}
     assert restored.recover()["objects_after"] == 0
+
+
+def test_object_replace_failure_preserves_previous_committed_object(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    payload = b"durable object"
+    object_id = engine.store.put(payload)
+    target = engine.store._path(object_id)
+    original = target.read_bytes()
+
+    real_replace = storage_engine.os.replace
+
+    def fail_replace(source: str, destination: str) -> None:
+        if Path(destination) == target:
+            raise OSError("simulated crash during object publication")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(storage_engine.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="during object publication"):
+        engine.store.put(payload + b" changed")
+
+    assert target.read_bytes() == original
+    assert engine.store.get(object_id) == payload
+    assert not list(target.parent.glob(".tmp-*"))
+
+
+def test_manifest_directory_fsync_failure_does_not_report_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    engine = LocalStorageEngine(tmp_path, chunk_size=4)
+    manifest = engine._build_manifest(b"directory durability")
+
+    def fail_directory_sync(directory: str | Path) -> None:
+        raise OSError("simulated directory fsync failure")
+
+    monkeypatch.setattr(storage_engine, "_fsync_directory", fail_directory_sync)
+    with pytest.raises(OSError, match="directory fsync failure"):
+        engine.store.put_manifest(manifest)
+
+    path = engine.store.manifests / manifest.object_id
+    assert path.exists()
+    assert path.read_bytes() == manifest.to_bytes()
+    assert engine.store.get_manifest(manifest.object_id) == manifest
+    assert not list(engine.store.manifests.glob(".tmp-*"))

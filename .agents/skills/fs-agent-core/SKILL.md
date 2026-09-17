@@ -163,6 +163,29 @@ Do not collapse these stages merely to reduce code.
 
 For Linux isolation, a successful namespace probe proves only the namespace operation actually tested. It does not prove workspace binding, root filesystem replacement, cgroup enforcement, or network isolation unless those properties are independently evidenced.
 
+## Verified-surface discipline
+
+A green suite over an unknown surface is not a baseline. Before claiming progress:
+
+- Enumerate the shipped surface (`pkgutil.iter_modules`) and require every
+  packaged module to parse and import. A module nothing imports can still ship
+  broken; `tests/test_package_import_surface.py` is the gate.
+- Measure coverage (`coverage.py --source=src`) instead of assuming it, and use
+  the weakest modules as the next task queue.
+- Treat roadmap checkboxes as claims. A checked item must name the modules,
+  top-level symbols and test files that back it (`tools/roadmap_evidence.py`).
+  Do not check an item because a document mentions it.
+- Verify that safety branches are reachable. A deny list or guard that can never
+  match reads as protection while providing none; prove it fires with a test.
+- Control surfaces must not contradict the authority model. If a service refuses
+  an operation by design (for example admission over a request transport), no
+  CLI flag, adapter or tool may attempt to obtain it that way.
+- Tests that spawn interpreters must export `PYTHONPATH` (or use an installed
+  distribution explicitly); otherwise they pass in CI and fail in a source
+  checkout, or the reverse.
+- Local runs use a virtualenv with an editable install when the host interpreter
+  rejects installs (PEP 668), so local evidence matches CI.
+
 ## Safe implementation bias
 
 Prefer:

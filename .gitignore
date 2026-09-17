@@ -1,0 +1,27 @@
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Local tooling state
+.venv/
+venv/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Editors and OS noise
+.idea/
+.vscode/
+.DS_Store
+
+# Release evidence is produced by CI and must not be committed
+fs-sbom.cdx.json
+SHA256SUMS
