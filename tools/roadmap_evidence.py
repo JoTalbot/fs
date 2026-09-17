@@ -63,11 +63,12 @@ ROADMAP_EVIDENCE: tuple[RoadmapEvidence, ...] = (
     RoadmapEvidence("self-healing", ("src/fs_overlay/self_healing.py",), ("SelfHealingPlanner", "ReplicaObservation"), ("tests/test_self_healing.py",)),
     RoadmapEvidence("carrier quarantine", ("src/fs_overlay/storage_resilience.py",), ("QuarantineLedger", "QuarantineRecord"), ("tests/test_storage_resilience.py", "tests/test_quarantine_ledger_json_boundary.py")),
     RoadmapEvidence("failure-domain aware placement", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "CarrierState"), ("tests/test_storage_resilience.py",)),
+    RoadmapEvidence("power-loss recovery tests", ("src/fs_overlay/storage_engine.py",), ("ContentAddressedStore", "AppendJournal", "StorageTransaction"), ("tests/test_storage_integrity.py", "tests/test_storage_transaction_commit_failure.py", "tests/test_append_journal_durability.py")),
+    RoadmapEvidence("corruption/fuzz tests", ("src/fs_overlay/storage_engine.py",), ("Manifest", "AppendJournal", "JournalCorruption"), ("tests/test_storage_corruption_fuzz.py",)),
     RoadmapEvidence("recovery graph", ("src/fs_overlay/storage_resilience.py",), ("RecoveryGraph", "RecoveryNode"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("deterministic recovery planner", ("src/fs_overlay/storage_resilience.py",), ("PlacementPlanner", "recovery_state"), ("tests/test_storage_resilience.py",)),
     RoadmapEvidence("transactional recovery journal", ("src/fs_overlay/storage_engine.py",), ("AppendJournal", "StorageTransaction"), ("tests/test_storage_transaction_recovery.py", "tests/test_append_journal_durability.py")),
     RoadmapEvidence("failure injection suite", ("src/fs_overlay/failure_injection.py",), ("FailureInjector", "InjectedFailure"), ("tests/test_failure_injection.py",)),
-    RoadmapEvidence("corruption/fuzz tests", ("src/fs_overlay/storage_engine.py",), ("Manifest", "AppendJournal", "JournalCorruption"), ("tests/test_storage_corruption_fuzz.py",)),
 )
 
 
